@@ -1019,7 +1019,8 @@ export default function SetupContent(props) {
     </div>
    </div>
   );
-  const threePtCell = (
+  // A standalone HELOC keeps the first mortgage: no rate-drop test to run.
+  const threePtCell = loanType === "HELOC" ? null : (
    <div style={cell(false)}>
     <div style={overline}>3-Point Refi Test{tip("Shows the rate-drop, breakeven & payoff-acceleration test tab.")}</div>
     <PillSeg T={T} Icon={Icon} ariaLabel="3-Point Refi Test" value={showRefi3 === true ? "yes" : showRefi3 === false ? "no" : null}
@@ -1230,7 +1231,7 @@ export default function SetupContent(props) {
 
    {/* 3-Point Refi Test — the one refi-mode module toggle (doc 7.23). Lives
        here because the Modules card below is purchase-only. */}
-   {isRefi && (
+   {isRefi && loanType !== "HELOC" && (
     <div style={{ marginTop: 12, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px" }}>
       <div>
@@ -1270,7 +1271,7 @@ export default function SetupContent(props) {
  {isRefi && <Sec title="Your Current Loan" hero>
   {/* Live PDF preview toggle — floats the actual Refi Summary alongside the
       intake so the LO watches the deliverable build (Ops flyer pattern). */}
-  {isDesktop && !!setRefiPreviewOpen && (
+  {isDesktop && !!setRefiPreviewOpen && loanType !== "HELOC" && (
    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, marginBottom: -4 }}>
     <button type="button" onClick={() => setRefiPreviewOpen(v => !v)}
      style={{ padding: "6px 16px", borderRadius: 9999, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer",

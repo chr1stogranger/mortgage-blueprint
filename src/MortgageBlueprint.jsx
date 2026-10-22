@@ -25,6 +25,7 @@ import { readListingToken, listingScenarioPlans } from "./lib/listingPrefill.js"
 import { readPlanToken, planToPrefill, planScenarioName, planLanding, planClientLabel, planLicensed } from "./lib/planPrefill.js";
 import { readPlaceParams, placeToPrefill, placeScenarioName, placeNoteText, PLACE_PARAMS } from "./lib/placePrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
+import { evaluateAssetPrograms, summarizeAssetPrograms, repayPillar, computeDscr, computeHelocPayments, computePiggyback, computeStandaloneLine, DSCR_RULES, HELOC_RULES, AQ_MIN_FICO } from "./lib/nonQm.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
 import { quickIncomeMonthly, miModeFor, borrowCostSeries, refiNetSavingsSeries } from "./lib/compareMetrics.js";
@@ -153,8 +154,18 @@ const lookupZip = (zip) => { const e = ZIP_DATA[zip]; if (!e) return null; const
 // HUD 2024 Area Median Income by county/MSA for California DPA eligibility
 const COUNTY_AMI = {"Alameda":168500,"Contra Costa":168500,"Marin":168500,"San Francisco":168500,"San Mateo":168500,"Santa Clara":181300,"Napa":117400,"Solano":115300,"Sonoma":117200,"Los Angeles":98200,"Orange":98200,"Sacramento":106300,"El Dorado":106300,"Placer":106300,"Yolo":106300,"Riverside":84500,"San Bernardino":84500,"San Diego":106900,"Fresno":71800,"Kern":64400,"San Joaquin":84100,"Stanislaus":76100,"Santa Cruz":137400,"Monterey":97100,"Ventura":105300,"Santa Barbara":103000,"San Luis Obispo":103400,"Tulare":60500,"New York":114400,"Kings":114400,"Queens":114400,"Bronx":114400,"Richmond":114400,"Nassau":148600,"Suffolk":148600,"Westchester":114400,"Cook":98000,"DuPage":98000,"Lake":98000,"Will":98000,"Kane":98000,"Harris":89600,"Dallas":90000,"Tarrant":90000,"Collin":90000,"Denton":90000,"Travis":110300,"Maricopa":82800,"Pima":72000,"King":134600,"Snohomish":134600,"Pierce":96600,"Miami-Dade":68300,"Broward":68300,"Palm Beach":68300,"Hillsborough":75500,"Pinellas":75500,"Orange FL":72200,"Duval":81100,"Denver":108800,"Arapahoe":108800,"Jefferson":108800,"Adams":108800,"Douglas":108800,"Boulder":116300,"Suffolk MA":140200,"Middlesex":140200,"Norfolk MA":140200,"Essex MA":140200,"Philadelphia":89600,"Montgomery PA":89600,"Delaware PA":89600,"Bucks":89600,"Fulton":90700,"DeKalb":90700,"Gwinnett":90700,"Cobb":90700,"Wayne":73400,"Oakland MI":73400,"Macomb":73400,"Cuyahoga":70800,"Franklin OH":79200,"Hamilton OH":78800,"Fairfax":148600,"Arlington":148600,"Loudoun":148600,"Prince William":148600,"Montgomery MD":148600,"Prince Georges":148600,"Baltimore County":104300,"Howard":104300,"Mecklenburg":84700,"Wake":84700,"Durham":84700,"Hennepin":107800,"Ramsey":107800,"Dakota":107800,"Multnomah":95500,"Washington OR":95500,"Clackamas":95500,"Clark":75800,"Davidson":82900,"Shelby":67100,"Marion":73700,"Hamilton IN":73700,"St. Louis County":78200,"Jackson MO":78200,"Milwaukee":80400,"Dane":95700,"District of Columbia":148600};
 // Transfer-tax tiers + lookups live in data/transferTax.js.
-const MAX_DTI = { Conventional: 0.50, FHA: 0.57, Jumbo: 0.43, VA: 0.60, USDA: 0.50 };
-const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "USDA"];
+const MAX_DTI = { Conventional: 0.50, FHA: 0.57, Jumbo: 0.43, VA: 0.60, USDA: 0.50, HELOC: HELOC_RULES.maxDti };
+// DSCR / Asset Qualifier / HELOC added 2026-10-21 (lib/nonQm.js). DSCR and
+// Asset Qualifier don't qualify on DTI at all; HELOC means 1st + HELOC on a
+// purchase and a standalone HELOC behind the current first on a refi.
+const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "USDA", "DSCR", "Asset Qualifier", "HELOC"];
+// Per-scenario inputs for those products, persisted as one `nonQm` object.
+//   borrowerAge / householdSize / dependents / otherFinancedHomes → Asset Qualifier tests
+//   helocFirstLtv → 1st + HELOC split (first lien %, capped at 80)
+//   helocRate → null = estimate off the first-lien rate until the LO enters a quote
+//   helocLine / helocDraw → standalone line size and amount drawn at closing (null = max / full)
+const NONQM_DEFAULTS = { borrowerAge: null, householdSize: 2, dependents: 0, otherFinancedHomes: 0, helocFirstLtv: 80, helocRate: null, helocLine: null, helocDraw: null };
+const HELOC_RATE_EST_SPREAD = 1.25;
 const VA_USAGE = ["First Use", "Subsequent", "Disabled"];
 // VA_FUNDING_FEES moved to lib/finance.js
 const PROP_TYPES = ["Single Family", "Single Family with ADU", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
@@ -204,7 +215,8 @@ const occupancyToPropUse = (occ) => {
 //   Conv / FHA / VA → all qualifying assets count at 100%
 const getReserveFactor = (accountType, loanType) => {
  if (accountType === "Gift" || accountType === "Gift of Equity") return 0;
- if (loanType === "Jumbo") {
+ // Non-QM reserves take the same liquidity haircuts as Jumbo.
+ if (loanType === "Jumbo" || loanType === "DSCR" || loanType === "Asset Qualifier") {
   const f = RESERVE_FACTORS[accountType];
   return (f === null || f === undefined) ? 1 : f;
  }
@@ -1530,6 +1542,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const setRate = (v) => { rateIsManualRef.current = true; _setRateRaw(v); };
  const [term, setTerm] = useState(30);
  const [loanType, setLoanType] = useState("Conventional");
+ const [nonQm, setNonQmRaw] = useState(NONQM_DEFAULTS);
+ const setNonQm = (patch) => setNonQmRaw(prev => ({ ...prev, ...patch }));
  const [autoJumboSwitch, setAutoJumboSwitch] = useState(false);
  const userLoanTypeRef = useRef("Conventional");
  const [vaUsage, setVaUsage] = useState("First Use");
@@ -2187,7 +2201,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const tabBarRef = useRef(null);
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
-  salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
+  salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
@@ -2248,6 +2262,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.term !== undefined) setTerm(s.term);
   if (s.loanType) setLoanType(s.loanType.startsWith("VA") ? "VA" : s.loanType);
   if (s.vaUsage) setVaUsage(s.vaUsage);
+  // A full saved state always carries salesPrice; one from before 2026-10-21
+  // has no nonQm, so it resets rather than inheriting the last file's inputs.
+  if (s.nonQm) setNonQmRaw({ ...NONQM_DEFAULTS, ...s.nonQm });
+  else if (s.salesPrice !== undefined) setNonQmRaw(NONQM_DEFAULTS);
   if (s.loanType === "VA - First Use") { setLoanType("VA"); setVaUsage("First Use"); }
   if (s.loanType === "VA - Subsequent") { setLoanType("VA"); setVaUsage("Subsequent"); }
   if (s.loanType === "VA - Disabled") { setLoanType("VA"); setVaUsage("Disabled"); }
@@ -3277,7 +3295,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setTimeout(() => setSaving(false), 600);
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
- }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
+ }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
@@ -4018,6 +4036,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setScenarioName(name);
   setSalesPrice(1000000); setDownPct(20); _setRateRaw(6.5); rateIsManualRef.current = false; setTerm(30);
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
+  setNonQmRaw(NONQM_DEFAULTS);
   setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
   setSellerCredit(0); setRealtorCredit(0); setEmd(0); setEmdPct(3); setEmdPaid(false); setDebts([]); setIncomes([]);
   setOtherIncome(0); setOtherIncome2(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
@@ -4295,7 +4314,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    : loanAmt * 0.025;
   const sp = s.salesPrice || 1000000;
   const dp = sp * (s.downPct || 20) / 100;
-  const baseLoan = sp - dp;
+  // 1st + HELOC: same split and estimated-rate rule as the live engine.
+  const qNonQm = { ...NONQM_DEFAULTS, ...(s.nonQm || {}) };
+  const qHelocRate = Number(qNonQm.helocRate) > 0 ? Number(qNonQm.helocRate) : (s.rate || 6.5) + HELOC_RATE_EST_SPREAD;
+  const qPiggy = s.loanType === "HELOC" && !s.isRefi ? computePiggyback({ price: sp, downPct: s.downPct || 20, firstLtv: Math.min(80, Number(qNonQm.helocFirstLtv) || 80) / 100 }) : null;
+  const helocPmt = qPiggy ? qPiggy.heloc * qHelocRate / 100 / 12 : 0;
+  const baseLoan = qPiggy ? qPiggy.first : sp - dp;
   const ltv = sp > 0 ? baseLoan / sp : 0;
   const fhaUp = s.loanType === "FHA" ? baseLoan * 0.0175 : 0;
   const vaFF = s.loanType === "VA" ? baseLoan * 0.023 : 0;
@@ -4312,9 +4336,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const ins = (s.annualIns || 1500) / 12;
   let mi = 0;
   if (s.loanType === "FHA") mi = loan * 0.0055 / 12;
-  else if (s.loanType !== "VA" && ltv > 0.8) mi = loan * 0.005 / 12;
+  else if (!["VA", "DSCR", "Asset Qualifier", "HELOC"].includes(s.loanType) && ltv > 0.8) mi = loan * 0.005 / 12;
   const hoaM = s.hoa || 0;
-  const monthlyPayment = pi + monthlyTax + ins + mi + hoaM;
+  const monthlyPayment = pi + monthlyTax + ins + mi + hoaM + helocPmt;
   const totalInt = pi * n - loan;
   // simplified cash to close
   const closingCosts = costsFor(loan, false);
@@ -4370,6 +4394,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
    const curPI = (curBal > 0 && curRate > 0 && rem > 0) ? calcPI(curBal, curRate, rem / 12) : (Number(s.refiCurrentPayment) || 0);
    const curMI = Number(s.refiCurrentMI) || 0;
+   // Standalone HELOC: the first stays, so the "new" payment is the current
+   // one plus the HELOC's interest on what's drawn — never a savings.
+   if (s.loanType === "HELOC") {
+    const hv = Number(s.refiHomeValue) || 0;
+    const ln = computeStandaloneLine({ homeValue: hv, firstBalance: curBal, requested: qNonQm.helocLine });
+    const drawn = qNonQm.helocDraw !== null && qNonQm.helocDraw !== undefined && qNonQm.helocDraw !== "" ? Math.min(ln.line, Number(qNonQm.helocDraw) || 0) : ln.line;
+    const io = drawn * qHelocRate / 100 / 12;
+    const rTax = (Number(s.refiAnnualTax) || 0) / 12, rIns = (Number(s.refiAnnualIns) || 0) / 12;
+    const payment = curPI + curMI + io + rTax + rIns;
+    return {
+     isRefi: true, rate: qHelocRate, term: s.term || 30, loanType: "HELOC",
+     monthlyPayment: payment, pi: io, mi: curMI, monthlyTax: rTax, ins: rIns, hoaM: 0,
+     curPiMi: curPI + curMI, savings: -io, breakeven: null,
+     closingCosts: 0, cashOut: drawn, loan: ln.line, ltv: ln.cltv, rateDrop: null, intSaved: null,
+     dti: dtiFor(curPI + curMI + rTax + rIns + ln.line * qHelocRate / 100 / 12), monthlyInc: qualInc,
+     netSeries: null,
+    };
+   }
    const cashOut = s.refiPurpose === "Cash-Out" ? (Number(s.refiCashOut) || 0) : 0;
    const newLoan = curBal + cashOut;
    const value = Number(s.refiHomeValue) || 0;
@@ -4411,7 +4453,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // Live figures for the option on screen — same shape calcQuickMetrics
    // returns, so every column of the Compare table reads the same keys.
    const liveMiMode = miModeFor(loanType, calc.ltv, downPct);
-   const liveMetrics = isRefi ? {
+   const liveMetrics = calc.heloc && calc.heloc.standalone ? {
+    isRefi: true, rate: calc.heloc.rate, term, loanType,
+    monthlyPayment: calc.displayPayment, pi: calc.heloc.pmts.ioPayment, mi: calc.refiCurrentMI || 0, monthlyTax: calc.refiCurMonthlyTax, ins: calc.refiCurMonthlyIns, hoaM: 0,
+    curPiMi: (calc.refiEffPI || 0) + (calc.refiCurrentMI || 0), savings: -calc.heloc.pmts.ioPayment, breakeven: null,
+    closingCosts: 0, cashOut: calc.heloc.pmts.drawn, loan: calc.heloc.line.line, ltv: calc.heloc.line.cltv,
+    rateDrop: null, intSaved: null, dti: calc.yourDTI, monthlyInc: calc.qualifyingIncome, netSeries: null,
+   } : isRefi ? {
     isRefi: true, rate, term, loanType,
     monthlyPayment: calc.refiNewTotalPmt, pi: calc.refiNewPi, mi: calc.refiNewMI, monthlyTax: calc.refiNewMonthlyTax, ins: calc.refiNewMonthlyIns, hoaM: 0,
     curPiMi: (calc.refiEffPI || 0) + (calc.refiCurrentMI || 0), savings: calc.refiPiMiSavings,
@@ -5866,7 +5914,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // does not exist until calc runs. See the effect after calc.
  const calc = useMemo(() => {
   const dp = salesPrice * downPct / 100;
-  const baseLoan = salesPrice - dp;
+  // 1st + HELOC (purchase): the first lien stops at helocFirstLtv (capped at
+  // 80%, so never any PMI) and the HELOC finances the rest, fully drawn at
+  // closing. On a refi, HELOC means a standalone line behind the current first.
+  const helocPiggy = loanType === "HELOC" && !isRefi;
+  const helocStandalone = loanType === "HELOC" && !!isRefi;
+  const piggy = helocPiggy ? computePiggyback({ price: salesPrice, downPct, firstLtv: Math.min(80, Number(nonQm.helocFirstLtv) || 80) / 100 }) : null;
+  const baseLoan = piggy ? piggy.first : salesPrice - dp;
+  // HELOCs are prime-based and aren't in the live feed. Until the LO enters a
+  // quote the rate is an estimate off the first-lien rate, and the UI says so.
+  const helocRateEstimated = !(Number(nonQm.helocRate) > 0);
+  const helocRate = helocRateEstimated ? Math.round((rate + HELOC_RATE_EST_SPREAD) * 1000) / 1000 : Number(nonQm.helocRate);
+  const piggyHeloc = piggy && piggy.heloc > 0 ? computeHelocPayments({ line: piggy.heloc, drawn: piggy.heloc, rate: helocRate }) : null;
+  const piggyHelocPmt = piggyHeloc ? piggyHeloc.ioPayment : 0;
   const ltv = computeLTV(baseLoan, salesPrice);
   const fhaUp = loanType === "FHA" ? baseLoan * 0.0175 : 0;
   const vaFFRate = vaFundingFeeRate(vaUsage, downPct);
@@ -5905,12 +5965,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const usdaMI = loanType === "USDA" ? (baseLoan * 0.0035) / 12 : 0;
   const monthlyMI = monthlyPMI + monthlyMIP + usdaMI;
   const escrowAmount = monthlyTax + ins;
-  const housingPayment = pi + monthlyTax + ins + monthlyMI + hoa;
+  const housingPayment = pi + monthlyTax + ins + monthlyMI + hoa + piggyHelocPmt;
   // FHA/VA always impound both, whatever the saved flags say.
   const escrowLockedType = loanType === "FHA" || loanType === "VA";
   const purchEscTax = includeEscrow || escrowLockedType;
   const purchEscIns = (includeEscrow && !escrowInsWaived) || escrowLockedType;
-  const displayPayment = pi + monthlyMI + hoa + (purchEscTax ? monthlyTax : 0) + (purchEscIns ? ins : 0);
+  const displayPayment = pi + monthlyMI + hoa + piggyHelocPmt + (purchEscTax ? monthlyTax : 0) + (purchEscIns ? ins : 0);
   // Income calc — honors user-picked Selection for variable pay (Bonus/Commission/RSU/etc.)
   // Selection values:
   //   "Amount"  — Amount × Frequency (fixed pay; salary)
@@ -6634,7 +6694,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const emdCredit = (!isRefi && emdPaid) ? emdAmt : 0;
   const totalCredits = (isRefi ? lenderCredit : (sellerCredit + realtorCredit + emdCredit + lenderCredit)) + customFeeSum('CR');
   const cashToClose = (isRefi ? 0 : dp) + totalClosingCosts + totalPrepaidExp + payoffAtClosing - totalCredits;
-  const ficoMin = loanType === "FHA" ? 580 : loanType === "Jumbo" ? 700 : loanType === "VA" ? 580 : 620;
+  const ficoMin = loanType === "FHA" ? 580 : loanType === "Jumbo" ? 700 : loanType === "VA" ? 580
+   : loanType === "DSCR" ? DSCR_RULES.minFico : loanType === "Asset Qualifier" ? AQ_MIN_FICO : loanType === "HELOC" ? HELOC_RULES.minFico : 620;
   const ficoCheck = creditScore > 0 ? (creditScore >= ficoMin ? "Good!" : "Too Low") : "—";
   // 3% down conventional — two Fannie Mae paths, both 1-unit primary purchase
   // on a conforming (NOT high-balance) loan (Christo 2026-09-24):
@@ -6651,12 +6712,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 97% LTV is 1-unit only; 2–4 units need 5%+.
   const threePctEligible = !isRefi && loanPurpose === "Purchase Primary" && loanCategory === "Conforming" && units === 1;
   const threePctPath = !threePctEligible ? null : firstTimeBuyer ? "fthb" : homeReadyIncomeOk ? "homeready" : null;
-  const minDPpct = loanType === "VA" ? 0 : loanType === "FHA" ? 3.5 : loanType === "Jumbo" ? 20 : threePctPath ? 3 : 5;
+  // DSCR purchases top out at 80% LTV; the most generous asset program (UHM)
+  // and a 1st + HELOC both reach 90% CLTV.
+  const minDPpct = loanType === "VA" ? 0 : loanType === "FHA" ? 3.5 : loanType === "Jumbo" ? 20
+   : loanType === "DSCR" ? Math.round((1 - DSCR_RULES.maxLtvPurchase) * 100)
+   : loanType === "Asset Qualifier" || loanType === "HELOC" ? 10
+   : threePctPath ? 3 : 5;
   const recDPpct = minDPpct;
   const dpWarning = downPct < minDPpct ? "fail" : null;
   const dtiCheck = qualifyingIncome > 0 && yourDTI !== null ? (yourDTI <= maxDTI ? "Good!" : "Too High") : "—";
   const cashCheck = totalForClosing > 0 ? (totalForClosing >= cashToClose ? "Good!" : "Short") : "—";
-  const reserveMonths = loanType === "Jumbo" ? 12 : (isRefi ? 0 : 3);
+  // Asset Qualifier reserves are built into each program's own test.
+  const reserveMonths = loanType === "Jumbo" ? 12 : loanType === "DSCR" ? DSCR_RULES.reserveMonths : loanType === "Asset Qualifier" ? 0 : (isRefi ? 0 : 3);
   const reservesReq = totalPayment * reserveMonths;
   const resCheck = totalReserves > 0 ? (totalReserves >= reservesReq ? "Good!" : "Short") : "—";
   const yearlyInc = annualIncome;
@@ -6911,6 +6978,40 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const totalAssetValueAll = totalAssetValue + saleProceedsAsset;
   const totalForClosingAll = totalForClosing + saleProceedsAsset;
   const cashCheckAll = totalForClosingAll > 0 ? (totalForClosingAll >= cashToClose ? "Good!" : "Short") : "—";
+  // ── DSCR / Asset Qualifier / standalone HELOC (lib/nonQm.js) ──
+  // DSCR and Asset Qualifier replace the DTI test outright; the "DTI" pillar
+  // carries their verdict instead (calc.qualMethod says which).
+  const qualMethod = loanType === "DSCR" ? "dscr" : loanType === "Asset Qualifier" ? "assets" : "dti";
+  const refiNewPitia = refiNewPi + refiNewMonthlyTax + refiNewMonthlyIns + refiNewMI + hoa;
+  // Full PITIA whatever the escrow toggles say — DSCR divides rent by it.
+  const dscr = qualMethod === "dscr" ? computeDscr({ rent: subjectRentalIncome, pitia: isRefi ? refiNewPitia : housingPayment }) : null;
+  const aqResults = qualMethod === "assets" ? evaluateAssetPrograms({
+   assets, extraDeposit: saleProceedsAsset,
+   borrowerAge: nonQm.borrowerAge, householdSize: nonQm.householdSize, dependents: nonQm.dependents, otherFinancedHomes: nonQm.otherFinancedHomes,
+   cashToClose: isRefi ? 0 : cashToClose, loanAmount: isRefi ? refiNewLoanAmt : baseLoan, termMonths: term * 12,
+   ltv: isRefi ? refiNewLTV : ltv, fico: creditScore,
+   // Refi occupancy is primary-only today.
+   isPrimary: isRefi || loanPurpose === "Purchase Primary", units, isCashOut: !!isRefi && refiPurpose === "Cash-Out",
+   housingPayment: isRefi ? refiNewPitia : housingPayment,
+   otherMonthlyDebts: totalMonthlyDebts, reoMonthlyDebt: reoNegativeDebt, otherIncome: qualifyingIncome,
+   otherMortgageBalances: reoTotalDebt,
+   otherDebtBalances: reoTotalDebt + qualifyingDebts.filter(d => d.type !== "Mortgage" && d.type !== "HELOC").reduce((s, d) => s + (Number(d.balance) || 0), 0),
+   agencyLoanLimit: highBalLimit,
+  }) : null;
+  const aqSummary = aqResults ? summarizeAssetPrograms(aqResults) : null;
+  // Standalone HELOC: the current first stays, so DTI carries its full PITI
+  // plus the HELOC's qualifying payment (interest-only on the whole line).
+  const standaloneLine = helocStandalone ? computeStandaloneLine({ homeValue: refiHomeValue, firstBalance: refiEffBalance, requested: nonQm.helocLine }) : null;
+  const helocDrawSet = nonQm.helocDraw !== null && nonQm.helocDraw !== undefined && nonQm.helocDraw !== "";
+  const standaloneHeloc = standaloneLine ? computeHelocPayments({ line: standaloneLine.line, drawn: helocDrawSet ? Number(nonQm.helocDraw) : standaloneLine.line, rate: helocRate }) : null;
+  const standaloneFirstPiti = helocStandalone ? refiEffPI + refiCurMonthlyTax + refiCurMonthlyIns + (Number(refiCurrentMI) || 0) + hoa : 0;
+  const standaloneTotalPayment = helocStandalone ? standaloneFirstPiti + standaloneHeloc.qualifyingPayment + totalMonthlyDebts + reoNegativeDebt : 0;
+  const finalTotalPayment = helocStandalone ? standaloneTotalPayment : totalPayment;
+  const finalYourDTI = helocStandalone ? computeDTI(standaloneTotalPayment, qualifyingIncome) : yourDTI;
+  const finalDtiCheck = qualMethod === "dscr" ? (dscr.pass === null ? "—" : dscr.pass ? "Good!" : "Too High")
+   : qualMethod === "assets" ? (aqSummary.passCount > 0 ? "Good!" : aqSummary.anyData ? "Too High" : "—")
+   : helocStandalone ? (qualifyingIncome > 0 && finalYourDTI !== null ? (finalYourDTI <= maxDTI ? "Good!" : "Too High") : "—")
+   : dtiCheck;
   // ── APR Calculation ──
   // APR includes all finance charges: origination, discount points, MI upfront, prepaid interest
   // Excluded per TILA: appraisal, title, escrow, recording, credit report, flood cert
@@ -6922,7 +7023,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const { amortSchedule, amortStandard, totalIntWithExtra, totalIntStandard, yearlyData, intSaved, monthsSaved, lastPayDate, firstPayDate } =
    buildAmortization({ loan, mr, np, pi, extra, closeDate });
   // In refi mode, override displayPayment to use the new refi P&I so donut matches "New" box
-  const finalDisplayPayment = (isRefi && refiNewLoanAmt > 0)
+  const finalDisplayPayment = helocStandalone
+   ? (refiCurTotalPmt + hoa + standaloneHeloc.ioPayment)
+   : (isRefi && refiNewLoanAmt > 0)
    ? (refiNewPi + refiNewEscrowPortion + refiNewMI + hoa)
    : displayPayment;
   // ── Temporary rate buydown (B2) ──
@@ -6938,13 +7041,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
    housingPayment, displayPayment: finalDisplayPayment, escrowAmount, purchEscTax, purchEscIns, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue: totalAssetValueAll, totalForClosing: totalForClosingAll, totalReserves, saleProceedsAsset,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary, isRentalPrimary, rentalUnits,
-   qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
-   confLimit, highBalLimit, countyLimit, limitYear: LIMIT_YEAR, loanCategory, maxDTI, yourDTI,
+   qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment: finalTotalPayment, addDebt, updateDebt, removeDebt,
+   confLimit, highBalLimit, countyLimit, limitYear: LIMIT_YEAR, loanCategory, maxDTI, yourDTI: finalYourDTI,
+   qualMethod, dscr, aqResults, aqSummary, piggyHelocPmt,
+   heloc: { piggy: helocPiggy, standalone: helocStandalone, split: piggy, piggyPmts: piggyHeloc, rate: helocRate, rateEstimated: helocRateEstimated,
+            line: standaloneLine, pmts: standaloneHeloc, firstPiti: standaloneFirstPiti, firstBalance: helocStandalone ? refiEffBalance : 0 },
    ttEntry, buyerCityTT, buyerCountyTT, countyTTRate, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
    govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, insRenewalAtClose, insRenewalDays, insDocCondition,
    refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiNewEscrowPortion, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose, emdAmt, emdCredit,
-   reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning, threePctPath, threePctEligible, homeReadyLimit, amiAnnual, qualifyingAnnual, homeReadyRelevant: threePctEligible && !firstTimeBuyer && loanType === "Conventional" && homeReadyLimit > 0,
+   reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck: finalDtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning, threePctPath, threePctEligible, homeReadyLimit, amiAnnual, qualifyingAnnual, homeReadyRelevant: threePctEligible && !firstTimeBuyer && loanType === "Conventional" && homeReadyLimit > 0,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
    stateMortInt, stateItemized, schedATax, schedAMortInt, fedTaxBefore, fedTaxAfter, fedSavings,
    stateTaxBefore, stateTaxAfter, stateSavings, totalTaxSavings, monthlyTaxSavings,
@@ -6997,7 +7103,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
- }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
+ }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
 
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
@@ -7035,10 +7141,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // to stop. The fingerprint is the serialized PDF props: if nothing the PDF
  // prints changed, no re-render.
  const refiPreviewFingerprint = useMemo(() => {
-  if (!refiPreviewOpen || !isRefi) return "";
+  // No Refi Summary for a standalone HELOC — the first mortgage isn't replaced.
+  if (!refiPreviewOpen || !isRefi || loanType === "HELOC") return "";
   try { return JSON.stringify(buildRefiSummaryProps(false)); } catch { return ""; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [refiPreviewOpen, isRefi, calc, refiShowTaxIns, borrowerName, scenarioName]);
+ }, [refiPreviewOpen, isRefi, loanType, calc, refiShowTaxIns, borrowerName, scenarioName]);
  useEffect(() => {
   if (!refiPreviewOpen || !isRefi || !refiPreviewFingerprint) return;
   let stale = false;
@@ -7451,7 +7558,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   loan: calc.loan, mr: calc.mr, np: calc.np, dp: calc.dp, cashToClose: calc.cashToClose,
   housingPayment: calc.housingPayment, annualTaxSavings: calc.totalTaxSavings,
  }), [rbCurrentRent, rbRentGrowth, rbInvestReturn, salesPrice, appreciationRate, calc]);
- const paySegs = (isRefi && calc.refiNewLoanAmt > 0) ? [
+ const helocSegTip = "Interest-only during the 10-year draw period, on what's drawn. After that the balance pays off over 20 years.";
+ const paySegs = calc.heloc && calc.heloc.standalone ? [
+  { v: calc.refiCurTotalPmt, c: T.blue, l: "1st Mortgage", tip: "Your current first mortgage payment stays exactly as it is. A standalone HELOC doesn't touch it." },
+  { v: calc.heloc.pmts ? calc.heloc.pmts.ioPayment : 0, c: T.pink, l: "HELOC", tip: helocSegTip },
+  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues." },
+ ] : (isRefi && calc.refiNewLoanAmt > 0) ? [
   { v: calc.refiNewPrinThisMonth, c: T.cyan, l: "Principal", tip: "The portion of your new refi payment that reduces your loan balance. This is equity you're building." },
   { v: calc.refiNewIntThisMonth, c: T.blue, l: "Interest", tip: "The interest cost on your new refinanced loan. Lower rate = less interest each month." },
   ...(refiNewEscrowTax ? [{ v: calc.refiNewMonthlyTax, c: T.orange, l: "Tax", tip: "Property tax escrowed monthly on your new loan." }] : []),
@@ -7464,6 +7576,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ...(calc.purchEscTax ? [{ v: calc.monthlyTax, c: T.orange, l: "Tax", tip: "Your annual property tax divided by 12 and collected monthly by your lender. In California, property tax is typically 1.1–1.25% of your home's assessed value." }] : []),
   ...(calc.purchEscIns ? [{ v: calc.ins, c: T.green, l: "Insurance", tip: "Homeowner's insurance protects your home against fire, theft, and natural disasters. Lenders require it. Typical cost: $1,200–$3,000/year depending on location and coverage." }] : []),
   { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. The annual rate runs 0.50%–0.75% of the base loan amount depending on loan size and LTV (HUD schedule). FHA MIP lasts the life of the loan unless LTV is 90% or below at origination. You'd otherwise need to refinance to remove it." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
+  ...(calc.piggyHelocPmt > 0 ? [{ v: calc.piggyHelocPmt, c: T.pink, l: "HELOC", tip: helocSegTip }] : []),
   { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues: a monthly fee for shared amenities and maintenance in condos, townhomes, and planned communities. Covers things like landscaping, pool, gym, exterior maintenance, and building insurance." },
  ];
  const TAB_DESC = {
@@ -8002,7 +8115,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // hidden from the sidebar (2026-05-21, per Christo). calc + costs were folded
   // earlier. All of these remain routable tabs — Overview's jump links (setTab)
   // and deep links still resolve; they're just removed from the nav rail.
-  ...(isRefi ? [["refi","Refi Summary"], ...(showRefi3 ? [["refi3","3-Point Test"]] : [])] : []),
+  // A standalone HELOC keeps the first mortgage, so there's no old-vs-new
+  // refi to summarize or test; its numbers live in the HELOC panel.
+  ...(isRefi && loanType !== "HELOC" ? [["refi","Refi Summary"], ...(showRefi3 ? [["refi3","3-Point Test"]] : [])] : []),
   // Tabs below are gated only by the module/feature toggles they belong to —
   // never by flow (guided vs standard). Christo 2026-06-02: every tab shows in
   // every flow.
@@ -8041,8 +8156,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   { id: "overview-setup",         label: "Quick Start" },
   { id: "overview-payment",       label: "Monthly Payment" },
   ...(!isRefi ? [{ id: "overview-modules", label: "Add Sections" }] : []),
-  ...(isRefi ? [{ id: "overview-refi", label: "Refi Summary" }] : []),
-  ...(isRefi && showRefi3 ? [{ id: "overview-refi3", label: "3-Point Test" }] : []),
+  ...(isRefi && loanType !== "HELOC" ? [{ id: "overview-refi", label: "Refi Summary" }] : []),
+  ...(isRefi && showRefi3 && loanType !== "HELOC" ? [{ id: "overview-refi3", label: "3-Point Test" }] : []),
   { id: "overview-costs",         label: isRefi ? "Refi Costs" : "Costs" },
   ...(showRateLadder ? [{ id: "overview-rateladder", label: "Rate & Points" }] : []),
   ...(vaResidualOn ? [{ id: "overview-varesidual", label: "VA Residual" }] : []),
@@ -8183,7 +8298,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   );
  };
  const dpOk = isRefi ? true : calc.dpWarning === null;
- const refiLtvOk = isRefi ? (calc.refiNewLTV > 0 ? calc.refiNewLTV <= (refiPurpose === "Cash-Out" ? 0.80 : 0.95) : null) : true;
+ const refiLtvOk = !isRefi ? true
+  : calc.heloc.standalone ? (calc.heloc.line.cltv > 0 ? calc.heloc.line.cltv <= HELOC_RULES.maxCltv + 1e-9 : null)
+  : (calc.refiNewLTV > 0 ? calc.refiNewLTV <= (refiPurpose === "Cash-Out" ? 0.80 : 0.95) : null);
  const refiLtvCheck = refiLtvOk === true ? "Good!" : refiLtvOk === false ? "High" : "—";
  const allGood = isRefi
   ? calc.ficoCheck === "Good!" && calc.dtiCheck === "Good!" && refiLtvCheck === "Good!"
@@ -8214,7 +8331,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {/* ── Docked live PDF preview — a resizable RIGHT panel, the Ops pattern
       (Christo 2026-08-04). Flush to the edge, full height, drag the left rail
       to resize; the main container gets matching right padding. Desktop only. */}
-  {isRefi && refiPreviewOpen && isDesktop && (
+  {isRefi && refiPreviewOpen && isDesktop && loanType !== "HELOC" && (
    <div style={{ position: "fixed", top: 96, right: 0, bottom: 0, width: refiPreviewW, zIndex: 900, display: "flex", flexDirection: "column", background: darkMode ? "rgba(10,17,32,0.88)" : "rgba(240,246,252,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderLeft: `1px solid ${T.glassBorder || T.separator}`, boxShadow: darkMode ? "-8px 0 30px rgba(0,0,0,0.35)" : "-8px 0 30px rgba(10,17,32,0.10)", overflow: "hidden" }}>
     {/* Resize rail */}
     <div
@@ -8371,7 +8488,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    </div>
   )}
-  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop) ? refiPreviewW : 0 }}>
+  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop && loanType !== "HELOC") ? refiPreviewW : 0 }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
     input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
@@ -9404,7 +9521,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, nonQm, setNonQm, setTab, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -9548,7 +9665,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <Card>
    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
     <StatusPill ok={calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false} label={creditScore ? `FICO ${creditScore}` : "FICO"} />
-    <StatusPill ok={calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false} label={calc.qualifyingIncome > 0 ? `DTI ${pct(calc.yourDTI, 1)}` : "DTI"} />
+    <StatusPill ok={calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false} label={repayPillar(calc, { fmt, pct, loanType }).value} />
     <StatusPill ok={calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false} label="Cash" />
     <StatusPill ok={calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false} label="Reserves" />
    </div>
@@ -9675,7 +9792,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    SKILL_PRESETS, showCompareHint, setShowCompareHint,
    /* Setup / core loan */
    salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
-   rate, setRate, term, setTerm, loanType, setLoanType,
+   rate, setRate, term, setTerm, loanType, setLoanType, nonQm, setNonQm,
    propType, setPropType, propTypes: PROP_TYPES, PROP_TYPES, UNIT_COUNT,
    loanPurpose, setLoanPurpose, loanTypes: LOAN_TYPES, LOAN_TYPES,
    propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip,
@@ -9720,7 +9837,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    showVaResidual, setShowVaResidual, vaResidualOn, vaResidual, setVaResidual,
    setDiscountPts, setLenderCredit,
    /* Refi fold-in sections (Christo 7.24) */
-   renderRefiSummarySection, renderRefi3Section,
+   renderRefiSummarySection: loanType === "HELOC" ? null : renderRefiSummarySection,
+   renderRefi3Section: loanType === "HELOC" ? null : renderRefi3Section,
    hasSellProperty, setHasSellProperty,
    /* Income */
    incomes, addIncome, updateIncome, removeIncome, removeBorrower,

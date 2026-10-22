@@ -8,6 +8,8 @@ import PricePointTeaser from "../components/PricePointTeaser.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
 import { getPMIRate } from "../lib/finance.js";
+import { repayPillar, HELOC_RULES } from "../lib/nonQm.js";
+import { DscrPanel, AssetQualifierInputs, HelocPanel } from "../components/NonQmPanels.jsx";
 
 
 // Inline-editable numeric value for Payment Breakdown rows (Insurance, HOA).
@@ -217,6 +219,7 @@ export default function CalculatorContent(props) {
   fetchRates, ratesLoading, ratesError, liveRates, fredApiKey,
   userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch,
   LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE,
+  nonQm = null, setNonQm = null, setTab = null,
   getHighBalLimit, UNIT_COUNT,
   propType, setPropType, PROP_TYPES,
   subjectRentalIncome, setSubjectRentalIncome,
@@ -340,30 +343,42 @@ export default function CalculatorContent(props) {
   // (refi-correct), so one card showed $8,082 P&I over a $4,830 total —
   // Christo's screenshot, 2026-07-22. Every consumer below (rows, donut
   // legend, split disclosure, true-cost strip) draws from these.
-  const dispPI = isRefi ? (calc.refiNewPi || 0) : (calc.pi || 0);
-  const dispPrin = isRefi ? (calc.refiNewPrinThisMonth || 0) : (calc.monthlyPrinReduction || 0);
-  const dispTax = isRefi ? (calc.refiNewMonthlyTax || 0) : (calc.monthlyTax || 0);
-  const dispIns = isRefi ? (calc.refiNewMonthlyIns || 0) : (calc.ins || 0);
-  const dispMI = isRefi ? (calc.refiNewMI || 0) : (calc.monthlyMI || 0);
+  // A standalone HELOC keeps the current first, so its rows are the CURRENT
+  // loan's, with the HELOC payment as one more line (helocPmt below).
+  const helocAlone = !!(calc.heloc && calc.heloc.standalone);
+  const dispPI = helocAlone ? (calc.refiEffPI || 0) : isRefi ? (calc.refiNewPi || 0) : (calc.pi || 0);
+  const dispPrin = helocAlone ? (calc.refiCurPrinThisMonth || 0) : isRefi ? (calc.refiNewPrinThisMonth || 0) : (calc.monthlyPrinReduction || 0);
+  const dispTax = helocAlone ? (calc.refiCurMonthlyTax || 0) : isRefi ? (calc.refiNewMonthlyTax || 0) : (calc.monthlyTax || 0);
+  const dispIns = helocAlone ? (calc.refiCurMonthlyIns || 0) : isRefi ? (calc.refiNewMonthlyIns || 0) : (calc.ins || 0);
+  const dispMI = helocAlone ? (calc.refiCurrentMI || 0) : isRefi ? (calc.refiNewMI || 0) : (calc.monthlyMI || 0);
+  const helocPmt = helocAlone ? (calc.heloc.pmts ? calc.heloc.pmts.ioPayment : 0) : (calc.piggyHelocPmt || 0);
   // Which components the NEW loan escrows. Purchase keeps the single master
   // toggle; refi is per-component (Christo 2026-07-22).
   // Purchase: three modes since 2026-10-12 (Tax + Ins / Tax only / P&I only).
-  const escTax = isRefi ? !!refiNewEscrowTax : (calc.purchEscTax ?? includeEscrow);
-  const escIns = isRefi ? !!refiNewEscrowIns : (calc.purchEscIns ?? includeEscrow);
+  // Standalone HELOC: the current loan's escrow is whatever its statement
+  // collects, shown as one Escrow line so the rows add up to the payment.
+  const helocEscrow = helocAlone ? (calc.refiCurEscrowMo || 0) : 0;
+  const escTax = helocAlone ? false : isRefi ? !!refiNewEscrowTax : (calc.purchEscTax ?? includeEscrow);
+  const escIns = helocAlone ? false : isRefi ? !!refiNewEscrowIns : (calc.purchEscIns ?? includeEscrow);
   const excludedEscrowAmt = (escTax ? 0 : dispTax) + (escIns ? 0 : dispIns);
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
   // The compact 5-pillar (3 on refi) qualification row. Desktop renders it in
   // the right column's row 2; phones render it right under the loan strip.
   const renderPillars = (compact) => {
+    const rp = repayPillar(calc, { fmt, pct, loanType });
+    const rpSub = rp.sub.replace(" / ", "/");
+    const helocAlone = calc.heloc && calc.heloc.standalone;
     const compactChecks = isRefi ? [
      { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
+     { label: rp.label,   ok: rp.ok,                                                                     sub: rp.ok === null && rp.label === "DTI" ? "—" : rpSub },
+     helocAlone
+      ? { label: "CLTV",  ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.heloc.line.cltv > 0 ? `${pct(calc.heloc.line.cltv, 0)}/${Math.round(HELOC_RULES.maxCltv * 100)}%` : "—" }
+      : { label: "LTV",   ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
     ] : [
      { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
      { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: rp.label,   ok: rp.ok,                                                                     sub: rp.ok === null && rp.label === "DTI" ? "—" : rpSub },
      { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
      { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
     ];
@@ -425,9 +440,11 @@ export default function CalculatorContent(props) {
     { label: "Interest",  value: dispPI - dispPrin, color: T.blue },
     ...(escTax ? [{ label: "Tax",       value: dispTax, color: T.orange }] : []),
     ...(escIns ? [{ label: "Insurance", value: dispIns, color: T.green }] : []),
+    ...(helocEscrow > 0 ? [{ label: "Escrow", value: helocEscrow, color: T.orange }] : []),
     ...(dispMI > 0 ? [
       { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red },
     ] : []),
+    ...(helocPmt > 0 ? [{ label: "HELOC", value: helocPmt, color: T.pink }] : []),
     ...(hoa > 0 ? [
       { label: "HOA", value: hoa, color: T.purple || T.blue },
     ] : []),
@@ -564,7 +581,8 @@ export default function CalculatorContent(props) {
          </div>
          <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter value" prefix="$" />
         </div>
-        <div>
+        {/* Standalone HELOC: the first stays put; the line is set in the HELOC panel. */}
+        {!helocAlone && <div>
          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6, height: 22, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
           New Loan Amount<InfoTip text="Defaults to your payoff amount. Override if your new loan amount differs (e.g., rolling in closing costs)." />
          </div>
@@ -577,7 +595,7 @@ export default function CalculatorContent(props) {
            )}
           </div>
          )}
-        </div>
+        </div>}
        </div>
        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
       </>) : (<>
@@ -715,7 +733,15 @@ export default function CalculatorContent(props) {
     <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
      <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req sm={!isDesktop} />
     </div>
-    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} req sm={!isDesktop} />
+    <Sel label="Loan Type" value={loanType} onChange={v => {
+     setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false);
+     // DSCR is investment-only. Same +1% bump as picking Investment by hand,
+     // so switching back to Primary later takes off exactly what went on.
+     if (v === "DSCR" && !isRefi && loanPurpose !== "Purchase Investment") {
+      setRate(prev => Math.round((prev + 1.0) * 1000) / 1000);
+      setLoanPurpose("Purchase Investment");
+     }
+    }} options={isRefi && loanType !== "DSCR" ? LOAN_TYPES.filter(t => t !== "DSCR") : LOAN_TYPES} req sm={!isDesktop} />
     <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
      <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
     </div>
@@ -737,6 +763,22 @@ export default function CalculatorContent(props) {
      body: "20% down · 700+ FICO · 43–50% max DTI",
      action: <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
        style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button> },
+   { key: "dscr-occupancy", show: !isRefi && loanType === "DSCR" && loanPurpose !== "Purchase Investment", color: T.red,
+     title: "DSCR is for investment properties",
+     body: "It qualifies on rent, so the home has to be a rental.",
+     action: <button type="button" onClick={() => { setRate(prev => Math.round((prev + 1.0) * 1000) / 1000); setLoanPurpose("Purchase Investment"); }}
+       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Make it Investment</button> },
+   { key: "dscr-refi", show: isRefi && loanType === "DSCR", color: T.red,
+     title: "DSCR refinances aren't modeled yet",
+     body: "Refi occupancy is primary-only here, and DSCR needs a rental. Price it as a purchase-style DSCR or switch loan type.",
+     action: <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; }}
+       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Conventional</button> },
+   { key: "nonqm-rate", show: loanType === "DSCR" || loanType === "Asset Qualifier", color: T.blue,
+     title: `${loanType} rate: enter your lender's quote`,
+     body: "Non-QM pricing isn't in the live rate feed. It usually runs 1.00–1.50% above conventional." },
+   { key: "heloc-rate", show: loanType === "HELOC" && !!calc.heloc && calc.heloc.rateEstimated && (calc.heloc.standalone || (calc.heloc.split && calc.heloc.split.heloc > 0)), color: T.orange,
+     title: `HELOC rate is an estimate (${calc.heloc ? calc.heloc.rate.toFixed(3) : ""}%)`,
+     body: "First-lien rate + 1.25% until you enter the HELOC quote below." },
    { key: "investment", show: loanPurpose === "Purchase Investment", color: T.orange,
      title: "Investment property · +1.000% added to the rate",
      body: "Typical range 0.750–1.250%. Change the rate if your lender quotes differently." },
@@ -789,6 +831,15 @@ export default function CalculatorContent(props) {
      the top fold, and loan-structure controls live alongside Rate where
      a broker tunes the scenario. */}
  {/* ─────────────────────────────────────────────────────────────── */}
+
+ {/* Product panels: 1st + HELOC / standalone HELOC, Asset Qualifier inputs. */}
+ {nonQm && setNonQm && loanType === "HELOC" && (
+  <HelocPanel T={T} calc={calc} fmt={fmt} pct={pct} nonQm={nonQm} setNonQm={setNonQm} Inp={Inp} Sel={Sel} isDesktop={isDesktop} />
+ )}
+ {nonQm && setNonQm && loanType === "Asset Qualifier" && (
+  <AssetQualifierInputs T={T} calc={calc} nonQm={nonQm} setNonQm={setNonQm} Inp={Inp} isDesktop={isDesktop}
+   onOpenPrograms={setTab ? () => setTab("qualify") : null} />
+ )}
 
  {loanType === "VA" && (
   <div style={{ marginBottom: 12 }}>
@@ -873,6 +924,7 @@ export default function CalculatorContent(props) {
        <div style={{ width: 20, height: 20, borderRadius: 10, background: "#fff", position: "absolute", top: 3, left: on ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
       </button>
      );
+     if (helocAlone) return null; // no new first mortgage to escrow on
      if (isRefi) {
       // Stacked vertically, Insurance above Taxes (Christo 2026-07-22) — the
       // side-by-side pair read as one control. Labels right-align against the
@@ -957,11 +1009,11 @@ export default function CalculatorContent(props) {
          <span style={{ fontSize: isDesktop ? (roomyDonut ? 14 : 12.5) : 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
          {/* Present but quiet: same weight as the legend amounts, so the eye
              stays on the payment (Christo 2026-10-01). */}
-         <span style={{ fontSize: roomyDonut ? 14.5 : 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
+         <span style={{ fontSize: roomyDonut ? 14.5 : 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{(helocAlone ? calc.heloc.rate : (Number(rate) || 0)).toFixed(3)}%</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: isDesktop ? (roomyDonut ? 12.5 : 11.5) : 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: isDesktop ? 2 : 1 }}>
-         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>
-         {calc.apr > 0 && <span style={{ whiteSpace: "nowrap" }}>APR {calc.apr.toFixed(2)}%</span>}
+         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{helocAlone ? `HELOC · variable${calc.heloc.rateEstimated ? " · est." : ""}` : `${term}-yr · ${loanType === "Conventional" ? "Conv." : loanType}`}</span>
+         {calc.apr > 0 && !helocAlone && <span style={{ whiteSpace: "nowrap" }}>APR {calc.apr.toFixed(2)}%</span>}
         </div>
        </div>
       </div>
@@ -1048,14 +1100,18 @@ export default function CalculatorContent(props) {
    {/* Overline mirrors "Qualification · N Pillars" on the right so both row-2
        cells have identical structure (overline + tiles) and identical height. */}
    {isDesktop && <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
-    {isRefi ? "Refinance Summary" : "Loan Summary"}
+    {helocAlone ? "HELOC Summary" : isRefi ? "Refinance Summary" : "Loan Summary"}
    </div>}
    {/* One divided strip on desktop too (Christo 2026-10-01) — three tall
        cards were mostly white space. */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={isDesktop
     ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 18, boxShadow: T.cardShadow, marginBottom: 12, overflow: "hidden", flex: 1, alignItems: "center" }
     : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginBottom: 8, overflow: "hidden" }}>
-    {(isRefi ? [
+    {(helocAlone ? [
+     { l: "HELOC Line", v: fmt(calc.heloc.line.line), c: T.blue, s: `max ${fmt(calc.heloc.line.maxLine)}`, tip: `Up to ${Math.round(HELOC_RULES.maxCltv * 100)}% of the home's value, less the first mortgage balance.` },
+     { l: "CLTV", v: pct(calc.heloc.line.cltv, 0), c: T.orange, s: `first ${fmt(calc.heloc.firstBalance)}`, tip: "Combined loan-to-value: the first mortgage balance plus the full HELOC line, divided by the home's value." },
+     { l: "Drawn at Close", v: fmt(calc.heloc.pmts ? calc.heloc.pmts.drawn : 0), c: T.green, s: `${fmt(calc.heloc.pmts ? calc.heloc.pmts.ioPayment : 0)}/mo interest`, tip: "Cash from the line on day one. Closing costs on a HELOC are usually small or lender-paid; confirm with the lender." },
+    ] : isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
      { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance. Includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
@@ -1164,13 +1220,15 @@ export default function CalculatorContent(props) {
       // answer (Christo, 2026-07-21). Keeping the rows also holds the card at
       // the same height as escrow-on, so the Total Payment band stays level
       // with Estimated Cash to Close.
+      ...(helocEscrow > 0 ? [{ label: "Escrow (current loan)", value: helocEscrow, color: T.orange }] : [
       { label: "Tax",       value: dispTax, color: T.orange, jumpTo: "tax", excluded: !escTax },
       // Refi insurance comes from refiAnnualIns (the current policy carries
       // over), so the inline edit writes back to that field there.
-      { label: "Insurance", value: dispIns, color: T.green,  editable: true, onChange: (v) => (isRefi && setRefiAnnualIns ? setRefiAnnualIns(Math.max(0, v) * 12) : setAnnualIns(Math.max(0, v) * 12)), excluded: !escIns },
+      { label: "Insurance", value: dispIns, color: T.green,  editable: !helocAlone, onChange: (v) => (isRefi && setRefiAnnualIns ? setRefiAnnualIns(Math.max(0, v) * 12) : setAnnualIns(Math.max(0, v) * 12)), excluded: !escIns }]),
       ...(dispMI > 0 ? [
        { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red, jumpTo: "pmi" },
       ] : []),
+      ...(helocPmt > 0 ? [{ label: "HELOC (interest-only)", value: helocPmt, color: T.pink }] : []),
       // HOA: always render so it's discoverable as editable (was previously hidden when 0)
       { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa },
      ].map((row, i) => {
@@ -1747,7 +1805,7 @@ export default function CalculatorContent(props) {
   <div ref={rightColRef} style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : { order: 3 }}>
    {/* Refi: CURRENT → NEW leads the right column, above New Rate (Christo
        2026-07-22 — swapped with the price card, now on the left). */}
-   {isRefi && currentToNewCard}
+   {isRefi && !helocAlone && currentToNewCard}
    {/* The 3-stat row (Loan Amount / LTV / Cash to Close) was moved to the
        LEFT column under the donut legend per the 2026-05-02 final layout.
        The right column now leads with Rate / Live Rates → 4 loan-structure
@@ -1759,7 +1817,7 @@ export default function CalculatorContent(props) {
        directly below so changes flow naturally into the rate context. */}
    {isDesktop && priceCard}
    {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 12 })}
-   {renderAlerts(["investment"], { marginBottom: isDesktop ? 12 : 8 })}
+   {renderAlerts(["dscr-occupancy", "dscr-refi", "investment", "nonqm-rate", "heloc-rate"], { marginBottom: isDesktop ? 12 : 8 })}
    {/* With loan structure in Quick Start, Rate is the right column's last
        card, so it flexes to meet the payment card's bottom edge (Christo
        2026-10-12) and centers its row in the extra height. */}
@@ -1871,13 +1929,16 @@ export default function CalculatorContent(props) {
   <div style={{ marginBottom: 16 }}>
    <Inp label={loanPurpose === "Purchase Investment" ? "Expected Monthly Rent" : isAdu ? "ADU Rent" : `Non-Occupying Unit Rent (${rentalUnits} ${unitWord})`}
     value={subjectRentalIncome} onChange={setSubjectRentalIncome} prefix="$" suffix="/mo" max={50000}
-    tip={loanPurpose === "Purchase Investment"
+    tip={loanType === "DSCR"
+     ? "Expected gross monthly rent, from the lease or the appraiser's market rent (Form 1007). DSCR divides the full rent by the full housing payment: no 75% factor, no income."
+     : loanPurpose === "Purchase Investment"
      ? "Expected gross monthly rent. Lenders use 75% of this to offset your PITIA (housing payment) for DTI qualification. If 75% of rent exceeds PITIA, the excess counts as income."
      : isAdu
      ? "Expected gross rent from the accessory dwelling unit. You still occupy the main house, so this stays a primary residence. Lenders add 75% of the ADU rent as qualifying income. Confirm your loan program allows ADU income; agency rules vary."
      : `Total rent from the ${rentalUnits} ${unitWord} you won't live in. You occupy one unit, so this is still a primary residence. Lenders add 75% of this as qualifying income on top of your regular employment income.`
     } />
-   {subjectRentalIncome > 0 && (
+   {loanType === "DSCR" && <DscrPanel T={T} calc={calc} fmt={fmt} />}
+   {subjectRentalIncome > 0 && loanType !== "DSCR" && (
     <div style={{ background: tintOver(`${T.green}08`, T.cardGlass), borderRadius: 10, padding: "10px 14px", marginTop: -4, border: `1px solid ${T.green}18` }}>
      {loanPurpose === "Purchase Investment" ? (
       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>

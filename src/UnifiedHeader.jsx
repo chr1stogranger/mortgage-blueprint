@@ -3,6 +3,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
+import { repayPillar } from "./lib/nonQm.js";
 
 
 /**
@@ -179,7 +180,7 @@ export default function UnifiedHeader({
       const pillars = [
         { ok: st(calc.ficoCheck), label: "FICO", value: (creditScore > 0 ? `${creditScore} / ${calc.ficoMin || 620}+` : "—"), note: "Middle credit score vs the program minimum." },
         { ok: (dpOk ? true : (calc.dpWarning == null ? null : false)), label: "Down", value: `${(downPct || 0).toFixed(0)}% / ${calc.minDPpct || 0}%+`, note: "Down payment vs the minimum required." },
-        { ok: st(calc.dtiCheck), label: "DTI", value: (calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "—"), note: "Monthly debts ÷ income vs the max allowed." },
+        (() => { const rp = repayPillar(calc, { fmt, pct, loanType }); return { ok: st(calc.dtiCheck), label: rp.label, value: rp.sub, note: calc.qualMethod === "dscr" ? "Rent ÷ the full housing payment vs the 1.00 minimum." : calc.qualMethod === "assets" ? "Asset programs that approve this file." : "Monthly debts ÷ income vs the max allowed." }; })(),
         { ok: st(calc.cashCheck), label: "Cash", value: (calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—"), note: "Cash on hand vs cash needed to close." },
         { ok: st(calc.resCheck), label: "Reserves", value: (calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—"), note: "Post-closing reserves vs required." },
       ];
@@ -216,14 +217,14 @@ export default function UnifiedHeader({
   const purchasePillars = [
     { label: "FICO", color: gpc(calc.ficoCheck) },
     { label: "Down", color: dpOk ? T.green : (calc.dpWarning === "—" || calc.dpWarning === null) ? T.ringTrack : T.red },
-    { label: "DTI", color: gpc(calc.dtiCheck) },
+    { label: calc.qualMethod === "dscr" ? "DSCR" : calc.qualMethod === "assets" ? "Assets" : "DTI", color: gpc(calc.dtiCheck) },
     { label: "Cash", color: gpc(calc.cashCheck) },
     { label: "Res", color: gpc(calc.resCheck) },
   ];
   const refiPillars = [
     { label: "FICO", color: gpc(calc.ficoCheck) },
-    { label: "DTI", color: gpc(calc.dtiCheck) },
-    { label: "LTV", color: refiLtvCheck === "Good!" ? T.green : refiLtvCheck === "—" ? T.ringTrack : T.red },
+    { label: calc.qualMethod === "assets" ? "Assets" : "DTI", color: gpc(calc.dtiCheck) },
+    { label: calc.heloc && calc.heloc.standalone ? "CLTV" : "LTV", color: refiLtvCheck === "Good!" ? T.green : refiLtvCheck === "—" ? T.ringTrack : T.red },
   ];
   const pillars = isRefi ? refiPillars : purchasePillars;
 
@@ -286,7 +287,16 @@ export default function UnifiedHeader({
   // ("Cash Close $16K / Payment $250") that read like real numbers.
   const noPrice = !(Number(salesPrice) > 0);
   const orDash = (v) => (noPrice ? "--" : v);
-  const statRow = isRefi ? (<>
+  // Standalone HELOC: the first stays, so there's no new loan, savings or
+  // cash-out walk — the line, what's drawn and the combined LTV matter.
+  const helocAlone = calc.heloc && calc.heloc.standalone && calc.heloc.line;
+  const statRow = helocAlone ? (<>
+    <Stat label="Value" value={fmt(salesPrice)} statKey="price" />
+    <Stat label="HELOC Line" short="Line" value={fmt(calc.heloc.line.line)} statKey="price" />
+    <Stat label="Drawn" value={fmt(calc.heloc.pmts ? calc.heloc.pmts.drawn : 0)} color={T.green} statKey="price" />
+    <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
+    <Stat label="CLTV" value={pct(calc.heloc.line.cltv, 0)} color={calc.heloc.line.cltv > 0.9 + 1e-9 ? T.red : T.text} statKey="qualbadge" />
+  </>) : isRefi ? (<>
     <Stat label="Value" value={fmt(salesPrice)} statKey="price" />
     <Stat label="Loan Amount" short="Loan" value={fmt(calc.refiNewLoanAmt || 0)} statKey="price" />
     <Stat label="Savings" value={`${(calc.refiMonthlyTotalSavings || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiMonthlyTotalSavings || 0)))}/mo`} color={(calc.refiMonthlyTotalSavings || 0) >= 0 ? T.green : T.red} statKey="savings" />
@@ -297,7 +307,11 @@ export default function UnifiedHeader({
     <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
     <Stat label="Cash Close" short="To Close" value={orDash(fmt(calc.cashToClose))} color={T.green} statKey="cashclose" />
     <Stat label="Payment" value={orDash(fmt(calc.displayPayment))} color={T.blue} statKey="payment" />
-    {calc.qualifyingIncome > 0 && (
+    {calc.qualMethod === "dscr" ? (
+      calc.dscr && calc.dscr.ratio !== null && <Stat label="DSCR" value={calc.dscr.ratio.toFixed(2)} color={calc.dscr.pass ? T.text : T.red} statKey="qualbadge" />
+    ) : calc.qualMethod === "assets" ? (
+      calc.aqSummary && calc.aqSummary.anyData && <Stat label="Programs" value={`${calc.aqSummary.passCount}/${calc.aqSummary.total}`} color={calc.aqSummary.passCount > 0 ? T.text : T.red} statKey="qualbadge" />
+    ) : calc.qualifyingIncome > 0 && (
       <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
     )}
   </>);

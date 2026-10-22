@@ -4,6 +4,8 @@ import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { getApplyUrl } from "../lib/applyUrl.js";
 import { solveMaxPrice, solveScenarioPrice } from "../lib/affordability.js";
+import { repayPillar, HELOC_RULES } from "../lib/nonQm.js";
+import { DscrPanel, AssetProgramTable } from "../components/NonQmPanels.jsx";
 // AMI lookup is no longer rendered in the Debt to Income Summary card. The
 // old src/data/caAmi.js table was removed (recover from git history if needed).
 
@@ -279,14 +281,15 @@ export default function QualifyContent(props) {
  <div>
   <StopLight hideBanner onPillarClick={handlePillarClick} checks={isRefi ? [
    { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent: best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
-   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
+   { ...repayPillar(calc, { fmt, pct, loanType }), icon: "scale" },
+   calc.heloc && calc.heloc.standalone ? { label: "CLTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.heloc.line.cltv > 0 ? `${pct(calc.heloc.line.cltv, 0)} / ${Math.round(HELOC_RULES.maxCltv * 100)}%` : "Enter home value", icon: "home", fullLabel: "Combined Loan-to-Value", detail: calc.heloc.line.cltv > 0 ? `First mortgage ${fmt(calc.heloc.firstBalance)} + HELOC line ${fmt(calc.heloc.line.line)} = ${pct(calc.heloc.line.cltv, 1)} of the home's value. Max ${Math.round(HELOC_RULES.maxCltv * 100)}%.` : "Enter the home value and current balance in Setup.", action: "Edit loan details" } :
    { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan details", icon: "home", fullLabel: "Loan-to-Value", detail: calc.refiNewLTV > 0 ? `New LTV: ${pct(calc.refiNewLTV, 1)}. Max ${refiPurpose === "Cash-Out" ? "80%" : "95%"} for ${refiPurpose} refi. ${calc.refiNewLTV <= 0.80 ? "Below 80%: no PMI required." : ""}` : "Enter your current loan details in Setup to calculate LTV.", action: "Edit loan details" },
   ] : [
    { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent: best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
    { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "home", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
-   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
+   { ...repayPillar(calc, { fmt, pct, loanType }), icon: "scale" },
    { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "dollar", fullLabel: "Cash to Close", detail: `Need ${fmt(calc.cashToClose)} (down payment + closing costs – credits). ${calc.totalForClosing > 0 ? `Have ${fmt(calc.totalForClosing)} verified. ${calc.totalForClosing >= calc.cashToClose ? "Fully funded!" : `Short ${fmt(calc.cashToClose - calc.totalForClosing)}.`}` : "Add assets to verify funds."}`, action: "Edit assets" },
-   { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark", fullLabel: "Reserves", detail: `${calc.reserveMonths} months required (${loanType === "Jumbo" ? "Jumbo" : "standard"}) = ${fmt(calc.reservesReq)}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
+   { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark", fullLabel: "Reserves", detail: `${calc.qualMethod === "assets" ? "Built into each asset program's test, so none extra here" : `${calc.reserveMonths} months required (${loanType === "Jumbo" || loanType === "DSCR" ? loanType : "standard"}) = ${fmt(calc.reservesReq)}`}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
   ]} />
  </div>
 
@@ -347,12 +350,16 @@ export default function QualifyContent(props) {
   </Card>
  )}
 
+ {/* Asset Qualifier: the whole lender matrix, full width — it replaces DTI. */}
+ {calc.qualMethod === "assets" && <div style={{ marginTop: 16 }}><AssetProgramTable T={T} calc={calc} fmt={fmt} isDesktop={isDesktop} /></div>}
+
  <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start", marginTop: 16 } : {}}>
  {/* ── LEFT column: DTI bar + Pre-Qualified vs Pre-Approved education ── */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  {/* Debt to Income Summary — full breakdown matching Christo's spreadsheet.
      Replaces the old compact DTI bar + 'Min income needed' caption. */}
- {calc.qualifyingIncome > 0 && (
+ {calc.qualMethod === "dscr" && <DscrPanel T={T} calc={calc} fmt={fmt} />}
+ {calc.qualMethod === "dti" && calc.qualifyingIncome > 0 && (
   <DebtToIncomeSummary
     T={T} fmt={fmt} pct={pct} isDesktop={isDesktop}
     calc={calc} loanType={loanType}
@@ -397,12 +404,12 @@ export default function QualifyContent(props) {
    )}
   </Card>
  )}
- {calc.qualifyingIncome <= 0 && (
+ {calc.qualMethod === "dti" && calc.qualifyingIncome <= 0 && (
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
    <Note color={T.orange} title="Add income to see DTI" style={{ marginTop: 0, marginBottom: 12 }}>Tap to go to the Income tab</Note>
   </div>
  )}
- {!isRefi && calc.qualifyingIncome > 0 && calc.totalForClosing <= 0 && (
+ {!isRefi && (calc.qualifyingIncome > 0 || calc.qualMethod !== "dti") && calc.totalForClosing <= 0 && (
   <div data-field="qualify-needs-assets" className={isPulse("qualify-needs-assets")} onClick={() => setTab("assets")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
    <Note color={T.orange} title="Add assets to verify cash to close" style={{ marginTop: 0, marginBottom: 12 }}>Tap to go to the Assets tab</Note>
   </div>
@@ -411,7 +418,16 @@ export default function QualifyContent(props) {
  {/* ── RIGHT: Afford section — scrollable 50% ── */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  {/* ── AFFORD SECTION (merged) — purchase only ── */}
- {!isRefi && <>
+ {/* The solver prices one DTI-qualified loan. DSCR, Asset Qualifier and a
+     1st + HELOC qualify differently, so it stays out rather than mislead. */}
+ {!isRefi && (calc.qualMethod !== "dti" || loanType === "HELOC") && (
+  <Note color={T.blue} title="What Can I Afford? works on DTI loans" style={{ marginTop: 20 }}>
+   {calc.qualMethod === "dscr" ? "DSCR qualifies on the property's rent. Raise the rent or lower the loan to move the ratio."
+    : calc.qualMethod === "assets" ? "Asset Qualifier qualifies on your accounts. The program table shows how much room each lender leaves."
+    : "A 1st + HELOC splits the loan in two. Switch to Conventional to solve for a max price."}
+  </Note>
+ )}
+ {!isRefi && calc.qualMethod === "dti" && loanType !== "HELOC" && <>
  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}40, transparent)`, margin: "20px 0 8px" }} />
  <div style={{ marginTop: 12 }}>
   <Hero value="What Can I Afford?" label="Reverse-engineer your max purchase price" color={T.blue} />
