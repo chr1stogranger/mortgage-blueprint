@@ -5,6 +5,7 @@ import { renderPage, esc } from "./render.js";
 import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
 import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
+import { CA_TAX_BILL_LOOKUP } from "../../src/data/caTaxBillLookup.js";
 import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, CA_TAX_STALE_COUNTIES, BAY_AREA_COUNTIES } from "../../src/data/caTaxRates.js";
 import { COUNTY_LIMITS, normalizeCounty, getCountyLimits } from "../../src/data/loanLimits.js";
 
@@ -47,6 +48,11 @@ describe("generated data files", () => {
         expect(pct, city).toBeLessThan(1.8);
       }
     }
+    expect(Object.keys(CA_TAX_BILL_LOOKUP).sort()).toEqual(LICENSED_COUNTIES.CA.map((c) => normalizeCounty(c.name)).map((k) => LICENSED_COUNTIES.CA.find((c) => normalizeCounty(c.name) === k).name.replace(/ County$/, "")).sort());
+    for (const [k, v] of Object.entries(CA_TAX_BILL_LOOKUP)) {
+      expect(v.url, k).toMatch(/^https:\/\//);
+      expect(v.office, k).toBeTruthy();
+    }
     expect(CA_TAX_STALE_COUNTIES).toEqual(CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY).map((c) => c.county));
   });
 });
@@ -58,7 +64,8 @@ describe("page set", () => {
     expect(n(/^\/loan-limits\/[^/]+\/$/)).toBe(8);
     expect(n(/^\/loan-limits\/[^/]+\/[^/]+\/$/)).toBe(46);
     expect(n(/^\/property-tax\/california\/$/)).toBe(1);
-    expect(n(/^\/property-tax\/california\/[^/]+\/$/)).toBe(186);
+    expect(n(/^\/property-tax\/california\/[^/]+-county\/$/)).toBe(CA_TAX_COUNTIES.length);
+    expect(n(/^\/property-tax\/california\/[^/]+\/$/)).toBe(CA_TAX_COUNTIES.length + Object.keys(CA_CITY_COUNTY).length);
     expect(site.sitemap).toHaveLength(site.pages.length);
   });
 
@@ -72,9 +79,13 @@ describe("page set", () => {
     expect(pageText(p)).toContain("/property-tax/california/fremont/");
   });
 
-  it("Fresno CA: $832,750, no county page, a row on the CA state page", () => {
+  it("Fresno CA: $832,750, no loan-limit page (a row on the CA state page), but a tax page", () => {
     expect(getCountyLimits("CA", "Fresno", 1).highBalance).toBe(832750);
-    expect([...byPath.keys()].some((k) => k.includes("fresno"))).toBe(false);
+    expect([...byPath.keys()].some((k) => k.startsWith("/loan-limits/") && k.includes("fresno"))).toBe(false);
+    const tax = byPath.get("/property-tax/california/fresno-county/");
+    expect(tax.h1).toMatch(/^Fresno County Property Tax Rates \(FY 20\d\d-\d\d\)$/);
+    expect(pageText(tax)).toContain("/loan-limits/california/#fresno-county");
+    expect(pageText(byPath.get("/property-tax/california/fresno/"))).toContain("/property-tax/california/fresno-county/");
     const row = byPath.get("/loan-limits/california/").sections[0].blocks[0].rows.find((r) => r.id === "fresno-county");
     expect(row.cells).toEqual(["Fresno County", "$832,750", "$1,066,250", "$1,288,800", "$1,601,750"]);
   });
@@ -101,14 +112,14 @@ describe("page set", () => {
     expect(byPath.get("/loan-limits/texas/").lead).toBe("All 254 Texas counties use the national baseline of $832,750 for a one-unit home in 2026. Loans above that amount are jumbo loans.");
   });
 
-  it("Fremont: 1.1741%; $1M -> $11,741/yr, $978.42/mo", () => {
+  it("Fremont: 1.1746% (FY 2026-27); $1M -> $11,746/yr, $978.83/mo", () => {
     const p = byPath.get("/property-tax/california/fremont/");
-    expect(p.h1).toBe("Fremont, CA Property Tax Rate (FY 2025-26)");
-    expect(p.lead).toBe("Fremont's property tax rate is 1.1741% for fiscal year 2025-26 in its primary tax rate area: the 1% Proposition 13 base plus 0.1741% in voter-approved bonds.");
-    // 1,000,000 x 0.011741 = 11,741; / 12 = 978.4166... -> 978.42
+    expect(p.h1).toBe("Fremont, CA Property Tax Rate (FY 2026-27)");
+    expect(p.lead).toBe("Fremont's property tax rate is 1.1746% for fiscal year 2026-27 in its primary tax rate area: the 1% Proposition 13 base plus 0.1746% in voter-approved bonds.");
+    // 1,000,000 x 0.011746 = 11,746; / 12 = 978.8333... -> 978.83
     const row = p.taxRows.find((r) => r.price === 1000000);
-    expect(row).toEqual({ price: 1000000, annual: 11741, monthly: 978.42 });
-    expect(money2(row.annual)).toBe("$11,741.00");
+    expect(row).toEqual({ price: 1000000, annual: 11746, monthly: 978.83 });
+    expect(money2(row.annual)).toBe("$11,746.00");
     expect(pageText(p)).toContain("/loan-limits/california/alameda-county/");
   });
 
@@ -122,7 +133,7 @@ describe("page set", () => {
   });
 
   it("never publishes a placeholder-rate city", () => {
-    for (const slug of ["irvine", "anaheim", "los-angeles", "amador-valley"]) {
+    for (const slug of ["alturas", "crescent-city", "yreka", "amador-valley", "bethel-island"]) {
       expect(byPath.has(`/property-tax/california/${slug}/`), slug).toBe(false);
     }
   });
@@ -138,7 +149,7 @@ describe("page set", () => {
   });
 
   it("quotes no interest rate anywhere", () => {
-    for (const p of site.pages) expect(pageText(p), p.path).not.toMatch(/interest rate|APR|\bper annum\b/i);
+    for (const p of site.pages) expect(pageText(p), p.path).not.toMatch(/interest rate|\bAPR\b|\bper annum\b/i);
   });
 });
 

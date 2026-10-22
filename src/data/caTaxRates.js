@@ -23,15 +23,15 @@ export const BAY_AREA_COUNTIES = ["Alameda", "Contra Costa", "San Mateo", "San F
 
 export const CA_TAX_COUNTIES = [
  {
-  county: "Alameda", fy: "2025-26",
-  source: "Tax Rates For the Fiscal Year 2025/2026 (Alameda County Auditor-Controller/Clerk-Recorder, 2025/26 Tax Rate Book)",
-  url: "https://acgovt.sharepoint.com/:b:/s/acpublicdocs/EUwvjNWqxfFLt9ynbJUgR9YBwsXwlXQHkOMGJT8bEjWwJg?e=2HDN69",
+  county: "Alameda", fy: "2026-27",
+  source: "Alameda County Auditor-Controller, Tax Rate Search, Tax Year 2026-27",
+  url: "https://audtaxpublic.alamedacountyca.gov/#/taxRate",
   rates: {
-   "Alameda": 1.2127, "Albany": 1.3571, "Ashland": 1.1946, "Berkeley": 1.2323,
-   "Castro Valley": 1.18, "Cherryland": 1.1884, "Dublin": 1.2385, "Emeryville": 1.1665,
-   "Fairview": 1.1884, "Fremont": 1.1741, "Hayward": 1.1724, "Livermore": 1.1325,
-   "Newark": 1.1492, "Oakland": 1.2779, "Piedmont": 1.1798, "Pleasanton": 1.1694,
-   "San Leandro": 1.2436, "San Lorenzo": 1.1946, "Sunol": 1.1329, "Union City": 1.2621,
+   "Alameda": 1.215, "Albany": 1.3465, "Ashland": 1.2654, "Berkeley": 1.2313,
+   "Castro Valley": 1.18, "Cherryland": 1.2126, "Dublin": 1.2331, "Emeryville": 1.1627,
+   "Fairview": 1.2126, "Fremont": 1.1746, "Hayward": 1.1966, "Livermore": 1.1384,
+   "Newark": 1.1458, "Oakland": 1.2849, "Piedmont": 1.1819, "Pleasanton": 1.1691,
+   "San Leandro": 1.2308, "San Lorenzo": 1.2654, "Sunol": 1.1346, "Union City": 1.2641,
   },
  },
  {

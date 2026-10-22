@@ -4,6 +4,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import Icon from "../Icon";
 import BottomSheet from "../BottomSheet";
 import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, CA_TAX_STALE_COUNTIES, BAY_AREA_COUNTIES, CA_CITY_TAX_INFO } from "../data/caTaxRates.js";
+import { CA_TAX_BILL_LOOKUP } from "../data/caTaxBillLookup.js";
 
 // ── All cities' rates (Christo 2026-10-22) ──
 // Opened from "Base Rate (City)" in the Tax breakdown. Lists every sourced
@@ -128,6 +129,12 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
        const mine = x.city === city && !!info;
        return <RateRow key={x.city} x={x} T={T} mine={mine} rowRef={mine ? myRowRef : undefined} />;
       })}
+      {CA_TAX_BILL_LOOKUP[c.county]?.url && (
+       <a href={CA_TAX_BILL_LOOKUP[c.county].url} target="_blank" rel="noopener noreferrer"
+        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: T.blue, marginTop: 6, textDecoration: "none" }}>
+        Look up a {countyLabel(c.county)} tax bill <Icon name="external-link" size={11} />
+       </a>
+      )}
       {c.url && (
        <a href={c.url} target="_blank" rel="noopener noreferrer"
         style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, color: T.textTertiary, marginTop: 6, textDecoration: "none" }}>

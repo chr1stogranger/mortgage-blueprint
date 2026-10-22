@@ -4,7 +4,7 @@
 // standalone HTML documents with the answer in the body and no app bundle, so
 // crawlers that never run JavaScript (most AI search crawlers) can read them.
 // Pages: /loan-limits/ (+ 8 states + qualifying counties) and
-// /property-tax/california/ (+ one page per SOURCED city). The page set and
+// /property-tax/california/ (+ one page per sourced county and per SOURCED city). The page set and
 // every number come from scripts/seo-data/model.js, which throws on missing
 // data, slug collisions or broken internal links, so a bad build never ships.
 //
@@ -56,5 +56,6 @@ console.log(
   `seo-data-pages: wrote ${pages.length} pages ` +
   `(loan-limit hub ${count(/^\/loan-limits\/$/)}, states ${count(/^\/loan-limits\/[^/]+\/$/)}, ` +
   `counties ${count(/^\/loan-limits\/[^/]+\/[^/]+\/$/)}, CA tax hub ${count(/^\/property-tax\/california\/$/)}, ` +
-  `cities ${count(/^\/property-tax\/california\/[^/]+\/$/)}); sitemap ${existing.length} + ${added.length} = ${locs.length} URLs`,
+  `tax counties ${count(/^\/property-tax\/california\/[^/]+-county\/$/)}, ` +
+  `cities ${count(/^\/property-tax\/california\/[^/]+\/$/) - count(/^\/property-tax\/california\/[^/]+-county\/$/)}); sitemap ${existing.length} + ${added.length} = ${locs.length} URLs`,
 );

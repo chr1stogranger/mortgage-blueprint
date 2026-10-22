@@ -6,10 +6,12 @@
 // modules; nothing is estimated. The rules that keep the page set honest:
 //  · CA city pages exist ONLY for CA_CITY_COUNTY (the sourced rate-book
 //    entries). The 1.25% default block is placeholder data and never gets a page.
-//  · A county gets its own page only when its limit is above the national
-//    baseline (high-cost, or Hawaii's HERA baseline) or it's a CA county with
-//    sourced city rates. Every other county is a row on its state page, so we
-//    never publish hundreds of near-identical "$832,750" pages.
+//  · A county gets its own LOAN-LIMIT page only when its limit is above the
+//    national baseline (high-cost, or Hawaii's HERA baseline) or it's a Bay
+//    Area county with sourced rates. Every other county is a row on its state
+//    page, so we never publish hundreds of near-identical "$832,750" pages.
+//  · Every CA county with sourced rates gets a property-tax page (rates by
+//    city + the county's official bill lookup from caTaxBillLookup.js).
 //  · No interest rates and no rate-based payment examples (Reg Z advertising).
 // Every year / FY label derives from LIMIT_YEAR and each county's fy in
 // caTaxRates.js (counties refresh on their own schedule), so a data
@@ -19,7 +21,8 @@ import { LIMIT_YEAR, CONF_BASELINE, CONF_CEILING, getCountyLimits, normalizeCoun
 import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
 import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
-import { CA_CITY_TAX_INFO, BAY_AREA_COUNTIES } from "../../src/data/caTaxRates.js";
+import { CA_CITY_TAX_INFO, BAY_AREA_COUNTIES, CA_TAX_CURRENT_FY } from "../../src/data/caTaxRates.js";
+import { CA_TAX_BILL_LOOKUP } from "../../src/data/caTaxBillLookup.js";
 import { STATE_PROPERTY_TAX_RATES } from "../../src/data/propertyTax.js";
 import { LICENSED_STATES, LICENSED_STATES_TEXT } from "../../src/data/licensing.js";
 
@@ -107,29 +110,35 @@ function countyRecords() {
 
 function caCities() {
   const caNames = new Set(LICENSED_COUNTIES.CA.map((c) => normalizeCounty(c.name)));
-  // The tax pages cover the Bay Area; caTaxRates.js also holds other counties
-  // for the in-app rates sheet.
-  return Object.entries(CA_CITY_COUNTY).filter(([, county]) => BAY_AREA_COUNTIES.includes(county)).map(([city, county]) => {
+  return Object.entries(CA_CITY_COUNTY).map(([city, county]) => {
     const rate = CA_CITY_TAX_RATES[city];
     if (!(rate > 0) || rate === 0.0125) throw new Error(`seo-data: ${city} has no sourced rate (${rate})`);
     if (!caNames.has(normalizeCounty(county))) throw new Error(`seo-data: ${city}'s county ${county} is not an FHFA CA county`);
-    return { city, county, rate, fy: CA_CITY_TAX_INFO[city].fy, slug: slugify(city) };
+    const { fy, source, url } = CA_CITY_TAX_INFO[city];
+    return { city, county, rate, fy, source, url, slug: slugify(city) };
   });
 }
 
-const sourcedCaCounties = () => new Set(caCities().map((x) => normalizeCounty(x.county)));
+// Loan-limit county pages for CA: high-cost, or a Bay Area county with sourced
+// rates (the original set). Every other sourced county has a tax page instead.
+const BAY_KEYS = new Set(BAY_AREA_COUNTIES.map(normalizeCounty));
 
 /** FY label for a set of city rows: "2026-27", or "2025-26 & 2026-27" mid-refresh. */
 const fyOf = (list) => [...new Set(list.map((x) => x.fy))].sort().join(" & ");
 
 /** True when a county gets its own page (see the header comment). */
 export function hasCountyPage(c) {
-  return c.limits[0] > CONF_BASELINE[1] || (c.st === "CA" && sourcedCaCounties().has(normalizeCounty(c.name)));
+  return c.limits[0] > CONF_BASELINE[1] || (c.st === "CA" && BAY_KEYS.has(normalizeCounty(c.name)));
 }
 
 const statePath = (state) => `/loan-limits/${slugify(state)}/`;
 const countyPath = (c) => `${statePath(c.state)}${c.slug}/`;
 const cityPath = (x) => `/property-tax/california/${x.slug}/`;
+const taxCountyPath = (county) => `/property-tax/california/${slugify(county)}-county/`;
+const countyLabel = (county) => (county === "San Francisco" ? "San Francisco" : `${county} County`);
+/** Loan-limit link for a county: its own page, else its row on the state page. */
+const llPath = (c) => (hasCountyPage(c) ? countyPath(c) : `${statePath(c.state)}#${c.slug}`);
+const DUE_DATES = "California secured property tax is billed in two installments: the first is due November 1 and late after December 10; the second is due February 1 and late after April 10. A 10% penalty applies to a late installment.";
 const LL_HUB = "/loan-limits/";
 const TAX_HUB = "/property-tax/california/";
 
@@ -250,7 +259,6 @@ export function buildSite({ now, limitSource }) {
   if (!limitSource?.url) throw new Error("seo-data: buildSite needs limitSource");
   const year = LIMIT_YEAR;
   const cities = caCities();
-  const FY = fyOf(cities);
   const counties = countyRecords();
   const pages = [];
   const sourceP = p(
@@ -359,7 +367,7 @@ export function buildSite({ now, limitSource }) {
     if (withPages.length) {
       sections.push({ heading: `${state} counties with their own page`, blocks: [{ type: "list", items: withPages.map((c) => [link(countyPath(c), `${c.name}: ${money(c.limits[0])}`)]) }] });
     }
-    if (st === "CA") sections.push({ heading: "Property tax", blocks: [p(link(TAX_HUB, `California property tax rates by city (FY ${FY})`), ", for the Bay Area cities with published county rate-book data.")] });
+    if (st === "CA") sections.push({ heading: "Property tax", blocks: [p(link(TAX_HUB, "California property tax rates by city and county"), ", from each county's published rate book, with each county's tax bill lookup.")] });
     sections.push(
       { heading: "Other states", blocks: [{ type: "list", items: LICENSED_STATES.filter((s) => s !== state).map((s) => [link(statePath(s), `${s} loan limits`)]) }] },
       { heading: "Source", blocks: [sourceP] },
@@ -402,6 +410,7 @@ export function buildSite({ now, limitSource }) {
             blocks: [
               p(`Fiscal year ${fyOf(cs)} rates from the county's tax rate book, for each city's primary tax rate area. Each rate is the 1% Proposition 13 base plus voter-approved bonds.`),
               cityRateTable(cs, `Property tax rates, ${c.name} (FY ${fyOf(cs)})`),
+              p(link(taxCountyPath(c.short), `${c.name} property tax rates and bill lookup`)),
             ],
           });
         }
@@ -437,17 +446,30 @@ export function buildSite({ now, limitSource }) {
     if (!caByCounty.has(x.county)) caByCounty.set(x.county, []);
     caByCounty.get(x.county).push(x);
   }
-  const sortedRates = [...cities].sort((a, b) => a.rate - b.rate);
+  const sortedRates = [...cities].sort((a, b) => a.rate - b.rate || a.city.localeCompare(b.city));
   const lo = sortedRates[0];
   const hi = sortedRates[sortedRates.length - 1];
   const caCounty = (short) => counties.CA.find((c) => normalizeCounty(c.name) === normalizeCounty(short));
+  const rateRange = (cs) => {
+    const s = [...cs].sort((a, b) => a.rate - b.rate);
+    return s.length === 1 ? splitRate(s[0].rate).total : `${splitRate(s[0].rate).total} to ${splitRate(s[s.length - 1].rate).total}`;
+  };
+  const current = [...caByCounty.keys()].filter((k) => caByCounty.get(k)[0].fy === CA_TAX_CURRENT_FY);
+  const rankTable = (list, caption) => ({
+    type: "table",
+    caption,
+    head: ["City", "County", "Tax rate"],
+    num: [false, false, true],
+    rows: list.map((x) => ({ cells: [[link(cityPath(x), x.city)], [link(taxCountyPath(x.county), countyLabel(x.county))], `${splitRate(x.rate).total} (FY ${x.fy})`] })),
+  });
+  const lookupRows = counties.CA.map((c) => c.short).sort().filter((k) => CA_TAX_BILL_LOOKUP[k]?.url);
   pages.push(page({
     now,
     path: TAX_HUB,
-    titleCore: `California Property Tax Rates by City (FY ${FY})`,
-    description: `FY ${FY} property tax rates for ${cities.length} Bay Area cities, from ${splitRate(lo.rate).total} to ${splitRate(hi.rate).total}: the 1% Prop 13 base plus voter-approved bonds.`,
-    h1: `California Property Tax Rates by City (FY ${FY})`,
-    lead: `California property tax is 1% of assessed value under Proposition 13, plus voter-approved bonds. In the ${cities.length} Bay Area cities and communities listed here, the fiscal year ${FY} rate runs from ${splitRate(lo.rate).total} (${lo.city}) to ${splitRate(hi.rate).total} (${hi.city}).`,
+    titleCore: "California Property Tax Rates by City and County",
+    description: `Property tax rates for ${cities.length} California cities in ${caByCounty.size} counties, from county rate books, plus where to look up each county's tax bills.`,
+    h1: "California Property Tax Rates by City and County",
+    lead: `California property tax is 1% of assessed value under Proposition 13, plus voter-approved bonds. Across the ${cities.length} cities and communities listed here, the rate runs from ${splitRate(lo.rate).total} (${lo.city}) to ${splitRate(hi.rate).total} (${hi.city}). ${current.length} of these ${caByCounty.size} counties have published fiscal year ${CA_TAX_CURRENT_FY} rates; the rest show their latest published year until they do.`,
     breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }),
     sections: [
       {
@@ -457,29 +479,86 @@ export function buildSite({ now, limitSource }) {
           p("After the purchase, the assessed value can rise by at most 2% a year until the home sells again, even if market values climb faster."),
           p("Buyers also get a supplemental tax bill after closing, covering the difference between the old owner's assessed value and the new one for the rest of the fiscal year."),
           p("The rates here do not include Mello-Roos (Community Facilities District) taxes, flat parcel taxes or fixed special assessments, which can add a noticeable amount on some homes."),
+          p(DUE_DATES),
         ],
       },
-      ...[...caByCounty.entries()].map(([county, cs]) => {
-        const cc = caCounty(county);
-        const label = county === "San Francisco" ? "San Francisco" : `${county} County`;
-        return {
-          heading: label,
-          blocks: [
-            cityRateTable(cs, `Property tax rates, ${label} (FY ${fyOf(cs)})`),
-            p(link(countyPath(cc), `${cc.name} conforming loan limit: ${money(cc.limits[0])}`)),
-          ],
-        };
-      }),
+      {
+        heading: "Rates by county",
+        blocks: [{
+          type: "table",
+          caption: "California property tax rates by county",
+          head: ["County", "Cities listed", "Rate range", "Fiscal year"],
+          num: [false, true, true, false],
+          rows: [...caByCounty.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([county, cs]) => ({
+            cells: [[link(taxCountyPath(county), countyLabel(county))], String(cs.length), rateRange(cs), cs[0].fy],
+          })),
+        }],
+      },
+      { heading: "Lowest rates", blocks: [rankTable(sortedRates.slice(0, 10), "The 10 lowest California city property tax rates listed here")] },
+      { heading: "Highest rates", blocks: [rankTable(sortedRates.slice(-10).reverse(), "The 10 highest California city property tax rates listed here")] },
+      {
+        heading: "Look up a property tax bill",
+        blocks: [
+          p("Each county's treasurer-tax collector posts secured tax bills online. You'll usually need the parcel number (APN), which is on the bill and on the county assessor's records."),
+          {
+            type: "table",
+            caption: "Official property tax bill lookup, by California county",
+            head: ["County", "Bill lookup"],
+            num: [false, false],
+            rows: lookupRows.map((k) => ({
+              cells: [caByCounty.has(k) ? [link(taxCountyPath(k), countyLabel(k))] : countyLabel(k), [link(CA_TAX_BILL_LOOKUP[k].url, "Look up a bill")]],
+            })),
+          },
+        ],
+      },
       {
         heading: "Source",
-        blocks: [p(`Each county's published tax rate book (San Francisco: the Treasurer's secured rate) for fiscal year ${FY}. Each rate is the total ad valorem rate for the city's primary or most common tax rate area; other areas in the same city can differ.`)],
+        blocks: [p("Each county's published tax rate book or rate schedule (San Francisco: the Treasurer's secured rate), linked on each county's page. Each rate is the total ad valorem rate for the city's primary or most common tax rate area; other areas in the same city can differ.")],
       },
     ],
   }));
 
+  // ── CA county tax pages ──
+  for (const [county, cs] of caByCounty) {
+    const label = countyLabel(county);
+    const cc = caCounty(county);
+    const fy = cs[0].fy;
+    const s = [...cs].sort((a, b) => a.rate - b.rate);
+    const bill = CA_TAX_BILL_LOOKUP[county];
+    const lead = (cs.length === 1
+      ? `${possessive(cs[0].city)} property tax rate is ${splitRate(cs[0].rate).total} for fiscal year ${fy}: the 1% Proposition 13 base plus voter-approved bonds.`
+      : `In ${label}, the fiscal year ${fy} property tax rate runs from ${splitRate(s[0].rate).total} (${s[0].city}) to ${splitRate(s[s.length - 1].rate).total} (${s[s.length - 1].city}) across the ${cs.length} cities and communities listed here: the 1% Proposition 13 base plus voter-approved bonds.`)
+      + (fy === CA_TAX_CURRENT_FY ? "" : ` The county hasn't published fiscal year ${CA_TAX_CURRENT_FY} rates yet, so these are its latest published rates.`);
+    const billBlocks = [];
+    if (bill?.url) billBlocks.push(p(`The ${bill.office} posts ${label} secured tax bills online: `, link(bill.url, "look up or pay a property tax bill"), ". You'll usually need the parcel number (APN)."));
+    billBlocks.push(
+      p(DUE_DATES),
+      p("A bill adds fixed charges to the rate: parcel taxes, Mello-Roos (Community Facilities District) taxes and special assessments such as sewer, flood control or lighting. Those vary by parcel and are not in the rates above."),
+    );
+    pages.push(page({
+      now,
+      path: taxCountyPath(county),
+      titleCore: `${label} Property Tax Rates and Bill Lookup`,
+      description: `${label}, CA property tax rates (FY ${fy}) for ${cs.length === 1 ? "the city" : `${cs.length} cities`}: ${rateRange(cs)}. Plus where to look up and pay your tax bill.`,
+      h1: `${label} Property Tax Rates (FY ${fy})`,
+      lead,
+      breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: label, path: taxCountyPath(county) }),
+      sections: [
+        { heading: "Rates by city", blocks: [cityRateTable(cs, `Property tax rates, ${label} (FY ${fy})`)] },
+        { heading: "Your property tax bill", blocks: billBlocks },
+        { heading: "Loan limits", blocks: [p(link(llPath(cc), `${cc.name} ${year} conforming loan limit: ${money(cc.limits[0])}`))] },
+        { heading: "Source", blocks: [p("Rates from ", link(cs[0].url, cs[0].source), ". Each rate is for the city's primary or most common tax rate area; other areas in the same city can differ.")] },
+        { blocks: [{ type: "cta", href: prefillLink({ st: "CA", county, src: "seo-ptax" }), text: `Run your numbers for ${label} in Mortgage Blueprint` }] },
+        { heading: "Related", blocks: [{ type: "list", items: [[link(TAX_HUB, "California property tax rates by city and county")]] }] },
+      ],
+    }));
+  }
+
   // ── CA city pages ──
   for (const x of cities) {
     const cc = caCounty(x.county);
+    const label = countyLabel(x.county);
+    const bill = CA_TAX_BILL_LOOKUP[x.county];
     const { total, bonds } = splitRate(x.rate);
     const rows = TAX_PRICES.map((price) => {
       const annual = cents(price * x.rate);
@@ -514,13 +593,20 @@ export function buildSite({ now, limitSource }) {
         }],
       },
       {
+        heading: "Look up a tax bill",
+        blocks: [p(
+          ...(bill?.url ? [link(bill.url, `Look up a ${label} property tax bill`), ` on the ${bill.office} site. `] : []),
+          link(taxCountyPath(x.county), `${label} property tax rates and due dates`), ".",
+        )],
+      },
+      {
         heading: "Loan limits",
-        blocks: [p(`${x.city} is in ${cc.name}, where the ${year} conforming loan limit for a one-unit home is ${money(cc.limits[0])}. `, link(countyPath(cc), `${cc.name} loan limits`), ".")],
+        blocks: [p(`${x.city} is in ${cc.name}, where the ${year} conforming loan limit for a one-unit home is ${money(cc.limits[0])}. `, link(llPath(cc), `${cc.name} loan limits`), ".")],
       },
     ];
-    if (neighbors.length) sections.push({ heading: `Other cities in ${cc.name}`, blocks: [cityRateTable(neighbors, `Property tax rates, ${cc.name} (FY ${fyOf(neighbors)})`)] });
+    if (neighbors.length) sections.push({ heading: `Other cities in ${label}`, blocks: [cityRateTable(neighbors, `Property tax rates, ${label} (FY ${fyOf(neighbors)})`)] });
     sections.push(
-      { heading: "Source", blocks: [p(`${possessive(cc.name)} published tax rates for fiscal year ${x.fy}. `, link(TAX_HUB, "All sourced California city rates"), ".")] },
+      { heading: "Source", blocks: [p("Rate from ", link(x.url, x.source), ". ", link(TAX_HUB, "All California city rates"), ".")] },
       { blocks: [{ type: "cta", href: prefillLink({ st: "CA", county: x.county, city: x.city, src: "seo-ptax" }), text: `See ${possessive(x.city)} taxes in your payment in Mortgage Blueprint` }] },
     );
     pages.push(page({
@@ -530,13 +616,12 @@ export function buildSite({ now, limitSource }) {
       description: `${x.city}, CA property tax rate: ${total} for FY ${x.fy}. On a ${money(PRICE_EXAMPLE)} purchase that's about ${money(Math.round(ex.annual))} a year. Prop 13 basics and caveats.`,
       h1: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
       lead: `${possessive(x.city)} property tax rate is ${total} for fiscal year ${x.fy} in its primary tax rate area: the 1% Proposition 13 base plus ${bonds} in voter-approved bonds.`,
-      breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: x.city, path: cityPath(x) }),
+      breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: label, path: taxCountyPath(x.county) }, { name: x.city, path: cityPath(x) }),
       sections,
     }));
     pages[pages.length - 1].taxRows = rows;
   }
 
-  // ── integrity ──
   const seen = new Set();
   for (const pg of pages) {
     if (seen.has(pg.path)) throw new Error(`seo-data: slug collision at ${pg.path}`);
@@ -544,7 +629,7 @@ export function buildSite({ now, limitSource }) {
   }
   for (const pg of pages) {
     for (const href of pg.links) {
-      if (href.startsWith("/") && href !== "/" && !seen.has(href)) throw new Error(`seo-data: ${pg.path} links to missing page ${href}`);
+      if (href.startsWith("/") && href !== "/" && !seen.has(href.replace(/#.*$/, ""))) throw new Error(`seo-data: ${pg.path} links to missing page ${href}`);
     }
   }
   return { pages, sitemap: pages.map((pg) => ({ loc: pg.url, lastmod: now })) };
