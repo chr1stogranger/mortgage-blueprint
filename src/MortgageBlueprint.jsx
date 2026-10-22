@@ -35,6 +35,7 @@ import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import { DEFAULT_APPLY_URL, getApplyUrl, applyHref } from "./lib/applyUrl.js";
 import Icon from "./Icon";
+import { CA_TAX_HUB_URL } from "./lib/seoPaths.js";
 import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT, useKeyboardOpen } from "./components/MobileTabBar.jsx";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
@@ -834,17 +835,24 @@ function LearnSec({ cat, items }) {
  return (
   <Sec title={cat}>
    <Card>
-    {items.map((item, ii) => (
+    {items.map((item, ii) => {
+     // An item with an href is a link out (opens in a new tab / the system
+     // browser) instead of an article that expands in place.
+     const Row = item.href ? "a" : "div";
+     const rowProps = item.href ? { href: item.href, target: "_blank", rel: "noopener noreferrer" } : { onClick: () => toggle(ii) };
+     return (
      <div key={ii} style={{ borderBottom: ii < items.length - 1 ? `1px solid ${T.separator}` : "none" }}>
-      <div onClick={() => toggle(ii)} style={{ display: "flex", gap: 12, padding: "14px 0", cursor: "pointer" }}>
+      <Row {...rowProps} style={{ display: "flex", gap: 12, padding: "14px 0", cursor: "pointer", textDecoration: "none" }}>
        <div style={{ width: 40, height: 40, borderRadius: 12, background: `${T.blue}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: T.blue }}>{item.icon ? <Icon name={item.icon} size={20} /> : null}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{item.title}</div>
         <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>{item.desc}</div>
        </div>
-       <div style={{ display: "flex", alignItems: "center", color: T.textTertiary, fontSize: 14, transition: "transform 0.2s", transform: openItems[ii] ? "rotate(90deg)" : "none" }}>›</div>
-      </div>
-      {openItems[ii] && (
+       {item.href
+        ? <div style={{ display: "flex", alignItems: "center", color: T.textTertiary }}><Icon name="external-link" size={14} /></div>
+        : <div style={{ display: "flex", alignItems: "center", color: T.textTertiary, fontSize: 14, transition: "transform 0.2s", transform: openItems[ii] ? "rotate(90deg)" : "none" }}>›</div>}
+      </Row>
+      {!item.href && openItems[ii] && (
        <div style={{ padding: "0 0 16px 52px" }}>
         {item.body.split("\n\n").map((para, pi) => (
          <div key={pi} style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.65, marginBottom: pi < item.body.split("\n\n").length - 1 ? 12 : 0 }}>
@@ -856,7 +864,8 @@ function LearnSec({ cat, items }) {
        </div>
       )}
      </div>
-    ))}
+     );
+    })}
    </Card>
   </Sec>
  );
@@ -10367,6 +10376,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     { title: "The 5 Pillars of Qualifying", icon: "", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO): Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment: VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI): Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close: Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves: Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
     { title: "How Mortgage Rates Work", icon: "trending-up", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow, usually within days." },
     { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into, and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket. Saving you thousands over the life of the loan." },
+    { title: "Property Taxes & Your Tax Bill", icon: "landmark", desc: "Every California city's rate, a tax calculator, and your county's bill lookup", href: CA_TAX_HUB_URL },
    ]},
    { cat: "Loan Programs", items: [
     { title: "VA Loans: The Best Loan in America", icon: "", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment. Buy a home with nothing down.\n• No PMI: Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates: VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits. With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI: Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
