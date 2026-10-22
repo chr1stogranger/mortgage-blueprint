@@ -1,5 +1,5 @@
 import { FONT, MONO } from "./lib/fonts.js";
-import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './Icon';
 import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT } from './components/MobileTabBar.jsx';
@@ -1397,6 +1397,16 @@ const getStaticMapUrl = (lat, lng, approx = false, neighbors = null) => {
 const WIDE_COLS = "minmax(0, 3fr) minmax(0, 2fr)";
 const WIDE_GAP = 14;
 const WIDE_MEDIA_H = 440;
+// Wide cards fill the window (Christo 2026-10-22): the photo | map row grows
+// into whatever height is left; it never drops below WIDE_MEDIA_MIN, so a tall
+// panel (long remarks) scrolls instead of crushing the photo. WIDE_FILL_BOTTOM
+// = the space kept free under the card: the fixed tab bar plus a gap. The
+// wide views' desktop bottom padding (WIDE_VIEW_PAD) + the shell's 40px
+// bottom padding add up to exactly that, so a filled card never scrolls.
+const WIDE_MEDIA_MIN = 240;
+const WIDE_FILL_BOTTOM = MOBILE_TAB_BAR_HEIGHT + 16;
+const WIDE_FILL_FIXED_MIN = 520;
+const WIDE_VIEW_PAD = `16px 16px ${WIDE_FILL_BOTTOM - 40}px`;
 
 // ── Photo Carousel ──
 // MODULE SCOPE ON PURPOSE (2026-07-19). This used to be declared inside
@@ -4239,6 +4249,32 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   const showTabBar = view !== "onboarding" && view !== "reveal";
 
+  // ── Wide-card fill: measure where the wide card starts and give it the rest
+  // of the window. Re-measured every render, on window resize, and whenever
+  // the page's height changes (something above it settling after load moves
+  // its top without a re-render); only sets state when the number moves. ──
+  const wideFillRef = useRef(null);
+  const ppRootRef = useRef(null);
+  const [wideFillH, setWideFillH] = useState(null);
+  const [, setVpTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setVpTick(t => t + 1);
+    window.addEventListener("resize", bump);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(bump) : null;
+    if (ppRootRef.current) ro?.observe(ppRootRef.current);
+    return () => { window.removeEventListener("resize", bump); ro?.disconnect(); };
+  }, []);
+  useLayoutEffect(() => {
+    const el = wideFillRef.current;
+    if (!el || !el.isConnected) return;
+    // offsetTop, not getBoundingClientRect: the views slide in with a
+    // translateY animation, and a mid-slide rect reads ~24px too low.
+    let top = 0;
+    for (let n = el; n; n = n.offsetParent) top += n.offsetTop;
+    const h = Math.floor(window.innerHeight - top - WIDE_FILL_BOTTOM);
+    if (h !== wideFillH) setWideFillH(h);
+  });
+
   // ── Notification polling ──
   useEffect(() => {
     if (!playerId) return;
@@ -4674,14 +4710,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // ran 30+ lines on luxury listings). Three quarters of the row, so ~95
       // chars a line; anything past ~950 chars overflows the clamp.
       const DESC_LINE = 21; // 13px × 1.6
-      const descClamped = desc && desc.length > 950 && !mlsExpanded;
+      // Short windows get fewer lines so the filled card still fits without
+      // scrolling (~400px = the rest of the panel); 3 lines minimum.
+      const descLines = wideFillH ? Math.max(3, Math.min(11, Math.floor((wideFillH - WIDE_MEDIA_MIN - 400) / DESC_LINE))) : 11;
+      const descMaxChars = descLines * 86; // ~86 chars a clamped line (950 ≈ 11 lines)
+      const descClamped = desc && desc.length > descMaxChars && !mlsExpanded;
       const wideDescEl = showExtras && desc ? (
         <div style={{ gridColumn: "span 3", minWidth: 0, background: T.inputBg, borderRadius: 10, padding: "12px 16px", border: `1px solid ${T.cardBorder}` }}>
-          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, fontFamily: FONT, position: "relative", overflow: "hidden", maxHeight: descClamped ? DESC_LINE * 11 : "none" }}>
+          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, fontFamily: FONT, position: "relative", overflow: "hidden", maxHeight: descClamped ? DESC_LINE * descLines : "none" }}>
             {renderHighlightedDesc(desc, T)}
             {descClamped && <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 36, background: `linear-gradient(transparent, ${T.inputBg})` }} />}
           </div>
-          {desc.length > 950 && (
+          {desc.length > descMaxChars && (
             <button onClick={() => setMlsExpanded(!mlsExpanded)} style={{ background: "none", border: "none", color: accent, fontSize: 11, fontWeight: 600, fontFamily: FONT, letterSpacing: 1, cursor: "pointer", padding: "6px 0 0", textTransform: "uppercase" }}>{mlsExpanded ? "Show less" : "Read more"}</button>
           )}
         </div>
@@ -4689,16 +4729,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const pillH = 68;
       const pillBase = { height: pillH, borderRadius: 9999, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", boxSizing: "border-box", fontFamily: FONT };
       return (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: mapUrl ? WIDE_COLS : "1fr", gap: WIDE_GAP }}>
-            <div style={{ position: "relative", height: WIDE_MEDIA_H, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: T.card }}>
+        // Exactly window-height once measured (a very short window falls back
+        // to growing + page scroll): the media row takes the slack, and when
+        // space runs out the remarks | signals row scrolls inside the panel.
+        <div ref={wideFillRef} style={{ display: "flex", flexDirection: "column", minHeight: wideFillH || undefined, height: wideFillH >= WIDE_FILL_FIXED_MIN ? wideFillH : undefined }}>
+          <div className="pp-wide-media" style={{ display: "grid", gridTemplateColumns: mapUrl ? WIDE_COLS : "1fr", gap: WIDE_GAP, flex: "1 1 auto", minHeight: wideFillH ? WIDE_MEDIA_MIN : WIDE_MEDIA_H }}>
+            <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: T.card }}>
               <div style={{ position: "absolute", inset: 0 }}>{carousel(true)}</div>
             </div>
             {mapUrl && (
-              <div style={{ position: "relative", height: WIDE_MEDIA_H, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: "#e8eef2" }}>
+              <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: "#e8eef2" }}>
                 {isForSale && MAP_ENABLED && cardMap ? (
                   <Suspense fallback={null}>
-                    <PPMapView listings={cardMap.pool} T={T} darkMode={darkMode} activeIdx={cardMap.activeIdx} onSelect={handleCardMapSelect} onUnsupported={() => {}} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} height={WIDE_MEDIA_H} focusActive />
+                    <div style={{ position: "absolute", inset: 0 }}>
+                      <PPMapView listings={cardMap.pool} T={T} darkMode={darkMode} activeIdx={cardMap.activeIdx} onSelect={handleCardMapSelect} onUnsupported={() => {}} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} height="100%" focusActive />
+                    </div>
                   </Suspense>
                 ) : (
                   <img src={mapUrl} alt="Property location map" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -4709,7 +4754,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             )}
           </div>
-          <div style={{ marginTop: WIDE_GAP, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px 24px 22px" }}>
+          <div style={{ marginTop: WIDE_GAP, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px 24px 22px", flex: "0 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 10, fontFamily: FONT }}>{labelOverrides?.guessLabel || "What do you think it sold for?"}</div>
             <div style={{ display: "grid", gridTemplateColumns: displayLp ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 12 }}>
               {displayLp && (
@@ -4773,7 +4818,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               // Same 4-col grid as the spec cards: remarks span three, value
               // signals sit under BUILT and always match the remarks' height,
               // clamped or expanded (Christo 2026-10-08).
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8, alignItems: "stretch" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8, alignItems: "stretch", minHeight: 84, overflowY: "auto", overscrollBehavior: "contain", borderRadius: 10 }}>
                 {wideDescEl}
                 <div className="pp-vs-fill" style={{ minWidth: 0, display: "flex", flexDirection: "column", gridColumn: wideDescEl ? "span 1" : "span 4" }}>
                   {valueSignalsEl}
@@ -5167,7 +5212,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     postDaily: 700, onboarding: 700,
   };
   return (
-    <div style={{ maxWidth: isDesktop ? (DESKTOP_VIEW_WIDTH[view] || 520) : 480, margin: "0 auto", width: "100%", minHeight: "100vh", fontFamily: FONT, color: T.text, boxSizing: "border-box", position: "relative" }}>
+    // No 100vh floor on desktop: inside the shell (40px bottom padding) it
+    // made every PricePoint page scroll ~56px with nothing below the fold.
+    <div ref={ppRootRef} style={{ maxWidth: isDesktop ? (DESKTOP_VIEW_WIDTH[view] || 520) : 480, margin: "0 auto", width: "100%", minHeight: isDesktop ? undefined : "100vh", fontFamily: FONT, color: T.text, boxSizing: "border-box", position: "relative" }}>
       {ppBellSlot && createPortal(renderBellButton(32), ppBellSlot)}
       <style>{`
         /* The shell's global input::placeholder rule (white @15%, built for
@@ -5971,7 +6018,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ LIVE MODE ═══ */}
       {view === "live" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : WIDE_VIEW_PAD), animation: "ppSlideUp 0.4s ease" }}>
           {/* Desktop: market line | search share one row on the same 3fr/2fr
               grid as the photo | map below (Christo 2026-10-07). */}
           <div style={isDesktop ? { display: "grid", gridTemplateColumns: WIDE_COLS, gap: WIDE_GAP, alignItems: "center", marginBottom: 12 } : undefined}>
@@ -6770,7 +6817,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ FREE PLAY ═══ */}
       {view === "freeplay" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : WIDE_VIEW_PAD), animation: "ppSlideUp 0.4s ease" }}>
           {/* Desktop: market line | search share one row on the same 3fr/2fr
               grid as the photo | map below (Christo 2026-10-07). */}
           <div style={isDesktop ? { display: "grid", gridTemplateColumns: WIDE_COLS, gap: WIDE_GAP, alignItems: "center", marginBottom: 12 } : undefined}>

@@ -8957,7 +8957,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      {/* Account — Blueprint shows it in its header; PricePoint and Markets
          have no header on desktop, so it docks here (2026-10-22). */}
      {isDesktop && appMode !== "blueprint" && (
-      <div style={{ padding: sidebarCollapsed ? "8px 4px" : "8px 8px 10px", borderTop: `1px solid ${T.separator}`, display: "flex", justifyContent: "center" }}>
+      // PricePoint's fixed tab bar spans the full width on desktop too; lift
+      // the footer above it.
+      <div style={{ padding: sidebarCollapsed ? "8px 4px" : "8px 8px 10px", marginBottom: appMode === "pricepoint" ? MOBILE_TAB_BAR_HEIGHT : 0, borderTop: `1px solid ${T.separator}`, display: "flex", justifyContent: "center" }}>
        <ShellAccount variant={sidebarCollapsed ? "collapsed" : "row"} user={shellUser} appMode={appMode}
         onSignIn={shellSignIn} onSignOut={shellSignOut} T={T} />
       </div>
