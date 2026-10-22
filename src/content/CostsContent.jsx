@@ -145,7 +145,7 @@ function InfoTipBubble({ explainer }) {
 // rendered in the header between the title and the total. Must be a
 // non-button element with its own stopPropagation: the whole header is a
 // <button> (nested buttons are invalid HTML and double-fire the collapse).
-function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerExtra = null, fill = false, children }) {
+function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerExtra = null, fill = false, inset = false, children }) {
   const { T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER } = useContext(CostsCtx);
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -156,7 +156,7 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerEx
       overflow: "hidden",
       marginBottom: 12,
       // fill: stretch to match the sibling column's height (left Costs column)
-      ...(fill ? { flex: 1 } : {}),
+      ...(fill ? { flex: 1, display: "flex", flexDirection: "column" } : {}),
     }}>
       <button
         type="button"
@@ -213,7 +213,8 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerEx
         )}
       </button>
       {open && (
-        <div style={{ padding: "10px 18px 14px" }}>{children}</div>
+        // inset: shaded body that holds LetterSection cards (Christo 2026-10-21)
+        <div style={{ ...(inset ? { padding: 10, background: T.bg } : { padding: "10px 18px 14px" }), ...(fill ? { flex: 1 } : {}) }}>{children}</div>
       )}
     </div>
   );
@@ -226,19 +227,23 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
   const { T, ACCENT, sectionLocks, toggleLock } = useContext(CostsCtx);
   const locked = lockable ? !!sectionLocks[letter] : true;
   const unlocked = lockable && !locked;
+  // Each section is its own inset card (Option 5 of the readability mockups,
+  // Christo 2026-10-21): blue-edged header carries the subtotal, so it never
+  // stacks in the same column as the line amounts below it.
   return (
     <div className="cost-letter-section" style={{
+      background: T.card,
+      border: `1px solid ${unlocked ? `${ACCENT}66` : T.cardBorder}`,
+      borderRadius: 12,
+      overflow: "hidden",
       marginBottom: 10,
-      // subtle background tint when section is in edit mode
-      ...(unlocked ? { background: `${ACCENT}06`, borderRadius: 10, padding: "4px 10px", border: `1px solid ${ACCENT}22` } : {}),
     }}>
       <div style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "6px 0",
-        borderBottom: `1px solid ${T.separator}`,
-        marginBottom: 2,
+        padding: "10px 14px 10px 11px",
+        borderLeft: `3px solid ${ACCENT}`,
         gap: 10,
       }}>
         <div style={{
@@ -248,8 +253,9 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
           letterSpacing: "0.06em",
           textTransform: "uppercase",
           fontFamily: FONT,
+          minWidth: 0,
         }}>
-          <span style={{ color: T.textTertiary, marginRight: 8 }}>{letter}.</span>
+          <span style={{ color: ACCENT, marginRight: 8 }}>{letter}.</span>
           {title}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -274,14 +280,19 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
             </button>
           )}
           {total !== undefined && (
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: T.text }}>
               {total}
             </div>
           )}
         </div>
       </div>
-      <LockCtx.Provider value={{ unlocked, letter }}>
-        <div className="cost-letter-section-rows">
+      <LockCtx.Provider value={{ unlocked, letter, inSection: true }}>
+        <div className="cost-letter-section-rows" style={{
+          padding: "2px 14px 8px",
+          borderTop: `1px solid ${T.separator}`,
+          // subtle tint while the section is in edit mode
+          ...(unlocked ? { background: `${ACCENT}06` } : {}),
+        }}>
           {children}
         </div>
       </LockCtx.Provider>
@@ -608,7 +619,7 @@ function FeeRow({
   calcFirst = false,             // math + ⓘ ride line 1 next to the label; prefixEditor drops to line 2
 }) {
   const { T, fmt2, Inp } = useContext(CostsCtx);
-  const { unlocked: sectionUnlocked } = useContext(LockCtx);
+  const { unlocked: sectionUnlocked, inSection } = useContext(LockCtx);
 
   // Hide-when-locked-and-zero: lets a section have "advanced" rows that only appear
   // once the section is unlocked. Used by Property Taxes — Installment / Sellers
@@ -693,9 +704,11 @@ function FeeRow({
           ) : (
             <div style={{
               fontSize: 13,
-              fontWeight: bold ? 700 : 600,
+              // Inside a section card the line amounts stay quiet so the
+              // section subtotal in the header reads as the sum.
+              fontWeight: bold ? 700 : (inSection ? 400 : 600),
               fontFamily: FONT,
-              color: color || T.text,
+              color: color || (inSection && !bold ? T.textSecondary : T.text),
               whiteSpace: "nowrap",
             }}>{displayVal}</div>
           )}
@@ -809,7 +822,6 @@ function EscrowCalendar({
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "10px 0", cursor: "pointer", userSelect: "none",
-          borderBottom: `1px dashed ${T.separator}`,
         }}
       >
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -1150,12 +1162,10 @@ export default function CostsContent(props) {
 
   return (
     <CostsCtx.Provider value={ctx}>
-      {/* Strip the trailing dashed border off the LAST row of every LetterSection
-          so an unmatched border + section bottom-margin doesn't read as an empty row.
-          (Prior visual bug: ToggleRow with no following sibling looked like it had
-          a phantom blank line beneath it in section H.) */}
+      {/* Section cards carry the grouping now, so rows inside a LetterSection
+          drop their dashed dividers (Christo 2026-10-21). */}
       <style>{`
-        .cost-letter-section-rows > *:last-child {
+        .cost-letter-section-rows > * {
           border-bottom: none !important;
         }
       `}</style>
@@ -1192,7 +1202,7 @@ export default function CostsContent(props) {
       <div style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
-      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill
+      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill inset
         headerExtra={masterLockPill(isRefi ? ["A", "B", "C", "E"] : ["A", "B", "C", "E", "H"])}>
 
         {/* A. Origination Charges — lockable */}
@@ -1417,7 +1427,7 @@ export default function CostsContent(props) {
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
       <div data-field="prepaids" />
-      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={!isGuided}>
+      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={!isGuided} inset>
 
         {/* F. Prepaids — lockable so the two Property Tax rows can be revealed for editing.
             Order matches Christo's client-walkthrough spreadsheet:
