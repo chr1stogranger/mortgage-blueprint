@@ -335,6 +335,17 @@ export default function SetupContent(props) {
   // modified — while the amount sections sit in the statement's own order
   // further down. Defined once so flow 1 and flow 2 place them differently.
   // Top-level taxes/insurance question (+ unsure note).
+  // Desktop statement flow lays Your Current Loan out in grids, Option B
+  // (Christo 2026-10-21: "way too much empty space"): Account Information on
+  // one row, the Amount Due lines two-up beside the receipt, taxes +
+  // insurance + effective date on one row. index.css drops each grid to
+  // two-up (and the receipt under the inputs) in a narrow column. Phones and
+  // the no-statement flow keep the stacked layout.
+  const rlStatement = isDesktop && calc.refiFromStatement;
+  const taxInsEscrowed = refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0);
+  // Effective date joins the tax + insurance row only when that row is the
+  // plain two-amount one; the escrowed breakdown carries its own questions.
+  const insDateInline = rlStatement && !taxInsEscrowed;
   const taxInsQuestionNode = (<>
    {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
        One top-level question, then a per-component walk: are taxes included,
@@ -407,6 +418,7 @@ export default function SetupContent(props) {
        } />
      </div>
      )}
+     <div className={rlStatement ? "rl-cq" : undefined}><div className={rlStatement ? "rl-g2" : undefined}>
      {[
       { key: "tax", label: "Taxes", q: "Are taxes included?", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
         amt: refiAnnualTax, setAmt: setRefiAnnualTax,
@@ -447,6 +459,7 @@ export default function SetupContent(props) {
        })()}
       </div>
      ))}
+     </div></div>
      <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
       These feed the NEW loan's impound. Enter the real annual tax bill and premium, not a division of
       the servicer's escrow line, which carries cushion and any shortage spread; splitting that would
@@ -462,8 +475,8 @@ export default function SetupContent(props) {
        insurance feed the NEW loan's payment breakdown and the true monthly
        cost whether or not the current payment impounds them — so when the
        answer above is No or Unsure, ask for the annual amounts on their own. */}
-   {!(refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0)) && (
-    <div style={{ marginBottom: 12 }}>
+   {!taxInsEscrowed && (
+    <div style={insDateInline ? { display: "contents" } : { marginBottom: 12 }}>
      {[
       { key: "tax", label: "Property taxes: annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
         hint: "Paid separately today, but the new loan still needs it. Prefilled from the county assessor once the address is known." },
@@ -493,7 +506,8 @@ export default function SetupContent(props) {
        </div>
       );
      })}
-     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
+     {/* In the row layout the note spans the grid and sorts after the date. */}
+     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8, ...(insDateInline ? { gridColumn: "1 / -1", order: 1, paddingTop: 0, marginBottom: 12 } : {}) }}>
       Not in the mortgage payment, but never optional. These drive the new loan's payment breakdown
       and the true monthly cost either way.
      </div>
@@ -701,7 +715,7 @@ export default function SetupContent(props) {
        premium lands in the refi's closing costs. The policy carries over on a
        refi, so it is only a cost of the refi when it renews at closing
        (Christo 2026-07-22). calc.insRenewalAtClose does the window check. */}
-   <div style={{ marginBottom: 14 }}>
+   <div style={{ marginBottom: 14, ...(insDateInline ? { paddingTop: 8, minWidth: 0 } : {}) }}>
     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
      Insurance Effective Date
      <InfoTip tip="The month your homeowner's policy renews each year. If it renews around your closing, the 12-month premium is due at closing and shows up in prepaids, otherwise you pay it on your normal schedule and it is NOT counted as a refi cost." />
@@ -732,6 +746,38 @@ export default function SetupContent(props) {
   // Closing-month payment — a Yes/No like the rest of the cluster, AUTO from
   // the calendar (grace-day rule) until the LO overrides; ↺ returns to auto
   // (Christo 2026-08-04 — was a switch stranded below the receipt).
+  const refiMiNode = (
+   <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI}
+    tip={calc.refiFromStatement ? "The Mortgage Insurance line in Explanation of Amount Due. Zero if there is none." : "Monthly mortgage insurance on the current loan, if any. Estimate it if unknown (FHA loans from the original amount, conventional from the LTV at closing)."} />
+  );
+  /* ── Payment receipt (Christo 2026-07-28) ──
+       Mirrors the statement's "Explanation of Amount Due" so the LO reads down
+       one column and down the other. The bolded Regular Monthly Payment is
+       Principal + Interest + Escrow (+ MI) — P&I alone stops matching the
+       moment there's mortgage insurance or an impound. */
+  const refiReceiptNode = calc.refiPaymentTotal > 0 && (
+    <div style={{ background: T.inputBg, border: `1px solid ${T.separator}`, borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
+     <div style={{ fontSize: 10, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8 }}>
+      Regular Monthly Payment
+     </div>
+     {calc.refiPaymentRows.map((r, i) => (
+      <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13, padding: "3px 0", color: T.textSecondary }}>
+       <span>{r.label}</span>
+       <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT }}>{money2(r.amt)}</span>
+      </div>
+     ))}
+     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}`, fontSize: 15, fontWeight: 700 }}>
+      <span>Total</span>
+      <span style={{ fontFamily: FONT }}>{money2(calc.refiPaymentTotal)}</span>
+     </div>
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
+      Compare against the bolded Regular Monthly Payment on the statement.
+      {(refiCurrentMI > 0 || calc.refiCurEscrowMo > 0)
+       ? ` Principal and interest alone come to ${fmt(calc.refiEffPI)}: the rest rides along with the payment but doesn't pay the loan down.`
+       : " Nothing is impounded and there's no mortgage insurance, so this is principal and interest alone."}
+     </div>
+    </div>
+   );
   const closingPmtQuestionNode = (refiCurrentBalance > 0 && calc.refiMonthsToClose >= 1) ? (
    <div style={{ padding: "8px 0" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -1329,14 +1375,16 @@ export default function SetupContent(props) {
        original note. Loan type and fixed/adjustable aren't printed in the box
        but the math needs them, so they ride under the rate in both flows. */}
    {refiBanner(calc.refiFromStatement ? "Account Information" : "Current Loan", true)}
+   <div className={rlStatement ? "rl-cq" : undefined}><div className={rlStatement ? "rl-g4" : undefined}>
    {calc.refiFromStatement && (<>
     <Inp label="Outstanding Principal Balance" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Straight off the statement's Account Information box. Not the payoff amount. The payoff runs about a month of interest ahead; we calculate that below. When set, this anchors everything." />
    </>)}
    <Inp label="Current Interest Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} req tip="The note rate today. On an adjusted ARM this is the rate it adjusted TO." />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+   <div style={rlStatement ? { display: "contents" } : { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
     <Sel label="Fixed / Adjustable" value={refiCurrentRateType} onChange={setRefiCurrentRateType} options={["Fixed", "Adjustable"]} tip="Whether the current note's rate is fixed or adjustable (ARM). An ARM about to reset is often the reason to refinance." />
    </div>
+   </div></div>
    {/* ARM history — the note starts at one rate and RECASTS at the adjustment
        (balance re-amortized over the remaining term at the new rate). Without
        these two facts the balance estimate amortizes at a single rate and is
@@ -1369,8 +1417,8 @@ export default function SetupContent(props) {
     {/* Escrow balance + prepayment penalty print in the SAME Account
         Information box, so they're asked here — not three sections later.
         Balance first, penalty second (Christo 2026-08-04). */}
-    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
-     tip="As printed in Account Information. Money sitting in the escrow account. Refunded after the old loan pays off. $0 when nothing is impounded." />
+    {!rlStatement && <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
+     tip="As printed in Account Information. Money sitting in the escrow account. Refunded after the old loan pays off. $0 when nothing is impounded." />}
     {refiBanner("Explanation of Amount Due")}
    </>)}
    {!calc.refiFromStatement && (<>
@@ -1549,28 +1597,58 @@ export default function SetupContent(props) {
         month's P&I to their sum, so the payoff walk and every savings figure
         run off the statement instead of our estimate. Same state the lockable
         cells on the Refi tab's Monthly Payment table write to. */}
-    <Inp label="Principal: from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
-    <Inp label="Interest: from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
-    {/* Every statement combines the escrow line items into ONE line —
-        "Escrow (Taxes and Insurance)" — so it's entered exactly there
-        (Christo 2026-08-04). Drives the CURRENT payment; the tax &
-        insurance section below the receipt feeds the new loan. */}
-    <Inp label="Escrow (Taxes and Insurance): from statement" value={refiEscrowCombined}
-     onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
-     tip="The statement's single escrow line. What the servicer collects each month, cushion and shortage spread included. $0 when nothing is impounded."
-     rightSlot={
-      <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-       {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
-        <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
-         style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
-          border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
-         {label}
-        </button>
-       ))}
-      </span>
-     } />
+    {rlStatement ? (
+     <div className="rl-cq"><div className="rl-split">
+      <div className="rl-g2">
+       <Inp label="Principal" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
+       <Inp label="Interest" value={refiCurIntOverride} onChange={setRefiCurIntOverride} tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
+       <Inp label="Escrow (Taxes & Ins.)" value={refiEscrowCombined}
+        onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
+        tip="The statement's single escrow line. What the servicer collects each month, cushion and shortage spread included. $0 when nothing is impounded."
+        rightSlot={
+         <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+          {[["mo", "Mo"], ["yr", "Yr"]].map(([v, label]) => (
+           <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)} aria-label={v === "mo" ? "Monthly" : "Annual"}
+            style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+             background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
+             border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+             color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
+            {label}
+           </button>
+          ))}
+         </span>
+        } />
+       {refiMiNode}
+       {/* Printed in Account Information, but it sits by the escrow line here so that row stays four across. */}
+       <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
+        tip="As printed in Account Information. Money sitting in the escrow account. Refunded after the old loan pays off. $0 when nothing is impounded." />
+      </div>
+      {refiReceiptNode}
+     </div></div>
+    ) : (<>
+      <Inp label="Principal: from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
+      <Inp label="Interest: from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
+      {/* Every statement combines the escrow line items into ONE line —
+          "Escrow (Taxes and Insurance)" — so it's entered exactly there
+          (Christo 2026-08-04). Drives the CURRENT payment; the tax &
+          insurance section below the receipt feeds the new loan. */}
+      <Inp label="Escrow (Taxes and Insurance): from statement" value={refiEscrowCombined}
+       onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
+       tip="The statement's single escrow line. What the servicer collects each month, cushion and shortage spread included. $0 when nothing is impounded."
+       rightSlot={
+        <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+         {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
+           style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+            background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
+            border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+            color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
+           {label}
+          </button>
+         ))}
+        </span>
+       } />
+    </>)}
    </>)}
    {!calc.refiFromStatement && (<>
     {taxInsQuestionNode}
@@ -1588,8 +1666,7 @@ export default function SetupContent(props) {
       </div>)}
    {/* Mortgage insurance follows escrow — the statement's own line order in
        Explanation of Amount Due (Christo 2026-08-04). */}
-   <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI}
-    tip={calc.refiFromStatement ? "The Mortgage Insurance line in Explanation of Amount Due. Zero if there is none." : "Monthly mortgage insurance on the current loan, if any. Estimate it if unknown (FHA loans from the original amount, conventional from the LTV at closing)."} />
+   {!rlStatement && refiMiNode}
    {!calc.refiFromStatement && (
     <Note color={T.orange}>
      No statement, so the balance below is reconstructed from the closing date and rate. Everything it
@@ -1597,39 +1674,13 @@ export default function SetupContent(props) {
      replaces the estimate outright.
     </Note>
    )}
-   {/* ── Payment receipt (Christo 2026-07-28) ──
-       Mirrors the statement's "Explanation of Amount Due" so the LO reads down
-       one column and down the other. The bolded Regular Monthly Payment is
-       Principal + Interest + Escrow (+ MI) — P&I alone stops matching the
-       moment there's mortgage insurance or an impound. */}
-   {calc.refiPaymentTotal > 0 && (
-    <div style={{ background: T.inputBg, border: `1px solid ${T.separator}`, borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
-     <div style={{ fontSize: 10, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8 }}>
-      Regular Monthly Payment
-     </div>
-     {calc.refiPaymentRows.map((r, i) => (
-      <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13, padding: "3px 0", color: T.textSecondary }}>
-       <span>{r.label}</span>
-       <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT }}>{money2(r.amt)}</span>
-      </div>
-     ))}
-     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}`, fontSize: 15, fontWeight: 700 }}>
-      <span>Total</span>
-      <span style={{ fontFamily: FONT }}>{money2(calc.refiPaymentTotal)}</span>
-     </div>
-     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
-      Compare against the bolded Regular Monthly Payment on the statement.
-      {(refiCurrentMI > 0 || calc.refiCurEscrowMo > 0)
-       ? ` Principal and interest alone come to ${fmt(calc.refiEffPI)}: the rest rides along with the payment but doesn't pay the loan down.`
-       : " Nothing is impounded and there's no mortgage insurance, so this is principal and interest alone."}
-     </div>
-    </div>
-   )}
+   {!rlStatement && refiReceiptNode}
    {calc.refiFromStatement && (<>
     {refiBanner("Current Property Taxes & Insurance")}
     {taxInsBreakdownNode}
-    {taxInsAmountsNoNode}
-    {insEffectiveDateNode}
+    {insDateInline
+     ? <div className="rl-cq"><div className="rl-g3">{taxInsAmountsNoNode}{insEffectiveDateNode}</div></div>
+     : <>{taxInsAmountsNoNode}{rlStatement ? <div className="rl-cq"><div className="rl-g2">{insEffectiveDateNode}</div></div> : insEffectiveDateNode}</>}
    </>)}
    {!calc.refiFromStatement && closingPmtQuestionNode}
    {/* ── Current loan amortization drawer (Christo 7.28) ──
@@ -1718,7 +1769,9 @@ export default function SetupContent(props) {
    })()}
    {!refiClosedDate && !refiCurrentBalance && <Note color={T.orange}>Enter the close date above and we'll estimate the balance, or enter the statement balance directly.</Note>}
    {!refiClosedDate && (
-    <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
+    <div className={rlStatement ? "rl-cq" : undefined}><div className={rlStatement ? "rl-g2" : undefined}>
+     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
+    </div></div>
    )}
    {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>

@@ -158,3 +158,19 @@ button:focus:not(:focus-visible) {
   /* Refi row two: the address fills a row on its own, so Home Value starts the next. */
   .qs-strip-row2 > :nth-child(2) { border-left: none !important; }
 }
+
+/* Your Current Loan grids (SetupContent, desktop statement flow). Container
+   queries again: the live PDF preview narrows the column without touching
+   the viewport. */
+.rl-cq { container-type: inline-size; }
+.rl-g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+.rl-g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 12px; align-items: start; }
+.rl-g4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 12px; align-items: end; }
+.rl-split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
+@container (max-width: 900px) {
+  .rl-g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rl-split { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 720px) {
+  .rl-g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
