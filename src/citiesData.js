@@ -18,6 +18,9 @@
 // primary/most-common Tax Rate Area. Flat parcel taxes / Mello-Roos NOT included.
 // NEXT UPDATE: ~Oct 2026 when counties publish FY 2026-27 rate books.
 
+/** Fiscal year of the sourced rates below. Bump with the rate books; the SEO pages read it. */
+export const CA_CITY_TAX_FY = "2025-26";
+
 export const CA_CITY_TAX_RATES = {
  // ── ALAMEDA COUNTY (FY 2025-26) ──
  "Alameda": 0.012127, "Albany": 0.013571, "Ashland": 0.011946, "Berkeley": 0.012323,
