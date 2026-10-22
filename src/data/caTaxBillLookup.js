@@ -6,7 +6,7 @@
 // 2026-10-22; never guess one.
 
 export const CA_TAX_BILL_LOOKUP = {
- "Alameda": { office: "Alameda County Treasurer-Tax Collector", url: "https://propertytax.alamedacountyca.gov/" },
+ "Alameda": { office: "Alameda County Treasurer-Tax Collector", url: "https://propertytax.alamedacountyca.gov/search" },
  "Alpine": { office: "Alpine County Treasurer-Tax Collector", url: "https://countytaxretriever.com/counties/county/16" },
  "Amador": { office: "Amador County Treasurer-Tax Collector", url: "https://common1.mptsweb.com/MBC/amador/tax/search" },
  "Butte": { office: "Butte County Treasurer-Tax Collector", url: "https://common2.mptsweb.com/mbc/butte/tax/search" },
