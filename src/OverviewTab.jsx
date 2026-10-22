@@ -91,29 +91,32 @@ export default function OverviewTab(props) {
   // (Christo 2026-09-23, LLM council): a filled Blueprint opens on the payment
   // donut, with Quick Start shrunk to a one-line summary banner. A blank one
   // keeps the form on top so the donut never shows a payment built on default
-  // ZIP/FICO. Guided mode always keeps it open (its steps start there).
+  // ZIP/FICO. Guided mode always keeps it open (its steps start there), and
+  // so does desktop (Christo 2026-10-21): the condensed strip is short enough
+  // to leave open, so only phones collapse it.
   // The decision is re-made when the Blueprint loads or the scenario changes,
   // and again when setup flips to complete WITHOUT the user editing this page
   // (a cloud/client load whose data lands after the scenario id). A flip
   // caused by the user typing never collapses the section under the cursor,
   // and a manual open/close sticks until the next scenario.
   const setupFilled = !!isTabFieldsComplete?.("setup");
-  const [setupOpen, setSetupOpen] = useState(() => isGuided || !setupFilled);
+  const setupDefaultOpen = isDesktop || isGuided || !setupFilled;
+  const [setupOpen, setSetupOpen] = useState(() => setupDefaultOpen);
   const setupManual = useRef(false);
   const lastEditAt = useRef(0);
   const prevSetupFilled = useRef(setupFilled);
   const markEdit = () => { lastEditAt.current = Date.now(); };
   const toggleSetup = (v) => { setupManual.current = true; setSetupOpen(v); };
-  const setupSnapshotKey = `${blueprintLoaded ? 1 : 0}|${activeScenarioId || ""}|${scenarioName || ""}|${isGuided ? 1 : 0}`;
+  const setupSnapshotKey = `${blueprintLoaded ? 1 : 0}|${activeScenarioId || ""}|${scenarioName || ""}|${isGuided ? 1 : 0}|${isDesktop ? 1 : 0}`;
   useEffect(() => {
     setupManual.current = false;
-    setSetupOpen(isGuided || !setupFilled);
+    setSetupOpen(setupDefaultOpen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupSnapshotKey]);
   useEffect(() => {
     const flippedOn = setupFilled && !prevSetupFilled.current;
     prevSetupFilled.current = setupFilled;
-    if (flippedOn && !isGuided && !setupManual.current && Date.now() - lastEditAt.current > 3000) setSetupOpen(false);
+    if (flippedOn && !isDesktop && !isGuided && !setupManual.current && Date.now() - lastEditAt.current > 3000) setSetupOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupFilled]);
   const compactUsd = (v) => v >= 1e6 ? `$${parseFloat((v / 1e6).toFixed(2))}M` : `$${Math.round(v / 1000)}K`;
@@ -207,7 +210,9 @@ export default function OverviewTab(props) {
           ═══════════════════════════════════════ */}
       {/* A collapsed Quick Start is a one-line header: no divider, so the
           donut section sits right under it. */}
-      {setupOpen && <SectionDivider T={T} />}
+      {/* Desktop: no divider either — the strip card sits right above the
+          next banner (Christo 2026-10-21: "eliminate that white space"). */}
+      {setupOpen && !isDesktop && <SectionDivider T={T} />}
       {/* Refi reads "New Loan" — this whole section IS the new loan being
           built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
       {/* Phones: slimmer banners so the screenshot reaches from Quick Start
