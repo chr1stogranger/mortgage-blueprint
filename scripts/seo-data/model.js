@@ -29,7 +29,7 @@ const TAX_PRICES = [500000, 750000, 1000000, 1500000, 2000000];
 const PRICE_EXAMPLE = 1000000;
 
 export const FOOTER_TEXT =
-  `Chris Granger, NMLS #952015 · Chris Granger Mortgage, NMLS #2179191 · Licensed in ${LICENSED_STATES_TEXT} · ` +
+  `Chris Granger, NMLS #952015 · Xpert Home Lending, Inc., NMLS #2179191 · Licensed in ${LICENSED_STATES_TEXT} · ` +
   "Equal Housing Opportunity. Information only, not a loan offer. " +
   "Data: FHFA (loan limits), county auditor-controller rate books (CA tax rates).";
 

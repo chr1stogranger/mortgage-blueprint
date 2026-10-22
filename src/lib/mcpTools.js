@@ -29,7 +29,7 @@ import { isLicensedState, unlicensedLine, LICENSED_STATES_TEXT } from "../data/l
 export const BLUEPRINT_ORIGIN = "https://blueprint.realstack.app";
 
 /** Appended to every result's text and returned as structuredContent.disclosure. Compliance must approve before App Directory submission. */
-export const DISCLOSURE = "Estimate for education only, not a loan offer, rate quote, or commitment to lend. Figures use the rate and inputs you provided plus stated assumptions. Chris Granger, NMLS #952015 · Chris Granger Mortgage, NMLS #2179191. Equal Housing Opportunity.";
+export const DISCLOSURE = "Estimate for education only, not a loan offer, rate quote, or commitment to lend. Figures use the rate and inputs you provided plus stated assumptions. Chris Granger, NMLS #952015 · Xpert Home Lending, Inc., NMLS #2179191. Equal Housing Opportunity.";
 
 export const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo"];
 export const FILING_STATUSES = ["Single", "MFJ", "MFS", "HOH"];
