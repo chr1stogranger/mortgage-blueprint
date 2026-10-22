@@ -5,6 +5,7 @@ import { renderPage, esc } from "./render.js";
 import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
 import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
+import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, CA_TAX_STALE_COUNTIES, BAY_AREA_COUNTIES } from "../../src/data/caTaxRates.js";
 import { COUNTY_LIMITS, normalizeCounty, getCountyLimits } from "../../src/data/loanLimits.js";
 
 const limitSource = parseLimitSource(readFileSync("src/data/loanLimits.js", "utf8"));
@@ -28,10 +29,25 @@ describe("generated data files", () => {
 
   it("maps only sourced CA cities (never the 1.25% default block or Amador Valley)", () => {
     const cities = Object.keys(CA_CITY_COUNTY);
-    expect(cities.length).toBe(135);
+    expect(cities.length).toBe(600);
     for (const c of cities) expect(CA_CITY_TAX_RATES[c], c).not.toBe(0.0125);
     expect(CA_CITY_COUNTY["Amador Valley"]).toBeUndefined();
-    expect(new Set(Object.values(CA_CITY_COUNTY))).toEqual(new Set(["Alameda", "Contra Costa", "San Francisco", "San Mateo", "Santa Clara", "Marin", "Napa", "Solano", "Sonoma"]));
+    const counties = new Set(Object.values(CA_CITY_COUNTY));
+    for (const c of BAY_AREA_COUNTIES) expect(counties.has(c), c).toBe(true);
+    expect(counties.size).toBe(CA_TAX_COUNTIES.length);
+  });
+
+  it("every county block names its year and source, with rates in range", () => {
+    for (const c of CA_TAX_COUNTIES) {
+      expect(c.fy, c.county).toMatch(/^20\d\d-\d\d$/);
+      expect(c.url, c.county).toMatch(/^https:\/\//);
+      expect(c.source, c.county).toBeTruthy();
+      for (const [city, pct] of Object.entries(c.rates)) {
+        expect(pct, city).toBeGreaterThanOrEqual(1);
+        expect(pct, city).toBeLessThan(1.8);
+      }
+    }
+    expect(CA_TAX_STALE_COUNTIES).toEqual(CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY).map((c) => c.county));
   });
 });
 
@@ -42,7 +58,7 @@ describe("page set", () => {
     expect(n(/^\/loan-limits\/[^/]+\/$/)).toBe(8);
     expect(n(/^\/loan-limits\/[^/]+\/[^/]+\/$/)).toBe(46);
     expect(n(/^\/property-tax\/california\/$/)).toBe(1);
-    expect(n(/^\/property-tax\/california\/[^/]+\/$/)).toBe(135);
+    expect(n(/^\/property-tax\/california\/[^/]+\/$/)).toBe(186);
     expect(site.sitemap).toHaveLength(site.pages.length);
   });
 
@@ -96,12 +112,13 @@ describe("page set", () => {
     expect(pageText(p)).toContain("/loan-limits/california/alameda-county/");
   });
 
-  it("San Francisco: 1.1827%; $1M -> $11,826.83/yr", () => {
+  it("San Francisco: 1.1816% (FY 2026-27); $1M -> $11,816.22/yr", () => {
     const p = byPath.get("/property-tax/california/san-francisco/");
-    expect(p.lead).toContain("1.1827%");
-    // 1,000,000 x 0.01182683 = 11,826.83
-    expect(p.taxRows.find((r) => r.price === 1000000).annual).toBe(11826.83);
-    expect(pageText(p)).toContain("$11,826.83");
+    expect(p.lead).toContain("1.1816%");
+    expect(p.lead).toContain("2026-27");
+    // 1,000,000 x 0.0118162182 = 11,816.22
+    expect(p.taxRows.find((r) => r.price === 1000000).annual).toBe(11816.22);
+    expect(pageText(p)).toContain("$11,816.22");
   });
 
   it("never publishes a placeholder-rate city", () => {

@@ -7,6 +7,7 @@ import NetPaymentLadder from "../components/NetPaymentLadder";
 import PricePointTeaser from "../components/PricePointTeaser.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
+import CityTaxRatesSheet from "../components/CityTaxRatesSheet.jsx";
 import { getPMIRate } from "../lib/finance.js";
 import { repayPillar, HELOC_RULES } from "../lib/nonQm.js";
 import { DscrPanel, AssetQualifierInputs, HelocPanel } from "../components/NonQmPanels.jsx";
@@ -254,6 +255,7 @@ export default function CalculatorContent(props) {
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
+  const [cityRatesOpen, setCityRatesOpen] = useState(false);
   const [piExpanded, setPiExpanded] = useState(false); // Principal & Interest split disclosure
   // A ?listing= flyer opens with its buydown already mapped out — show the
   // year table instead of a collapsed "Details" link (MortgageBlueprint sets
@@ -1413,7 +1415,16 @@ export default function CalculatorContent(props) {
            <span style={valStyle}>{fmt(calc.taxableValue)}</span>
           </div>
           <div style={trStyle}>
-           <span style={labStyle}>Base Rate ({taxCityLabel}) <LockBtn locked={taxRateLocked} onClick={toggleRateLock} /></span>
+           <span style={{ ...labStyle, flexWrap: "wrap", rowGap: 2, minWidth: 0 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Base Rate ({taxCityLabel}) <LockBtn locked={taxRateLocked} onClick={toggleRateLock} /></span>
+            {/* Compare against every sourced CA city (Christo 2026-10-22). */}
+            {propertyState === "California" && (
+             <button type="button" onClick={() => setCityRatesOpen(true)}
+              style={{ background: "none", border: "none", padding: 0, marginLeft: 3, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: FONT, color: T.blue, whiteSpace: "nowrap" }}>
+              All cities' rates
+             </button>
+            )}
+           </span>
            {taxRateLocked
             ? <span style={valStyle}>{taxDisplayRate.toFixed(4)}%</span>
             : <MiniEdit value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} suffix="%" T={T} />}
@@ -1973,5 +1984,6 @@ export default function CalculatorContent(props) {
  {/* Row 5 (Insurance + HOA pills) removed — now inline-editable in the Payment Breakdown card above. */}
 
  <GuidedNextButton />
+ <CityTaxRatesSheet T={T} isOpen={cityRatesOpen} onClose={() => setCityRatesOpen(false)} city={city} county={propertyCounty} />
 </>);
 }

@@ -11,13 +11,15 @@
 //    sourced city rates. Every other county is a row on its state page, so we
 //    never publish hundreds of near-identical "$832,750" pages.
 //  · No interest rates and no rate-based payment examples (Reg Z advertising).
-// Every year / FY label derives from LIMIT_YEAR and CA_CITY_TAX_FY, so a data
+// Every year / FY label derives from LIMIT_YEAR and each county's fy in
+// caTaxRates.js (counties refresh on their own schedule), so a data
 // refresh relabels every page on the next build.
 
 import { LIMIT_YEAR, CONF_BASELINE, CONF_CEILING, getCountyLimits, normalizeCounty } from "../../src/data/loanLimits.js";
 import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
-import { CA_CITY_TAX_RATES, CA_CITY_TAX_FY } from "../../src/citiesData.js";
+import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
+import { CA_CITY_TAX_INFO, BAY_AREA_COUNTIES } from "../../src/data/caTaxRates.js";
 import { STATE_PROPERTY_TAX_RATES } from "../../src/data/propertyTax.js";
 import { LICENSED_STATES, LICENSED_STATES_TEXT } from "../../src/data/licensing.js";
 
@@ -105,15 +107,20 @@ function countyRecords() {
 
 function caCities() {
   const caNames = new Set(LICENSED_COUNTIES.CA.map((c) => normalizeCounty(c.name)));
-  return Object.entries(CA_CITY_COUNTY).map(([city, county]) => {
+  // The tax pages cover the Bay Area; caTaxRates.js also holds other counties
+  // for the in-app rates sheet.
+  return Object.entries(CA_CITY_COUNTY).filter(([, county]) => BAY_AREA_COUNTIES.includes(county)).map(([city, county]) => {
     const rate = CA_CITY_TAX_RATES[city];
     if (!(rate > 0) || rate === 0.0125) throw new Error(`seo-data: ${city} has no sourced rate (${rate})`);
     if (!caNames.has(normalizeCounty(county))) throw new Error(`seo-data: ${city}'s county ${county} is not an FHFA CA county`);
-    return { city, county, rate, slug: slugify(city) };
+    return { city, county, rate, fy: CA_CITY_TAX_INFO[city].fy, slug: slugify(city) };
   });
 }
 
-const sourcedCaCounties = () => new Set(Object.values(CA_CITY_COUNTY).map(normalizeCounty));
+const sourcedCaCounties = () => new Set(caCities().map((x) => normalizeCounty(x.county)));
+
+/** FY label for a set of city rows: "2026-27", or "2025-26 & 2026-27" mid-refresh. */
+const fyOf = (list) => [...new Set(list.map((x) => x.fy))].sort().join(" & ");
 
 /** True when a county gets its own page (see the header comment). */
 export function hasCountyPage(c) {
@@ -180,7 +187,7 @@ function cityRateTable(cities, caption, { exclude } = {}) {
   return {
     type: "table",
     caption,
-    head: ["City or community", `Tax rate (FY ${CA_CITY_TAX_FY})`],
+    head: ["City or community", `Tax rate (FY ${fyOf(cities)})`],
     num: [false, true],
     rows: cities
       .filter((x) => x.city !== exclude)
@@ -242,9 +249,9 @@ export function buildSite({ now, limitSource }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(now || "")) throw new Error("seo-data: buildSite needs now as YYYY-MM-DD");
   if (!limitSource?.url) throw new Error("seo-data: buildSite needs limitSource");
   const year = LIMIT_YEAR;
-  const FY = CA_CITY_TAX_FY;
-  const counties = countyRecords();
   const cities = caCities();
+  const FY = fyOf(cities);
+  const counties = countyRecords();
   const pages = [];
   const sourceP = p(
     "Source: ",
@@ -393,8 +400,8 @@ export function buildSite({ now, limitSource }) {
           sections.push({
             heading: `Property tax rates in ${c.name}`,
             blocks: [
-              p(`Fiscal year ${FY} rates from the county's tax rate book, for each city's primary tax rate area. Each rate is the 1% Proposition 13 base plus voter-approved bonds.`),
-              cityRateTable(cs, `Property tax rates, ${c.name} (FY ${FY})`),
+              p(`Fiscal year ${fyOf(cs)} rates from the county's tax rate book, for each city's primary tax rate area. Each rate is the 1% Proposition 13 base plus voter-approved bonds.`),
+              cityRateTable(cs, `Property tax rates, ${c.name} (FY ${fyOf(cs)})`),
             ],
           });
         }
@@ -458,7 +465,7 @@ export function buildSite({ now, limitSource }) {
         return {
           heading: label,
           blocks: [
-            cityRateTable(cs, `Property tax rates, ${label} (FY ${FY})`),
+            cityRateTable(cs, `Property tax rates, ${label} (FY ${fyOf(cs)})`),
             p(link(countyPath(cc), `${cc.name} conforming loan limit: ${money(cc.limits[0])}`)),
           ],
         };
@@ -487,7 +494,7 @@ export function buildSite({ now, limitSource }) {
           p(`Under Proposition 13 the purchase price becomes the assessed value, so the first-year tax is the price times ${total}.`),
           {
             type: "table",
-            caption: `Estimated first-year property tax in ${x.city}, CA at ${total} (FY ${FY})`,
+            caption: `Estimated first-year property tax in ${x.city}, CA at ${total} (FY ${x.fy})`,
             head: ["Purchase price", "Annual tax", "Monthly"],
             num: [true, true, true],
             rows: rows.map((r) => ({ cells: [money(r.price), money2(r.annual), money2(r.monthly)] })),
@@ -511,18 +518,18 @@ export function buildSite({ now, limitSource }) {
         blocks: [p(`${x.city} is in ${cc.name}, where the ${year} conforming loan limit for a one-unit home is ${money(cc.limits[0])}. `, link(countyPath(cc), `${cc.name} loan limits`), ".")],
       },
     ];
-    if (neighbors.length) sections.push({ heading: `Other cities in ${cc.name}`, blocks: [cityRateTable(neighbors, `Property tax rates, ${cc.name} (FY ${FY})`)] });
+    if (neighbors.length) sections.push({ heading: `Other cities in ${cc.name}`, blocks: [cityRateTable(neighbors, `Property tax rates, ${cc.name} (FY ${fyOf(neighbors)})`)] });
     sections.push(
-      { heading: "Source", blocks: [p(`${possessive(cc.name)} published tax rates for fiscal year ${FY}. `, link(TAX_HUB, "All sourced California city rates"), ".")] },
+      { heading: "Source", blocks: [p(`${possessive(cc.name)} published tax rates for fiscal year ${x.fy}. `, link(TAX_HUB, "All sourced California city rates"), ".")] },
       { blocks: [{ type: "cta", href: prefillLink({ st: "CA", county: x.county, city: x.city, src: "seo-ptax" }), text: `See ${possessive(x.city)} taxes in your payment in Mortgage Blueprint` }] },
     );
     pages.push(page({
       now,
       path: cityPath(x),
-      titleCore: `${x.city}, CA Property Tax Rate (FY ${FY})`,
-      description: `${x.city}, CA property tax rate: ${total} for FY ${FY}. On a ${money(PRICE_EXAMPLE)} purchase that's about ${money(Math.round(ex.annual))} a year. Prop 13 basics and caveats.`,
-      h1: `${x.city}, CA Property Tax Rate (FY ${FY})`,
-      lead: `${possessive(x.city)} property tax rate is ${total} for fiscal year ${FY} in its primary tax rate area: the 1% Proposition 13 base plus ${bonds} in voter-approved bonds.`,
+      titleCore: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
+      description: `${x.city}, CA property tax rate: ${total} for FY ${x.fy}. On a ${money(PRICE_EXAMPLE)} purchase that's about ${money(Math.round(ex.annual))} a year. Prop 13 basics and caveats.`,
+      h1: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
+      lead: `${possessive(x.city)} property tax rate is ${total} for fiscal year ${x.fy} in its primary tax rate area: the 1% Proposition 13 base plus ${bonds} in voter-approved bonds.`,
       breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: x.city, path: cityPath(x) }),
       sections,
     }));

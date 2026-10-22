@@ -3,76 +3,16 @@
 // Non-CA states use state-level average rates (from STATE_PROPERTY_TAX_RATES in main file),
 // except Nevada, which has city-level effective rates below (NV_CITY_TAX_RATES).
 //
-// ── TAX DATA VINTAGE: FY 2025-26 (July 2025 – June 2026) ──
-// Updated 2026-07-03 from each county's official Auditor-Controller tax rate book:
-//  • Alameda: "2025/26 Tax Rate Book" (auditor.alamedacountyca.gov)
-//  • Contra Costa: "Detail of Tax Rates 2025-2026" (contracosta.ca.gov, Oct 2025)
-//  • San Mateo: "Tax Rates and Valuation FY 2025-2026" (smcgov.org)
-//  • San Francisco: SF Treasurer secured rate FY 2025-26 (sftreasurer.org)
-//  • Santa Clara: "Compilation of Tax Rates FY 2025-2026" (santaclaracounty.gov)
-//  • Marin: "FY2025-26 Tax Rate Book" (marincounty.gov)
-//  • Napa: "Tax Rates and Information FY 2025-26" (napacounty.gov)
-//  • Solano: "General Tax Rate by City FY 25-26" (solanocounty.gov)
-//  • Sonoma: "Multi-Year Tax Rates, Tax Year 2025" (sonomacounty.gov ACTTC)
-// Each rate = total ad-valorem rate (1% base + voter-approved bonds) for the city's
-// primary/most-common Tax Rate Area. Flat parcel taxes / Mello-Roos NOT included.
-// NEXT UPDATE: ~Oct 2026 when counties publish FY 2026-27 rate books.
+// Sourced CA city rates (county rate books, with each county's fiscal year)
+// live in src/data/caTaxRates.js and override the 1.25% placeholders below.
 
-/** Fiscal year of the sourced rates below. Bump with the rate books; the SEO pages read it. */
-export const CA_CITY_TAX_FY = "2025-26";
+import { CA_CITY_TAX_SOURCED } from "./data/caTaxRates.js";
 
-export const CA_CITY_TAX_RATES = {
- // ── ALAMEDA COUNTY (FY 2025-26) ──
- "Alameda": 0.012127, "Albany": 0.013571, "Ashland": 0.011946, "Berkeley": 0.012323,
- "Castro Valley": 0.011800, "Dublin": 0.012385, "Emeryville": 0.011665, "Fremont": 0.011741,
- "Hayward": 0.011724, "Livermore": 0.011325, "Newark": 0.011492, "Oakland": 0.012779,
- "Piedmont": 0.011798, "Pleasanton": 0.011694, "San Leandro": 0.012436, "San Lorenzo": 0.011946,
- "Union City": 0.012621,
- "Amador Valley": 0.01139, // UNVERIFIED — region name, not a TRA; carried over from old data
- // ── CONTRA COSTA COUNTY (FY 2025-26) ──
- // Antioch: 1.0492 = non-SFID TRAs (SE/newer Antioch); downtown SFID areas are 1.1170
- "Alamo": 0.010826, "Alhambra Valley": 0.011556, "Antioch": 0.010492, "Bay Point": 0.011023,
- "Bayview": 0.011556, "Bethel Island": 0.010876, "Blackhawk": 0.010826, "Brentwood": 0.011045,
- "Briones": 0.011556, "Byron": 0.010964, "Camino Tassajara": 0.010826, "Clayton": 0.011023,
- "Concord": 0.011023, "Crockett": 0.011124, "Danville": 0.010826, "Discovery Bay": 0.010964,
- "El Cerrito": 0.012843, "El Sobrante": 0.012843, "Hercules": 0.012843, "Kensington": 0.012843,
- "Knightsen": 0.010565, "Lafayette": 0.010853, "Martinez": 0.011723, "Moraga": 0.011095,
- "Oakley": 0.010876, "Orinda": 0.011387, "Pinole": 0.012843, "Pittsburg": 0.011451,
- "Pleasant Hill": 0.011153, "Richmond": 0.014243, "Rodeo": 0.011124, "San Pablo": 0.012843,
- "San Ramon": 0.010826, "Walnut Creek": 0.010937,
- // ── SAN FRANCISCO (FY 2025-26, single citywide rate) ──
- "San Francisco": 0.01182683,
- // ── SAN MATEO COUNTY (FY 2025-26) ──
- "Atherton": 0.010913, "Belmont": 0.011247, "Brisbane": 0.011560, "Broadmoor": 0.011602,
- "Burlingame": 0.011196, "Colma": 0.011602, "Daly City": 0.011602, "East Palo Alto": 0.011191,
- "Foster City": 0.011323, "Half Moon Bay": 0.011598, "Hillsborough": 0.011185,
- "Menlo Park": 0.010958, "Millbrae": 0.011263, "Pacifica": 0.011774, "Portola Valley": 0.010860,
- "Redwood City": 0.010941, "San Bruno": 0.010831, "San Carlos": 0.011161, "San Mateo": 0.011201,
- "South San Francisco": 0.010718, "Woodside": 0.010935,
- // ── SANTA CLARA COUNTY (FY 2025-26) ──
- "Campbell": 0.012169, "Cupertino": 0.011636, "Gilroy": 0.012186, "Los Altos": 0.011530,
- "Los Altos Hills": 0.011530, "Los Gatos": 0.011459, "Milpitas": 0.011389,
- "Monte Sereno": 0.011483, "Morgan Hill": 0.011297, "Mountain View": 0.011599,
- "Palo Alto": 0.0120135, "San Jose": 0.012079, "Santa Clara": 0.011825, "Saratoga": 0.011467,
- "Sunnyvale": 0.011730,
- // ── MARIN COUNTY (FY 2025-26) ──
- "Belvedere": 0.010968, "Bolinas": 0.010752, "Corte Madera": 0.011213, "Fairfax": 0.012211,
- "Lagunitas": 0.010981, "Larkspur": 0.011213, "Mill Valley": 0.011214, "Nicasio": 0.010752,
- "Novato": 0.011184, "Ross": 0.011257, "San Anselmo": 0.011681, "San Rafael": 0.012056,
- "Sausalito": 0.011356, "Tiburon": 0.010968,
- "Woodacre": 0.010981, "Forest Knolls": 0.010981, "San Geronimo": 0.010981,
- "Kentfield": 0.011321, "Greenbrae": 0.011321, "Muir Beach": 0.011214,
- "Stinson Beach": 0.010752, "Inverness": 0.010653, "Point Reyes Station": 0.010653,
- "Marshall": 0.010653, "Tomales": 0.010853, "Dillon Beach": 0.010653,
- // ── NAPA COUNTY (FY 2025-26) ──
- "American Canyon": 0.011129, "Calistoga": 0.010823, "Napa": 0.011266, "St. Helena": 0.010620,
- "Angwin": 0.010187, "Rutherford": 0.010523, "Oakville": 0.011116, "Deer Park": 0.010523,
- // ── SOLANO COUNTY (FY 2025-26) ──
- "Benicia": 0.011569, "Fairfield": 0.011100, "Vacaville": 0.011443, "Vallejo": 0.011194,
- // ── SONOMA COUNTY (FY 2025-26) ──
- "Cloverdale": 0.011905, "Cotati": 0.011405, "Healdsburg": 0.011570, "Petaluma": 0.011290,
- "Rohnert Park": 0.011405, "Santa Rosa": 0.011375, "Sebastopol": 0.011357, "Sonoma": 0.011230,
- "Windsor": 0.011325,
+const CA_CITY_PLACEHOLDER_RATES = {
+ "Amador Valley": 0.01139, // UNVERIFIED — region name, not a TRA; kept so saved scenarios keep their rate
+ // UNVERIFIED — dropped from the sourced table 2026-10-22: the CC book splits each
+ // across several rates. Kept at the old value so saved scenarios don't jump.
+ "Bethel Island": 0.010876, "Briones": 0.011556,
  // ── All other CA incorporated cities (default 1.25%) ──
  "Adelanto": 0.0125, "Agoura Hills": 0.0125, "Alhambra": 0.0125, "Alturas": 0.0125,
  "Amador City": 0.0125, "Anaheim": 0.0125, "Anderson": 0.0125, "Angels Camp": 0.0125,
@@ -178,6 +118,8 @@ export const CA_CITY_TAX_RATES = {
  "Woodlake": 0.0125, "Woodland": 0.0125, "Yorba Linda": 0.0125, "Yountville": 0.010912,
  "Yreka": 0.0125, "Yuba City": 0.0125, "Yucaipa": 0.0125, "Yucca Valley": 0.0125,
 };
+
+export const CA_CITY_TAX_RATES = { ...CA_CITY_PLACEHOLDER_RATES, ...CA_CITY_TAX_SOURCED };
 
 // Sorted CA city names for dropdown
 export const CA_CITY_NAMES = Object.keys(CA_CITY_TAX_RATES).sort();

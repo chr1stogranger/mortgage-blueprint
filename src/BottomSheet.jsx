@@ -82,7 +82,7 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
             onClick={handleClose}
             style={{
               background: T.pillBg || "rgba(255,255,255,0.08)", border: "none",
-              borderRadius: 9999, width: 32, height: 32,
+              borderRadius: 9999, width: 32, height: 32, padding: 0, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", color: T.textSecondary,
             }}
