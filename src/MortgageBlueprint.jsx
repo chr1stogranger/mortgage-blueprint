@@ -1767,7 +1767,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Settings → Signature) and it's appended to worksheet emails as rendered
  // HTML instead of being escaped into the plain-text body.
  const loSigIsHtml = /<[a-z][\s\S]*>/i.test(loSignature);
- const [companyName, setCompanyName] = useState(loInfoSaved.companyName ?? "Chris Granger Mortgage");
+ const [companyName, setCompanyName] = useState(loInfoSaved.companyName ?? "Xpert Home Lending, Inc.");
  const [companyNmls, setCompanyNmls] = useState(loInfoSaved.companyNmls ?? "2179191");
  // (Effect must sit BELOW every const it references — TDZ in deps array
  //  crashed the 2026-07-05 deploy when it lived above companyName.)
@@ -4827,8 +4827,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     : loSignature.trim()
     ? loSignature.trim().split("\n")
     : [
-       loanOfficer || "Your Loan Officer",
-       [companyName, loNmls ? `NMLS #${loNmls}` : ""].filter(Boolean).join(" · "),
+       [loanOfficer || "Your Loan Officer", loNmls ? `NMLS #${loNmls}` : ""].filter(Boolean).join(" "),
+       [companyName, companyNmls ? `NMLS #${companyNmls}` : ""].filter(Boolean).join(" "),
        loPhone || "",
       ]),
   ].filter((l) => l !== null && l !== undefined);
@@ -9196,7 +9196,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div><strong>Estimates only.</strong> Not a commitment to lend</div>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14 }}>
-     Chris Granger Mortgage · NMLS #952015
+     Chris Granger NMLS #952015 · Xpert Home Lending, Inc. NMLS #2179191
     </div>
     <button onClick={handleConsent} style={{ width: "100%", padding: 15, background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
      I Understand. Continue
@@ -10568,7 +10568,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      value={loSignature}
      onChange={(e) => setLoSignature(e.target.value)}
      rows={loSigIsHtml ? 6 : 4}
-     placeholder={"Chris Granger\nChris Granger Mortgage · NMLS #952015\n(415) 987-8489\n\n…or paste HTML, e.g.\n<div style=\"font-family:Arial;font-size:13px\"><strong>Chris Granger</strong><br/>Xpert Home Lending · NMLS #952015</div>"}
+     placeholder={"Chris Granger NMLS #952015\nXpert Home Lending, Inc. NMLS #2179191\n(415) 987-8489\n\n…or paste HTML, e.g.\n<div style=\"font-family:Arial;font-size:13px\"><strong>Chris Granger</strong> NMLS #952015<br/>Xpert Home Lending, Inc. NMLS #2179191</div>"}
      spellCheck={false}
      style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: loSigIsHtml ? 12 : 13, outline: "none", fontFamily: loSigIsHtml ? MONO : FONT, resize: "vertical", lineHeight: 1.5 }}
     />
