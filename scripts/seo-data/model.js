@@ -25,6 +25,7 @@ import { CA_CITY_TAX_INFO, BAY_AREA_COUNTIES, CA_TAX_CURRENT_FY } from "../../sr
 import { CA_TAX_BILL_LOOKUP } from "../../src/data/caTaxBillLookup.js";
 import { STATE_PROPERTY_TAX_RATES } from "../../src/data/propertyTax.js";
 import { LICENSED_STATES, LICENSED_STATES_TEXT } from "../../src/data/licensing.js";
+import { slugify, caCityTaxPath, caCountyTaxPath, CA_TAX_HUB_PATH } from "../../src/lib/seoPaths.js";
 
 export const ORIGIN = "https://blueprint.realstack.app";
 export const BRAND = "Mortgage Blueprint, powered by RealStack";
@@ -54,13 +55,8 @@ export function splitRate(rate) {
 }
 const pct2 = (r) => `${(r * 100).toFixed(2)}%`;
 
-/** "St. Helena" -> "st-helena", "Alameda County" -> "alameda-county". */
-export function slugify(s) {
-  return String(s)
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .toLowerCase().replace(/['’.]/g, "")
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-}
+// Shared with the app (src/lib/seoPaths.js) so in-app links match these paths.
+export { slugify };
 const shortCounty = (name) => name.replace(/ County$/, "");
 
 /**
@@ -133,14 +129,14 @@ export function hasCountyPage(c) {
 
 const statePath = (state) => `/loan-limits/${slugify(state)}/`;
 const countyPath = (c) => `${statePath(c.state)}${c.slug}/`;
-const cityPath = (x) => `/property-tax/california/${x.slug}/`;
-const taxCountyPath = (county) => `/property-tax/california/${slugify(county)}-county/`;
+const cityPath = (x) => caCityTaxPath(x.city);
+const taxCountyPath = caCountyTaxPath;
 const countyLabel = (county) => (county === "San Francisco" ? "San Francisco" : `${county} County`);
 /** Loan-limit link for a county: its own page, else its row on the state page. */
 const llPath = (c) => (hasCountyPage(c) ? countyPath(c) : `${statePath(c.state)}#${c.slug}`);
 const DUE_DATES = "California secured property tax is billed in two installments: the first is due November 1 and late after December 10; the second is due February 1 and late after April 10. A 10% penalty applies to a late installment.";
 const LL_HUB = "/loan-limits/";
-const TAX_HUB = "/property-tax/california/";
+const TAX_HUB = CA_TAX_HUB_PATH;
 
 // ── content blocks (render.js turns these into HTML) ──
 // Inline text is an array of segments: a string or { href, text }.

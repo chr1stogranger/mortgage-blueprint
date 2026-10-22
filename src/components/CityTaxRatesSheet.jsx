@@ -5,6 +5,7 @@ import Icon from "../Icon";
 import BottomSheet from "../BottomSheet";
 import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, CA_TAX_STALE_COUNTIES, BAY_AREA_COUNTIES, CA_CITY_TAX_INFO } from "../data/caTaxRates.js";
 import { CA_TAX_BILL_LOOKUP } from "../data/caTaxBillLookup.js";
+import { caCityTaxUrl, caCountyTaxUrl, CA_TAX_HUB_URL } from "../lib/seoPaths.js";
 
 // ── All cities' rates (Christo 2026-10-22) ──
 // Opened from "Base Rate (City)" in the Tax breakdown. Lists every sourced
@@ -27,6 +28,15 @@ const median = (xs) => {
  const m = Math.floor(s.length / 2);
  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
+
+// Links out to the public SEO pages (Christo 2026-10-22). Absolute production
+// URLs, opened in a new tab / the system browser like the tax-bill links.
+const outLink = (T, href, children, style) => (
+ <a href={href} target="_blank" rel="noopener noreferrer"
+  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, fontFamily: FONT, color: T.blue, textDecoration: "none", ...style }}>
+  {children} <Icon name="external-link" size={11} />
+ </a>
+);
 
 const SORTS = [["county", "By county"], ["low", "Lowest first"], ["high", "Highest first"]];
 
@@ -129,6 +139,7 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
        const mine = x.city === city && !!info;
        return <RateRow key={x.city} x={x} T={T} mine={mine} rowRef={mine ? myRowRef : undefined} />;
       })}
+      {caCountyTaxUrl(c.county) && <div style={{ marginTop: 6 }}>{outLink(T, caCountyTaxUrl(c.county), `${countyLabel(c.county)} rates and due dates`)}</div>}
       {CA_TAX_BILL_LOOKUP[c.county]?.url && (
        <a href={CA_TAX_BILL_LOOKUP[c.county].url} target="_blank" rel="noopener noreferrer"
         style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: T.blue, marginTop: 6, textDecoration: "none" }}>
@@ -176,6 +187,7 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
         : <>Higher than <b style={{ color: T.text }}>{rank.lower}</b> of the {ALL.length} cities listed.</>}
        {" "}Median: {fmtPct(median(ALL.map((x) => x.pct)))}.
       </div>
+      {caCityTaxUrl(city) && <div style={{ marginTop: 8 }}>{outLink(T, caCityTaxUrl(city), `${city} property tax page`)}</div>}
      </div>
     ) : city ? (
      <div style={{ marginTop: 12, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
@@ -223,7 +235,9 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
      </>
     )}
 
-    <div style={{ fontSize: 10, color: T.textTertiary, lineHeight: 1.5, marginTop: 14 }}>
+    <div style={{ marginTop: 14 }}>{outLink(T, CA_TAX_HUB_URL, "Every California city's rate, with sources", { fontSize: 12 })}</div>
+
+    <div style={{ fontSize: 10, color: T.textTertiary, lineHeight: 1.5, marginTop: 10 }}>
      Source: each county's published tax rate book (San Francisco: the Treasurer's secured rate). Other tax areas in the same city can differ; the property's tax bill is the final word.
     </div>
    </div>
