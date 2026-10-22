@@ -188,3 +188,41 @@ describe("helpers", () => {
     expect(html).toContain("?st=CA&amp;county=Alameda&amp;src=seo-ll");
   });
 });
+
+describe("property tax calculator", () => {
+  it("matches Blueprint's Tax breakdown (Alameda, $1M, primary, $1,500 fixed)", async () => {
+    const { computeTax, formatTax } = await import("./tax-calc.client.js");
+    // (1,000,000 - 7,000) x 1.2127% = 12,042.11; + 1,500 = 13,542.11; / 1,000,000 = 1.354%
+    const t = computeTax({ price: 1000000, ratePct: 1.2127, primary: true, fixed: 1500 });
+    expect(formatTax(t)).toEqual({
+      exemption: "-$7,000", taxable: "$993,000", base: "$12,042.11", fixed: "$1,500.00",
+      annual: "$13,542.11", monthly: "$1,128.51", effective: "1.354%",
+    });
+    expect(computeTax({ price: 1000000, ratePct: 1.2127, primary: false, fixed: 0 }).annual).toBeCloseTo(12127, 6);
+    expect(computeTax({ price: 0, ratePct: 1.2, primary: true, fixed: 0 })).toMatchObject({ annual: 0, effectivePct: 0 });
+  });
+
+  it("is on every CA tax page, pre-filled and readable without JS; never on loan-limit pages", () => {
+    const font = { fontHref: "https://fonts.googleapis.com/css2?family=Inter&display=swap" };
+    for (const p of site.pages) {
+      const html = renderPage(p, font);
+      const hasCalc = html.includes("data-taxcalc");
+      expect(hasCalc, p.path).toBe(p.path.startsWith("/property-tax/"));
+      expect(html.includes('<script type="module" src="/seo/tax-calc.js"></script>'), p.path).toBe(hasCalc);
+    }
+    const fremont = renderPage(byPath.get("/property-tax/california/fremont/"), font);
+    expect(fremont).toContain('<option value="Fremont" selected>Fremont</option>');
+    // (1,000,000 - 7,000) x rate, rendered at build time
+    const pct = CA_CITY_TAX_RATES.Fremont * 100;
+    const base = ((1000000 - 7000) * pct) / 100;
+    expect(fremont).toContain(`data-out="base">$${base.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<`);
+    expect(fremont).toContain("propertytax.alamedacountyca.gov");
+  });
+
+  it("ships every sourced city and county bill link to the live calculator", () => {
+    expect(site.taxData.cities).toHaveLength(Object.keys(CA_CITY_COUNTY).length);
+    expect(site.taxData.cities[0].county).toBe("Alameda");
+    for (const c of site.taxData.cities) expect(c.pct, c.city).toBeGreaterThanOrEqual(1);
+    expect(Object.keys(site.taxData.bills)).toHaveLength(58);
+  });
+});

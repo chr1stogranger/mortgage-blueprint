@@ -143,7 +143,7 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
       {CA_TAX_BILL_LOOKUP[c.county]?.url && (
        <a href={CA_TAX_BILL_LOOKUP[c.county].url} target="_blank" rel="noopener noreferrer"
         style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: T.blue, marginTop: 6, textDecoration: "none" }}>
-        Look up a {countyLabel(c.county)} tax bill <Icon name="external-link" size={11} />
+        Look up your {countyLabel(c.county)} tax bill <Icon name="external-link" size={11} />
        </a>
       )}
       {c.url && (

@@ -1,12 +1,17 @@
 // Page model (model.js) -> standalone static HTML, plus the one shared
-// stylesheet. No app bundle and no JavaScript: these pages must read in full
-// for crawlers that never run JS. Every interpolated string goes through esc().
+// stylesheet. No app bundle: these pages must read in full for crawlers that
+// never run JS. The CA tax pages' calculator is the one script, and only an
+// enhancement: its numbers are pre-rendered here (taxcalc block) and
+// /seo/tax-calc.js makes them live. Every interpolated string goes through esc().
 
 import { LIGHT, DARK } from "../../src/lib/theme.js";
 import { FONT, MONO } from "../../src/lib/fonts.js";
 import { ORIGIN, FOOTER_TEXT } from "./model.js";
+import { computeTax, formatTax, HOMEOWNERS_EXEMPTION } from "./tax-calc.client.js";
 
 export const CSS_PATH = "/seo/seo.css";
+export const TAX_CALC_JS = "/seo/tax-calc.js";
+export const TAX_DATA_JSON = "/seo/ca-tax-rates.json";
 const OG_IMAGE = `${ORIGIN}/og-image.png`;
 
 export const esc = (s) =>
@@ -46,11 +51,41 @@ ${rows}
 </table></div>`;
 }
 
+// Property-tax calculator, pre-filled for one city (see tax-calc.client.js).
+function taxCalc(b) {
+  const out = formatTax(computeTax({ price: b.price, ratePct: b.pct, primary: true, fixed: 0 }));
+  const row = (label, key, strong) =>
+    `<tr${strong ? ' class="total"' : ""}><th scope="row">${esc(label)}</th><td class="num" data-out="${key}">${esc(out[key])}</td></tr>`;
+  return `<form class="calc" data-taxcalc data-src="${TAX_DATA_JSON}" action="#" aria-label="Property tax calculator">
+<div class="calc-in">
+<label class="f wide"><span>City</span><select name="city"><option value="${esc(b.city)}" selected>${esc(b.city)}</option></select></label>
+<label class="f"><span>Home price</span><span class="box"><i>$</i><input name="price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span></label>
+<label class="f"><span>Tax rate <em data-fy>FY ${esc(b.fy)}</em></span><span class="box"><input name="rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span></label>
+<label class="f"><span>Fixed assessments</span><span class="box"><i>$</i><input name="fixed" inputmode="numeric" autocomplete="off" value="0" /><i>/yr</i></span></label>
+<label class="chk"><input type="checkbox" name="primary" checked /> Primary residence (${esc(`$${HOMEOWNERS_EXEMPTION.toLocaleString("en-US")}`)} homeowners' exemption)</label>
+<p class="hint">Fixed assessments are the Mello-Roos, parcel taxes and special assessments on the property's tax bill. ${b.billUrl ? `<a data-bill href="${esc(b.billUrl)}" rel="noopener">${esc(b.billLabel)}</a>` : `<a data-bill hidden href="#" rel="noopener"></a>`}</p>
+</div>
+<div class="table-wrap"><table class="calc-out">
+<caption>Estimated first-year property tax</caption>
+<tbody>
+${row("Home exemption", "exemption")}
+${row("Taxable value", "taxable")}
+${row("Base tax", "base")}
+${row("Fixed assessments", "fixed")}
+${row("Annual total", "annual", true)}
+${row("Monthly", "monthly", true)}
+${row("Effective rate", "effective")}
+</tbody>
+</table></div>
+</form>`;
+}
+
 function block(b) {
   switch (b.type) {
     case "p": return `<p>${inline(b.content)}</p>`;
     case "table": return table(b);
     case "list": return `<ul>${b.items.map((it) => `<li>${inline(it)}</li>`).join("")}</ul>`;
+    case "taxcalc": return taxCalc(b);
     case "cta": return `<p class="cta"><a class="pill" href="${esc(b.href)}">${esc(b.text)}</a></p>`;
     default: throw new Error(`seo-data: unknown block type ${b.type}`);
   }
@@ -98,7 +133,7 @@ export function renderPage(page, { fontHref }) {
 <link rel="stylesheet" href="${esc(fontHref)}" />
 <link rel="stylesheet" href="${CSS_PATH}" />
 ${page.jsonLd.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n")}
-</head>
+${page.sections.some((x) => x.blocks.some((b) => b.type === "taxcalc")) ? `<script type="module" src="${TAX_CALC_JS}"></script>\n` : ""}</head>
 <body>
 <header class="site">
 <div class="wrap bar">
@@ -131,6 +166,7 @@ export function renderCss() {
     ["bg", t.bg], ["card", t.card], ["border", t.cardBorder], ["sep", t.separator],
     ["text", t.text], ["text2", t.textSecondary], ["text3", t.textTertiary],
     ["accent", t.accent], ["accent-hover", t.accentHover], ["pill", t.pillBg], ["hl", t.warningBg],
+    ["input-bg", t.inputBg], ["input-border", t.inputBorder],
     // Grange blue is ~4:1 on navy; dark-mode text links use the lighter hover tone.
     ["link", t === DARK ? t.accentHover : t.accent],
   ].map(([k, v]) => `  --${k}: ${v};`).join("\n");
@@ -182,6 +218,28 @@ tr:target { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cta { margin: 32px 0; }
 .pill { display: inline-block; padding: 12px 22px; border-radius: 9999px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }
 .pill:hover { background: var(--accent-hover); color: #fff; }
+.calc { margin: 12px 0; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.calc-in { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.calc .f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text2); min-width: 0; }
+.calc .f.wide { grid-column: 1 / -1; }
+.calc .f em { font-style: normal; font-size: 11px; color: var(--text3); margin-left: 4px; }
+.calc .box { display: flex; align-items: center; gap: 4px; padding: 0 12px; height: 42px; border-radius: 10px; border: 1px solid var(--input-border); background: var(--input-bg); }
+.calc .box i { font-style: normal; color: var(--text3); font-size: 14px; }
+.calc input, .calc select { font: inherit; font-size: 16px; color: var(--text); background: transparent; border: 0; outline: 0; min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
+.calc select { height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--input-border); background: var(--input-bg); }
+.calc .box:focus-within, .calc select:focus { border-color: var(--accent); }
+.calc .chk { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
+.calc .chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+.calc .hint { grid-column: 1 / -1; margin: 0; font-size: 13px; }
+.calc .table-wrap { margin: 14px 0 0; }
+.calc-out { table-layout: fixed; }
+.calc-out th { white-space: normal; }
+.calc-out td { width: 46%; }
+.calc-out tr.total th, .calc-out tr.total td { font-weight: 700; color: var(--text); }
+@media (max-width: 560px) {
+  .calc { padding: 12px; }
+  .calc-in { grid-template-columns: minmax(0, 1fr); }
+}
 footer.site { margin-top: 48px; border-top: 1px solid var(--sep); padding: 24px 0 40px; font-size: 13px; }
 footer.site p { color: var(--text3); }
 .badge { font-family: ${MONO}; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text3); margin-top: 2px; }
