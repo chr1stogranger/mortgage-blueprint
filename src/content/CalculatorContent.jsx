@@ -8,6 +8,8 @@ import PricePointTeaser from "../components/PricePointTeaser.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
 import CityTaxRatesSheet from "../components/CityTaxRatesSheet.jsx";
+import { CA_CITY_TAX_INFO } from "../data/caTaxRates.js";
+import { CA_TAX_BILL_LOOKUP } from "../data/caTaxBillLookup.js";
 import { getPMIRate } from "../lib/finance.js";
 import { repayPillar, HELOC_RULES } from "../lib/nonQm.js";
 import { DscrPanel, AssetQualifierInputs, HelocPanel } from "../components/NonQmPanels.jsx";
@@ -1434,7 +1436,21 @@ export default function CalculatorContent(props) {
            <span style={valStyle}>{fmt2(calc.baseTax)}</span>
           </div>
           <div style={trStyle}>
-           <span style={labStyle}>Fixed Assessments <InfoTip text="Mello-Roos, bonds, parcel taxes. Check your county tax bill." /></span>
+           <span style={{ ...labStyle, flexWrap: "wrap", rowGap: 2, minWidth: 0 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>Fixed Assessments <InfoTip text="Mello-Roos, bonds, parcel taxes. Check your county tax bill." /></span>
+            {/* The county's own bill lookup, where those charges are listed (Christo 2026-10-22). */}
+            {(() => {
+             // propertyCounty first ("Alameda"), else the sourced city's county.
+             const county = String(propertyCounty || CA_CITY_TAX_INFO[city]?.county || "").replace(/\s+County$/i, "").trim();
+             const bill = propertyState === "California" && Object.prototype.hasOwnProperty.call(CA_TAX_BILL_LOOKUP, county) ? CA_TAX_BILL_LOOKUP[county] : null;
+             return bill?.url && (
+              <a href={bill.url} target="_blank" rel="noopener noreferrer" title={bill.office || `${county} County property tax bill lookup`}
+               style={{ marginLeft: 3, display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, fontFamily: FONT, color: T.blue, textDecoration: "none", whiteSpace: "nowrap" }}>
+               {county} County tax bills <Icon name="external-link" size={11} />
+              </a>
+             );
+            })()}
+           </span>
            <MiniEdit value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" T={T} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
