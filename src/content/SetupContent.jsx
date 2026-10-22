@@ -990,6 +990,43 @@ export default function SetupContent(props) {
   const ficoMeets = creditScore >= calc.ficoMin;
   // Info tip inside a mono-caps overline: reset the caps so the "i" and its popup read normally.
   const tip = text => <span style={{ display: "inline-flex", textTransform: "none", letterSpacing: "normal", fontFamily: FONT, fontWeight: 400 }}><InfoTip text={text} /></span>;
+  // Refi puts the 3-Point test on row one and FICO beside Home Value on row
+  // two (Christo 2026-10-21), so FICO renders at either row's control height.
+  const ficoCell = (h) => (
+   <div data-field="fico-input" className={isPulse("fico-input")} style={cell(false)}>
+    <div style={overline}>
+     Middle FICO
+     {tip("Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification.")}
+     {creditScore > 0 && (
+      <span style={{ marginLeft: "auto", paddingLeft: 8, fontFamily: FONT, letterSpacing: 0, textTransform: "none", fontSize: 11, fontWeight: 600, color: ficoMeets ? T.green : T.red }}>
+       {ficoMeets ? `✓ ${loanType} ${calc.ficoMin}+` : `${calc.ficoMin - creditScore} pts short of ${calc.ficoMin}+`}
+      </span>
+     )}
+    </div>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, height: h }}>
+     <input type="text" inputMode="numeric" aria-label="Middle FICO score" placeholder="750"
+      value={creditScore === 0 ? "" : creditScore}
+      onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } setCreditScore(Math.min(parseInt(v, 10), 850)); }}
+      onBlur={() => {
+        if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
+        else if (creditScore >= 300) markTouched("fico-input-done");
+      }}
+      style={{ ...numInput, width: 64, height: h }} />
+     <input type="range" min={300} max={850} step={5} value={creditScore || 650} aria-label="Middle FICO score slider"
+      onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+      onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
+      style={{ flex: 1, minWidth: 0, height: 5, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+    </div>
+   </div>
+  );
+  const threePtCell = (
+   <div style={cell(false)}>
+    <div style={overline}>3-Point Refi Test{tip("Shows the rate-drop, breakeven & payoff-acceleration test tab.")}</div>
+    <PillSeg T={T} Icon={Icon} ariaLabel="3-Point Refi Test" value={showRefi3 === true ? "yes" : showRefi3 === false ? "no" : null}
+     options={[{ key: "yes", label: "Yes" }, { key: "no", label: "No" }]}
+     onPick={k => setShowRefi3(k === "yes")} />
+   </div>
+  );
   return (
    <div className="qs-strip">
    <Card pad="12px 6px">
@@ -1038,34 +1075,10 @@ export default function SetupContent(props) {
      </div>
     </div>
     )}
-    <div data-field="fico-input" className={isPulse("fico-input")} style={cell(false)}>
-     <div style={overline}>
-      Middle FICO
-      {tip("Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification.")}
-      {creditScore > 0 && (
-       <span style={{ marginLeft: "auto", paddingLeft: 8, fontFamily: FONT, letterSpacing: 0, textTransform: "none", fontSize: 11, fontWeight: 600, color: ficoMeets ? T.green : T.red }}>
-        {ficoMeets ? `✓ ${loanType} ${calc.ficoMin}+` : `${calc.ficoMin - creditScore} pts short of ${calc.ficoMin}+`}
-       </span>
-      )}
-     </div>
-     <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
-      <input type="text" inputMode="numeric" aria-label="Middle FICO score" placeholder="750"
-       value={creditScore === 0 ? "" : creditScore}
-       onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } setCreditScore(Math.min(parseInt(v, 10), 850)); }}
-       onBlur={() => {
-         if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
-         else if (creditScore >= 300) markTouched("fico-input-done");
-       }}
-       style={{ ...numInput, width: 64 }} />
-      <input type="range" min={300} max={850} step={5} value={creditScore || 650} aria-label="Middle FICO score slider"
-       onChange={e => setCreditScore(parseInt(e.target.value, 10))}
-       onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
-       style={{ flex: 1, minWidth: 0, height: 5, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
-     </div>
-    </div>
+    {isRefi ? threePtCell : ficoCell(36)}
     </div>
     {/* Refi row two. The address spans the first two columns so Home Value
-        and the 3-Point test line up under Purpose and FICO. */}
+        and FICO line up under Purpose and the 3-Point test. */}
     {isRefi && (
     <div className="qs-strip-grid qs-strip-row2" style={{ borderTop: `1px solid ${T.separator}`, marginTop: 12, paddingTop: 12 }}>
      <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (zipOk) markTouched("zip-code-done"); }} style={{ ...cell(true), gridColumn: "span 2" }}>
@@ -1098,12 +1111,7 @@ export default function SetupContent(props) {
       {/* Inp brings its own 6px bottom margin; the cell supplies spacing here. */}
       <div style={{ marginBottom: -6 }}><Inp value={salesPrice} onChange={setSalesPrice} max={100000000} sm /></div>
      </div>
-     <div style={cell(false)}>
-      <div style={overline}>3-Point Refi Test{tip("Shows the rate-drop, breakeven & payoff-acceleration test tab.")}</div>
-      <PillSeg T={T} Icon={Icon} ariaLabel="3-Point Refi Test" value={showRefi3 === true ? "yes" : showRefi3 === false ? "no" : null}
-       options={[{ key: "yes", label: "Yes" }, { key: "no", label: "No" }]}
-       onPick={k => setShowRefi3(k === "yes")} />
-     </div>
+     {ficoCell(42)}
     </div>
     )}
    </Card>

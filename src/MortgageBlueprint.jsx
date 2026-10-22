@@ -303,7 +303,9 @@ function Sel({ label, value, onChange, options, sm, tip, req }) {
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} htmlFor={selId} />
   <select id={selId} value={value} disabled={ro} onChange={e => { if (!ro) onChange(e.target.value); }}
-   style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, fontWeight: 500, outline: "none", cursor: ro ? "default" : "pointer", fontFamily: FONT, WebkitAppearance: "none", opacity: 1 }}>
+   /* Same minimum height as Inp (Christo 2026-10-21: the loan-type dropdowns
+      sat shorter than the balance and rate boxes beside them). */
+   style={{ width: "100%", boxSizing: "border-box", minHeight: sm ? 42 : 50, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, fontWeight: 500, outline: "none", cursor: ro ? "default" : "pointer", fontFamily: FONT, WebkitAppearance: "none", opacity: 1 }}>
    {options.map(o => <option key={typeof o === "string" ? o : o.value} value={typeof o === "string" ? o : o.value}>{typeof o === "string" ? o : o.label}</option>)}
   </select>
  </div>);
