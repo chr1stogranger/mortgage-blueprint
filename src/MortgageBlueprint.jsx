@@ -23,6 +23,7 @@ import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.
 import ListingBanner, { ListingNotice } from "./components/ListingBanner.jsx";
 import { readListingToken, listingScenarioPlans } from "./lib/listingPrefill.js";
 import { readPlanToken, planToPrefill, planScenarioName, planLanding, planClientLabel, planLicensed } from "./lib/planPrefill.js";
+import { readPlaceParams, placeToPrefill, placeScenarioName, placeNoteText, PLACE_PARAMS } from "./lib/placePrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
@@ -1099,6 +1100,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [planToken] = useState(() => {
   if (isBorrower) return null;
   try { return readPlanToken(window.location.search); } catch { return null; }
+ });
+ // ── ?st=&county=[&city=]&src=seo-… (static SEO data pages, lib/placePrefill.js)
+ // — same rules again, but no token and no fetch: the validated place IS the plan.
+ const [placeLink] = useState(() => {
+  if (isBorrower) return null;
+  try { return readPlaceParams(window.location.search); } catch { return null; }
  });
  const [listingScenarios, setListingScenarios] = useState([]); // local scenario names the listing opened as (one per flyer column)
  // Flyer fixed assessments, re-applied whenever a listing scenario loads —
@@ -3604,7 +3611,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // every client — never reopen the last client over it (the restore would
   // land after the listing and autosave its numbers into that client's cloud
   // scenario).
-  if (listingToken || planToken) return;
+  if (listingToken || planToken || placeLink) return;
   // A ?client= deep link wins — its own effect handles it.
   try { if (new URLSearchParams(window.location.search).get('client')) return; } catch { /* ignore */ }
   if (activeBorrower?.id) return;                    // already in a file (import, share, …)
@@ -3643,7 +3650,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!isCloud || isBorrower || !borrowerList.length) return;
   // ?listing= wins over ?client= (they never ship together; if they do, the
   // flyer is the newer intent and must not be written into a client).
-  if (listingToken || planToken) { deepLinkClientConsumedRef.current = true; return; }
+  if (listingToken || planToken || placeLink) { deepLinkClientConsumedRef.current = true; return; }
   let clientId = null;
   try { clientId = new URLSearchParams(window.location.search).get('client'); } catch { /* ignore */ }
   if (!clientId) { deepLinkClientConsumedRef.current = true; return; }
@@ -3735,9 +3742,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  useEffect(() => {
   // ?plan= rides the same path: a different fetcher + mapper, everything
-  // after (detach, LS writes, loadState batch) shared.
-  const deepToken = listingToken || planToken;
+  // after (detach, LS writes, loadState batch) shared. A ?st= place link too,
+  // with no fetch at all.
+  const deepToken = listingToken || planToken || placeLink;
   const isPlan = !listingToken && !!planToken;
+  const isPlace = !listingToken && !planToken && !!placeLink;
   if (listingConsumedRef.current || !deepToken || isBorrower) return;
   // Wait for the boot local-restore: applying first would let the saved
   // active scenario load on top of the listing.
@@ -3749,11 +3758,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const url = new URL(window.location.href);
    url.searchParams.delete('listing');
    url.searchParams.delete('plan');
+   if (placeLink) PLACE_PARAMS.forEach((k) => url.searchParams.delete(k));
    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
   } catch { /* ignore */ }
   (async () => {
    let data = null, failStatus = 0;
-   try { data = await (isPlan ? fetchPlan(planToken) : fetchListing(listingToken)); } catch (e) { data = null; failStatus = e?.status || 0; }
+   try { data = isPlace ? { ...placeLink, kind: "place" } : await (isPlan ? fetchPlan(planToken) : fetchListing(listingToken)); } catch (e) { data = null; failStatus = e?.status || 0; }
    // A 404 (or a plan's 410) means the link is gone; anything else (network,
    // 5xx, rate limit) is a temporary miss and should not be announced as expired.
    if (!data || typeof data !== 'object' || data.error) { setListingFailed(failStatus === 404 || failStatus === 410 || !!data?.error ? 'expired' : 'unavailable'); setListingFailKind(isPlan ? 'plan' : 'listing'); return; }
@@ -3761,7 +3771,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const prefillDeps = { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate };
    // One plan per flyer column (Financing flyer) or a single plan (Buydown,
    // or a chat handoff).
-   const rawPlans = isPlan
+   const rawPlans = isPlace
+    ? [{ name: placeScenarioName(data), prefill: placeToPrefill(data, prefillDeps) }]
+    : isPlan
     ? [{ name: planScenarioName(data), prefill: planToPrefill(data, prefillDeps) }]
     : listingScenarioPlans(data, prefillDeps);
    const plans = rawPlans.map(({ name: n, prefill: pf }) => {
@@ -3820,10 +3832,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // loadState maps a saved 0 to its legacy $1,500 default; a flyer's own
    // fixed-assessment figure (including $0) must win. Same batch → this wins.
    if (prefill.fixedAssessments !== undefined) setFixedAssessments(prefill.fixedAssessments);
+   // loadState skips an empty city (keeps the outgoing one), so a county-only
+   // place link clears it here, or the last scenario's city lands in this county.
+   if (isPlace && !prefill.city) setCity("");
    // Guest devices adopt the flyer's LO as the contact (PDFs, Get
    // Pre-Approved copy). Never on a device an LO has signed into
    // (bp_lo_info_owner set) — LO identity there is theirs, device-level.
-   if (!isPlan && !live.isCloud && data.lo && data.lo.name) {
+   if (!isPlan && !isPlace && !live.isCloud && data.lo && data.lo.name) {
     let owner = "";
     try { owner = localStorage.getItem("bp_lo_info_owner") || ""; } catch { /* private mode */ }
     if (!owner) {
@@ -3839,8 +3854,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setListingDismissed(false);
    setAppMode("blueprint");
    // A chat handoff lands where the chat left off: Rent vs Buy, the Rate &
-   // Points section, or Overview.
-   const landing = isPlan ? planLanding(data) : { tab: "overview", section: null };
+   // Points section, or Overview. A place link lands on the Calculator.
+   const landing = isPlace ? { tab: "calc", section: null } : isPlan ? planLanding(data) : { tab: "overview", section: null };
    setTab(landing.tab);
    try { window.scrollTo({ top: 0 }); } catch { /* ignore */ }
    // The Overview tab is lazy-loaded, so wait (up to ~4s) for the section to mount.
@@ -3855,14 +3870,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
   })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [loaded, listingToken, planToken, isBorrower]);
+ }, [loaded, listingToken, planToken, placeLink, isBorrower]);
  // Banner shows only while the listing's own scenario is on screen and no
  // cloud client is open — switching away retires it.
  const showListingBanner = !!listing && !listingDismissed && !activeBorrower && listingScenarios.includes(scenarioName);
  // A chat handoff (?plan=) gets the shared Note, not the flyer banner.
  const planScenarioOn = listing?.kind === "plan" && !activeBorrower && listingScenarios.includes(scenarioName);
  const planActive = showListingBanner && planScenarioOn;
- const listingBannerEl = planActive
+ // A place link (?st=) gets the shared Note too.
+ const placeScenarioOn = listing?.kind === "place" && !activeBorrower && listingScenarios.includes(scenarioName);
+ const listingBannerEl = showListingBanner && placeScenarioOn
+  ? <Note color={T.blue} onDismiss={() => setListingDismissed(true)} style={{ margin: "4px 0 10px" }}>{placeNoteText(listing)}</Note>
+  : planActive
   ? <Note color={T.blue} title={`Opened from ${planClientLabel(listing.client)}`} onDismiss={() => setListingDismissed(true)} style={{ margin: "4px 0 10px" }}>
      {/* Outside Chris's licensed states (data/licensing.js) the note never
          invites contact or a pre-approval for this property. */}
@@ -3877,7 +3896,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    : null;
  // 1003 attribution: while a chat-handoff scenario is on screen, the
  // Get Pre-Approved links carry source=mcp-<client> instead of the realtor slug.
- const applySlug = planScenarioOn ? `mcp-${listing.client || "other"}` : realtorPartnerSlug;
+ // A place link's scenario carries its SEO page source (seo-ll / seo-ptax).
+ const applySlug = planScenarioOn ? `mcp-${listing.client || "other"}` : placeScenarioOn && listing.src ? listing.src : realtorPartnerSlug;
 
  const switchScenario = async (name, opts = {}) => {
   // ── Share-link borrower: switch between the shared rows by id, never by
@@ -9382,7 +9402,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -9661,7 +9681,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete,
    annualIns, setAnnualIns, hoa, setHoa,
    /* ?listing= flyer: open the buydown year table in the payment section */
-   buydownAutoOpen: showListingBanner,
+   buydownAutoOpen: showListingBanner && !placeScenarioOn,
    includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived,
    closingMonth, setClosingMonth, closingDay, setClosingDay,
    closingYear, setClosingYear,
