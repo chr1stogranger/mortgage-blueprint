@@ -96,6 +96,7 @@ import useBlueprintShelf from "./hooks/useBlueprintShelf";
 import useAccount from "./hooks/useAccount";
 import useSelfCloudSync from "./hooks/useSelfCloudSync";
 import AccountSheet from "./components/AccountSheet";
+import ShellAccount from "./components/ShellAccount";
 import CloudMergeSheet from "./components/CloudMergeSheet";
 import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
@@ -2097,6 +2098,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // using LO auth — the account button is hidden for them (isCloud check).
  const account = useAccount();
  const selfMode = !isBorrower && !isCloud && account.isSignedIn;
+ // Who PricePoint/Markets are signed in as (ShellAccount). The Supabase session
+ // is what /api/pp-player keys PricePoint progress to; the LO's Google sign-in
+ // creates it too, so prefer its name/picture when present.
+ const shellUser = useMemo(() => {
+  const u = account.session?.user;
+  if (!u?.email) return null;
+  const meta = u.user_metadata || {};
+  const lo = isCloud && auth?.user?.email === u.email ? auth.user : null;
+  return {
+   email: u.email,
+   name: lo?.name || account.account?.name || meta.full_name || meta.name || "",
+   picture: lo?.picture || meta.avatar_url || meta.picture || "",
+  };
+ }, [account.session, account.account, isCloud, auth?.user]);
+ const shellSignIn = !isBorrower && !isCloud ? () => setShowAccountSheet(true) : null;
+ const shellSignOut = isBorrower ? null : isCloud ? auth?.signOut : account.signOut;
  // "My Home" sidebar tab: the signed-in client's Homebot report link, from Ops
  // (/api/homebot-report; the Homebot key never leaves Ops). Only clients Chris
  // has in Homebot get a link, so the tab only appears for them. LOs never ask.
@@ -8937,6 +8954,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       ))}
      </div>
      {/* Sidebar Footer */}
+     {/* Account — Blueprint shows it in its header; PricePoint and Markets
+         have no header on desktop, so it docks here (2026-10-22). */}
+     {isDesktop && appMode !== "blueprint" && (
+      <div style={{ padding: sidebarCollapsed ? "8px 4px" : "8px 8px 10px", borderTop: `1px solid ${T.separator}`, display: "flex", justifyContent: "center" }}>
+       <ShellAccount variant={sidebarCollapsed ? "collapsed" : "row"} user={shellUser} appMode={appMode}
+        onSignIn={shellSignIn} onSignOut={shellSignOut} T={T} />
+      </div>
+     )}
      {isDesktop && appMode === "blueprint" && applyUrl && !sidebarCollapsed && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
        <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
@@ -9449,6 +9474,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       {/* PricePoint portals its notifications bell in here (top-right, in line
           with the wordmark) — see ppBellSlot in PricePoint.jsx. */}
       {appMode === "pricepoint" && <div id="pp-header-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }} />}
+      <div style={{ marginLeft: appMode === "pricepoint" ? 0 : "auto", display: "flex" }}>
+       <ShellAccount variant="avatar" user={shellUser} appMode={appMode}
+        onSignIn={shellSignIn} onSignOut={shellSignOut} T={T} />
+      </div>
      </div>
     </div>
    )}
