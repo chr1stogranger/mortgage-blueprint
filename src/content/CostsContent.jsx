@@ -223,7 +223,7 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerEx
 // Lettered subsection inside a CollapsibleBox (A. Origination, B. Cannot Shop, etc.)
 // `lockable` = whether to show the lock/unlock pill in the header (true for closing-cost subsections).
 // When unlocked, children FeeRows render inline editors instead of read-only values.
-function LetterSection({ letter, title, total, children, lockable = false }) {
+function LetterSection({ letter, title, total, totalColor, children, lockable = false }) {
   const { T, ACCENT, sectionLocks, toggleLock } = useContext(CostsCtx);
   const locked = lockable ? !!sectionLocks[letter] : true;
   const unlocked = lockable && !locked;
@@ -255,7 +255,7 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
           fontFamily: FONT,
           minWidth: 0,
         }}>
-          <span style={{ color: ACCENT, marginRight: 8 }}>{letter}.</span>
+          {letter && <span style={{ color: ACCENT, marginRight: 8 }}>{letter}.</span>}
           {title}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -280,7 +280,7 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
             </button>
           )}
           {total !== undefined && (
-            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: T.text }}>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: totalColor || T.text }}>
               {total}
             </div>
           )}
@@ -1645,7 +1645,13 @@ export default function CostsContent(props) {
         total={`−${fmt2(calc.totalCredits)}`}
         totalColor={T.green}
         defaultOpen={!isGuided}
+        inset
       >
+        {/* Same inset section cards as Closing Costs (Christo 2026-10-21).
+            No letters: these aren't LE sections. Deposit + Credits subtotals
+            sum to calc.totalCredits. */}
+        {!isRefi && (
+        <LetterSection title="Deposit" total={`−${fmt2(calc.emdCredit || 0)}`} totalColor={T.green}>
         <FeeRow
           label="Earnest Money Deposit (EMD)"
           value={isRefi ? 0 : calc.emdCredit}
@@ -1682,6 +1688,9 @@ export default function CostsContent(props) {
             onChange={setEmdPaid}
           />
         )}
+        </LetterSection>
+        )}
+        <LetterSection title="Credits" total={`−${fmt2((calc.totalCredits || 0) - (isRefi ? 0 : (calc.emdCredit || 0)))}`} totalColor={T.green}>
         {!isRefi && (
           <FeeRow label="Seller Credit"   value={sellerCredit}  onChange={setSellerCredit}  alwaysEdit
             hidden={isHidden("sellerCredit")} onDelete={() => deleteBuiltin("sellerCredit")}
@@ -1700,6 +1709,7 @@ export default function CostsContent(props) {
         <FeeRow label="Subordinate Financing" value={0} readOnly
           explainer="Second mortgages or HELOCs financing part of the purchase" />
         {renderSectionExtras('CR', { alwaysEdit: true, alwaysOn: true })}
+        </LetterSection>
       </CollapsibleBox>
 
 
