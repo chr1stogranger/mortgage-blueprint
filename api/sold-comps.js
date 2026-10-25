@@ -889,9 +889,12 @@ async function redfinRegionId(query, cacheKey, apiKey) {
   // Up to 2 retries on a per-second 429 (the cron fan-out can trip it).
   for (let attempt = 0; attempt <= 2; attempt++) {
     try {
-      const r = await fetch(`https://${REDFIN_HOST}/properties/auto-complete?query=${encodeURIComponent(query)}`, {
+      // Through the per-second pacer (the raw fetch here and in fetchSold
+      // was the Oct 22 / Oct 24 08:00 UTC 429 burst: cron-resolve's pump never
+      // touched _rapid.js). rapidFetch also retries one 429 after the window.
+      const r = await rapidFetch(`https://${REDFIN_HOST}/properties/auto-complete?query=${encodeURIComponent(query)}`, {
         headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST },
-      });
+      }, { timeoutMs: 15000 });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
         if (r.status === 429 && attempt < 2) {
@@ -985,12 +988,12 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
   // page or two (SF ≈ 190) and is read to completion, so every fresh sale
   // lands; the 90-day page then adds volume.
   const fetchSold = async (soldWithin, page) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
     try {
-      const r = await fetch(
+      // Paced + one 429 retry (see _rapid.js); the 15 s timeout starts at launch.
+      const r = await rapidFetch(
         `https://${REDFIN_HOST}/properties/search-sold?regionId=${encodeURIComponent(regionId)}&soldWithin=${soldWithin}&limit=350&page=${page}`,
-        { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST }, signal: controller.signal }
+        { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST } },
+        { timeoutMs: 15000 }
       );
       const j = await r.json().catch(() => null);
       if (!r.ok) {
@@ -1001,7 +1004,7 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
     } catch (e) {
       console.error(`[SoldComps] redfin search-sold failed for ${marketId} within=${soldWithin} p${page}: ${e.message}`);
       return { items: [], more: false, err: e.message };
-    } finally { clearTimeout(timer); }
+    }
   };
   let items = [];
   let firstErr = null;

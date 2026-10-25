@@ -87,8 +87,12 @@ async function runFreshSearchPump() {
   // Vercel deployment protection, which returns an HTML SSO page instead of
   // JSON ("Unexpected token '<'" in the cron logs).
   const baseUrl = 'https://blueprint.realstack.app';
-  // 2-wide pool (was a 6-wide Promise.all that tripped RapidAPI's per-second 429).
-  const results = await runPool(PUMP_MARKETS, 2, async (market) => {
+  // One market at a time (was 2-wide, and before that a 6-wide Promise.all).
+  // Each market runs in its own lambda, so _rapid.js's per-second pacer cannot
+  // span them; two lambdas each paging search-sold back-to-back was still the
+  // Oct 22 / Oct 24 08:00 UTC Redfin 429. Six markets at 5-35 s each fits the
+  // 300 s maxDuration with room.
+  const results = await runPool(PUMP_MARKETS, 1, async (market) => {
     const t0 = Date.now();
     try {
       const r = await fetch(
