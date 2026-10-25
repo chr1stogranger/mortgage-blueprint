@@ -163,6 +163,10 @@ export default function useAccount() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) throw new Error(body.message || body.error || 'Your home report is not available right now');
+    // Defense in depth: the link is rendered as an href, so only ever open an
+    // https URL even if the upstream payload is ever wrong (Homebot digests can
+    // live on a vanity host, so the scheme is the check, not the host).
+    if (!/^https:\/\//i.test(String(body.url))) throw new Error('Your home report is not available right now');
     return body.url;
   }, [session]);
 
