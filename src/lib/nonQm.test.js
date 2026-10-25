@@ -59,6 +59,14 @@ describe("bucketsAfterClosing", () => {
     const left = bucketsAfterClosing([{ type: "Checking", value: 100000 }, { type: "Gift", value: 60000 }], 30000, 100000);
     expect(left.deposit).toBe(90000);
   });
+  it("leftover sale proceeds are cash after closing (downsizer)", () => {
+    // $400K net proceeds, $100K to close, nothing else: $300K stays in the bank.
+    expect(bucketsAfterClosing([], 400000, 100000)).toEqual({ deposit: 300000, securities: 0, retirement: 0, unfunded: 0 });
+  });
+  it("an over-earmarked account keeps its surplus in its own bucket", () => {
+    const left = bucketsAfterClosing([{ type: "Stocks", value: 200000, forClosing: 150000 }], 0, 50000);
+    expect(left).toEqual({ deposit: 0, securities: 150000, retirement: 0, unfunded: 0 });
+  });
   it("reports what can't be funded", () => {
     expect(bucketsAfterClosing([{ type: "Checking", value: 10000 }], 0, 25000).unfunded).toBe(15000);
   });

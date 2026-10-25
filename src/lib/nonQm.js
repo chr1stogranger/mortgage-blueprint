@@ -57,17 +57,30 @@ export function bucketAssets(assets = [], extraDeposit = 0) {
  */
 export function bucketsAfterClosing(assets = [], extraDeposit = 0, cashToClose = 0) {
   const rem = { deposit: 0, securities: 0, retirement: 0 };
-  let covered = Math.max(0, Number(extraDeposit) || 0);
+  let need = Math.max(0, Number(cashToClose) || 0);
+  // Spend order: gifts (never qualify, so they go first), then net sale
+  // proceeds, then each earmarked account. Whatever is left of the proceeds is
+  // cash in the bank after closing; whatever is left of an earmark stays in
+  // its own bucket. Before 2026-10-25 both were dropped, so a downsizer with
+  // $400K of proceeds and $100K to close showed $0 after closing.
   for (const a of assets) {
     const v = Number(a && a.value) || 0;
-    if (v <= 0) continue;
-    if (GIFT_TYPES.includes(a.type)) { covered += v; continue; }
+    if (v > 0 && GIFT_TYPES.includes(a.type)) need = Math.max(0, need - v);
+  }
+  const proceeds = Math.max(0, Number(extraDeposit) || 0);
+  const proceedsUsed = Math.min(proceeds, need);
+  need -= proceedsUsed;
+  rem.deposit += proceeds - proceedsUsed;
+  for (const a of assets) {
+    const v = Number(a && a.value) || 0;
+    if (v <= 0 || GIFT_TYPES.includes(a.type)) continue;
     const k = AQ_BUCKET[a.type];
-    const used = Math.min(v, Math.max(0, Number(a.forClosing) || 0));
-    covered += used;
+    const earmarked = Math.min(v, Math.max(0, Number(a.forClosing) || 0));
+    const used = Math.min(earmarked, need);
+    need -= used;
     if (k) rem[k] += v - used;
   }
-  let owed = Math.max(0, (Number(cashToClose) || 0) - covered);
+  let owed = need;
   for (const k of ["deposit", "securities", "retirement"]) {
     const take = Math.min(rem[k], owed);
     rem[k] -= take; owed -= take;
