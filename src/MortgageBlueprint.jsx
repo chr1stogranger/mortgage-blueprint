@@ -594,6 +594,14 @@ function RefiTestLight({ passed, label, detail }) {
  </div>);
 }
 // `empty`: no price yet — show "--" rather than a tax+insurance-only total.
+// Default homeowners insurance until a figure is typed (Christo 2026-10-27):
+// condos carry a walls-in HO-6 policy, $75/mo flat; everything else runs
+// 0.25% of the price a year (an $600K home ≈ the old $125/mo), floor $100/mo.
+// Whole-dollar monthly figure.
+function defaultAnnualIns(price, propType) {
+ if (propType === "Condo") return 900;
+ return Math.max(100, Math.round((price || 0) * 0.0025 / 12)) * 12;
+}
 function PayRing({ segments: segs, total, size, hideLegend, empty }) {
  const segments = empty ? [] : segs;
  const sz = size || 200, sw = size ? Math.max(18, Math.round(size / 10)) : 22, r = (sz - sw) / 2, c = 2 * Math.PI * r;
@@ -1342,6 +1350,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [sectionPillHidden, setSectionPillHidden] = useState(() => {
   try { return localStorage.getItem('bp_hide_section_pill') === '1'; } catch { return false; }
  });
+ // Tucks away while scrolling DOWN (reading) and returns on scroll up or
+ // near the top, so it never parks on a number someone is reading
+ // (Christo 2026-10-27: it sat on Cash to Close and the Yes/No buttons).
+ const [sectionPillTucked, setSectionPillTucked] = useState(false);
+ useEffect(() => {
+  let lastY = window.scrollY;
+  const onScroll = () => {
+   const y = window.scrollY;
+   if (Math.abs(y - lastY) < 6) return;
+   setSectionPillTucked(y > 120 && y > lastY);
+   lastY = y;
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+ }, []);
  const setSectionPillHiddenPersist = (v) => { setSectionPillHidden(v); try { localStorage.setItem('bp_hide_section_pill', v ? '1' : '0'); } catch {} };
  // Grange ribbon canvas — freeze control (Settings → Appearance). Persisted.
  const [bgPaused, setBgPaused] = useState(() => {
@@ -1627,6 +1650,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [propertyCounty, setPropertyCounty] = useState("");
  const [hoa, setHoa] = useState(0);
  const [annualIns, setAnnualIns] = useState(1500);
+ // Insurance follows price and property type until someone types a figure
+ // (Christo 2026-10-27: a flat $125/mo read wrong on an $850K house).
+ const [annualInsAuto, setAnnualInsAuto] = useState(true);
+ const setAnnualInsManual = (v) => { setAnnualInsAuto(false); setAnnualIns(v); };
  const [propTaxMode, setPropTaxMode] = useState("auto"); // "auto" or "custom"
  const [taxBaseRateOverride, setTaxBaseRateOverride] = useState(0); // e.g. 1.2127 (percent, not decimal)
  const [fixedAssessments, setFixedAssessments] = useState(1500); // annual Mello-Roos / bonds / special assessments
@@ -2288,7 +2315,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const tabBarRef = useRef(null);
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
-  salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
+  salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, annualInsAuto, includeEscrow, escrowInsWaived, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
@@ -2364,6 +2391,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.propertyState) setPropertyState(s.propertyState);
   if (s.hoa !== undefined) setHoa(s.hoa);
   if (s.annualIns !== undefined) setAnnualIns(s.annualIns);
+  // Scenarios saved before the flag existed keep their figure as-is.
+  setAnnualInsAuto(s.annualInsAuto === true);
   if (s.propTaxMode) setPropTaxMode(s.propTaxMode);
   if (s.taxBaseRateOverride !== undefined) setTaxBaseRateOverride(s.taxBaseRateOverride);
   setFixedAssessments(s.fixedAssessments || 1500); // default $1,500 for older scenarios that saved 0
@@ -3214,10 +3243,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    document.head.appendChild(newMeta);
   }
  }, [darkMode]);
- // Enforce viewport to prevent iOS zoom
+ // Pinch-zoom stays ON (Christo 2026-10-27: much of the phone type is ≤11px).
+ // iOS gets maximum-scale=1 only: Safari still lets people pinch, but it stops
+ // the auto-zoom when a <16px input is focused. Android/desktop get no limits.
  useEffect(() => {
   let vp = document.querySelector('meta[name="viewport"]');
-  const content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const content = `width=device-width, initial-scale=1${isIOS ? ", maximum-scale=1" : ""}, viewport-fit=cover`;
   if (vp) vp.setAttribute('content', content);
   else { vp = document.createElement('meta'); vp.name = 'viewport'; vp.content = content; document.head.appendChild(vp); }
  }, []);
@@ -4142,7 +4174,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setSalesPrice(1000000); setDownPct(20); _setRateRaw(6.5); rateIsManualRef.current = false; setTerm(30);
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
   setNonQmRaw(NONQM_DEFAULTS);
-  setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
+  setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(defaultAnnualIns(1000000, "Single Family")); setAnnualInsAuto(true); setDiscountPts(0);
   setSellerCredit(0); setRealtorCredit(0); setEmd(0); setEmdPct(3); setEmdPaid(false); setDebts([]); setIncomes([]);
   setOtherIncome(0); setOtherIncome2(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
   setHasSellProperty(false); setOwnsProperties(false); setIsRefi(null); setShowInvestor(false);
@@ -4159,7 +4191,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   saveCompletedTabs({});
   // Save the new scenario defaults immediately so Compare can read them
   const defaults = { salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
-   propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
+   propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: defaultAnnualIns(1000000, "Single Family"), annualInsAuto: true,
    includeEscrow: true, escrowInsWaived: false, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
    otherIncome: 0, otherIncome2: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
    hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, showProp19: false, darkMode, themeMode };
@@ -5954,6 +5986,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   if (isRefi && refiAnnualIns > 0) setAnnualIns(refiAnnualIns);
  }, [isRefi, refiAnnualIns]);
+ // Purchase insurance tracks price + property type while it's on auto.
+ useEffect(() => {
+  if (!annualInsAuto || isRefi) return;
+  const next = defaultAnnualIns(salesPrice, propType);
+  if (next !== annualIns) setAnnualIns(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [annualInsAuto, isRefi, salesPrice, propType]);
  // Auto-set skip months based on closing day: ≤15th = skip 2, >15th = skip 1
  useEffect(() => {
   if (!isRefi) return;
@@ -9293,22 +9332,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       still appears the first time they switch into Blueprint. */}
   {!consentGiven && appMode === "blueprint" && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>Before you start</div>
+    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>See your real payment</div>
+    {/* Softer welcome (Christo 2026-10-27): it read like a loan application
+        and a legal wall. Same three promises, consent stays clickwrap. */}
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, marginBottom: 14, textAlign: "center" }}>
-     A price and ZIP get you a payment. Income, debts and assets are optional; they check what you qualify for. By continuing you acknowledge:
+     Start with just a price and ZIP. Add income, debts and savings later if you want to see what you qualify for.
     </div>
     <div style={{ background: T.pillBg, borderRadius: 14, padding: "12px 14px", marginBottom: 14, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.7 }}>
-     <div><strong>Stays on this device</strong> unless you turn on cloud sync</div>
-     <div><strong>Delete it anytime</strong> in Settings</div>
-     <div><strong>Estimates only.</strong> Not a commitment to lend</div>
-     <div><strong>Free.</strong> No account or contact info needed</div>
+     <div><strong>Free.</strong> No account, no contact info</div>
+     <div><strong>Private.</strong> Your numbers stay on this device unless you turn on sync</div>
+     <div><strong>Estimates only.</strong> Not an offer to lend</div>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14, lineHeight: 1.6 }}>
      Built by Chris Granger, a licensed loan officer · NMLS #952015 · Xpert Home Lending, Inc. NMLS #2179191
-     <div><a href={`${WEB_ORIGIN}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy</a> · <a href={`${WEB_ORIGIN}/terms.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Terms</a></div>
+     <div>By continuing you agree to the <a href={`${WEB_ORIGIN}/terms.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Terms</a> and <a href={`${WEB_ORIGIN}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
     </div>
     <button onClick={handleConsent} style={{ width: "100%", padding: 15, background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
-     I Understand. Continue
+     Get started
     </button>
     {/* Replaces the experience picker: Standard by default, Guided one tap away. */}
     {!isBorrower && <button onClick={() => { handleConsent(); saveSkillLevel("guided"); }} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
@@ -9659,10 +9699,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, nonQm, setNonQm, setTab, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, nonQm, setNonQm, setTab, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns: setAnnualInsManual, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
-{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
+{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns: setAnnualInsManual, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue, isBorrower}} />}
 {/* ═══ ASSETS ═══ */}
@@ -9895,7 +9935,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {/* Fixed (html/body carry overflow-x:hidden, so sticky would scroll away).
       Lower right, just above the bottom tab bar (Christo 2026-10-13: it sat
       under the header, upper right, and cost a 40px row at the top). */}
-  <div style={{ position: "fixed", bottom: `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 10px)`, left: 0, right: 0, zIndex: 20, pointerEvents: "none" }}>
+  <div aria-hidden={sectionPillTucked || undefined} style={{ position: "fixed", bottom: `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 10px)`, left: 0, right: 0, zIndex: 20, pointerEvents: "none", opacity: sectionPillTucked ? 0 : 1, transform: sectionPillTucked ? "translateY(12px)" : "none", transition: "opacity 0.2s, transform 0.2s", visibility: sectionPillTucked ? "hidden" : "visible" }}>
    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "0 16px" }}>
     <button type="button" onClick={() => setSectionSheetOpen(true)} aria-haspopup="dialog" aria-label="Jump to a section"
      style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(15,23,41,0.16)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
@@ -9937,7 +9977,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip,
    /* Refi Quick Start asks for the subject address instead of a bare ZIP */
    propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete,
-   annualIns, setAnnualIns, hoa, setHoa,
+   annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa,
    /* ?listing= flyer: open the buydown year table in the payment section */
    buydownAutoOpen: showListingBanner && !placeScenarioOn,
    includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived,
@@ -10141,7 +10181,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}
@@ -10646,14 +10686,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <SetRow last title="Animated background" sub={`${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
     right={<SetSwitch on={!bgPaused} label="Animated background" onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} />} />
  </SetShell>
- {!isBorrower && <SetShell title="Loan Officer Info" meta="Shown on shared Blueprints and emails">
-   <div style={{ fontSize: 12, color: T.textTertiary, margin: "8px 0 12px", fontFamily: FONT }}>Set once. Applies to all scenarios.</div>
-   {!isBorrower && !isCloud && (
+ {/* Loan-officer setup only for a signed-in LO (Christo 2026-10-27): a
+     homebuyer saw Chris's contact fields as editable inputs, plus email
+     signature and default-fee tools. Everyone else gets the sign-in door. */}
+ {!isBorrower && !isCloud && <SetShell title="Loan officers">
     <button onClick={() => rawAuth?.requestLogin?.()}
-     style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 12, background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
-     Sign in as Loan Officer (Google) to unlock clients, live links and Gmail send
+     style={{ width: "100%", boxSizing: "border-box", padding: 12, marginTop: 8, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
+     Loan officer? Sign in with Google
     </button>
-   )}
+ </SetShell>}
+ {!isBorrower && isCloud && <SetShell title="Loan Officer Info" meta="Shown on shared Blueprints and emails">
+   <div style={{ fontSize: 12, color: T.textTertiary, margin: "8px 0 12px", fontFamily: FONT }}>Set once. Applies to all scenarios.</div>
    <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />

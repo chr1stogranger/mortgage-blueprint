@@ -72,7 +72,7 @@ export default function OverviewTab(props) {
   const {
     T, isDesktop, isRefi, setTab, skillLevel, onToggleSkillLevel,
     scenarioName, scenarioList, switchScenario, onCompare,
-    isCloud, auth,
+    isCloud, auth, isBorrower,
     city, propertyState, propertyZip,
     showInvestor, setShowInvestor,
     showRentVsBuy, setShowRentVsBuy,
@@ -431,7 +431,7 @@ export default function OverviewTab(props) {
           Share This Blueprint →
         </button>
         <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 8 }}>
-          Email a branded summary to your client or realtor
+          {isCloud && !isBorrower ? "Email a branded summary to your client or realtor" : "Email or save a PDF of your numbers"}
         </div>
         {onToggleSkillLevel && (
           <div style={{ marginTop: 24, paddingTop: 24, borderTop: `1px solid ${T.separator}` }}>
