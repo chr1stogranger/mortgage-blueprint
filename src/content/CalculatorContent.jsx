@@ -1,6 +1,5 @@
 import { FONT } from "../lib/fonts.js";
 import { liveRateFor, isEstimatedRate } from "../lib/liveRates.js";
-import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import NetPaymentLadder from "../components/NetPaymentLadder";
@@ -206,7 +205,7 @@ export default function CalculatorContent(props) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "refiAnnualTax", "setRefiAnnualTax", "refiTaxAssessedMode", "setRefiTaxAssessedMode", "refiNewEscrowTax", "setRefiNewEscrowTax", "refiNewEscrowIns", "setRefiNewEscrowIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "rentMode", "setRentMode", "unitRents", "setUnitRents", "occupiedUnits", "setOccupiedUnits", "rentUnitCount", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "refiAnnualTax", "setRefiAnnualTax", "refiTaxAssessedMode", "setRefiTaxAssessedMode", "refiNewEscrowTax", "setRefiNewEscrowTax", "refiNewEscrowIns", "setRefiNewEscrowIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -226,6 +225,8 @@ export default function CalculatorContent(props) {
   getHighBalLimit, UNIT_COUNT,
   propType, setPropType, PROP_TYPES,
   subjectRentalIncome, setSubjectRentalIncome,
+  rentMode = "total", setRentMode, unitRents = [], setUnitRents,
+  occupiedUnits = 1, setOccupiedUnits, rentUnitCount = 0,
   appreciationRate, setAppreciationRate,
   propertyState, setPropertyState, setCity,
   propertyCounty, setPropertyCounty,
@@ -274,6 +275,44 @@ export default function CalculatorContent(props) {
   // Closed at rest so the Payment Breakdown card keeps the fixed height that
   // bottom-aligns it with Cash-to-Close on desktop.
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // ── Rent line in Payment Breakdown ──
+  // rentUnitCount comes from MortgageBlueprint (the same count its per-unit
+  // sum effect uses): rented units on a primary, every unit on an investment.
+  const isInvestPurchase = !isRefi && loanPurpose === "Purchase Investment";
+  const isAduProp = propType === "Single Family with ADU";
+  const rentEligible = !isRefi && rentUnitCount > 0 && (isInvestPurchase || loanPurpose === "Purchase Primary");
+  const [rentOpen, setRentOpen] = useState(false);
+  const perUnit = rentMode === "perUnit" && rentUnitCount > 1;
+  const showRentRows = (subjectRentalIncome || 0) > 0 || rentOpen || perUnit;
+  const netMode = rentEligible && showRentRows;
+  const totalUnits = (UNIT_COUNT && UNIT_COUNT[propType]) || 1;
+  const rentNoun = isInvestPurchase ? "rent" : isAduProp ? "ADU rent" : "unit rents";
+  const rentLabel = isInvestPurchase ? "Expected rent" : isAduProp ? "ADU rent" : `Unit rents (${rentUnitCount} ${rentUnitCount > 1 ? "units" : "unit"})`;
+  // Rented units are numbered after the ones the owner occupies; an
+  // investment ADU is the main house plus the ADU.
+  const unitLabels = Array.from({ length: rentUnitCount }, (_, i) => (
+   isInvestPurchase ? (isAduProp ? (i === 0 ? "Main house" : "ADU") : `Unit ${i + 1}`) : `Unit ${totalUnits - rentUnitCount + i + 1}`
+  ));
+  const unitRentVals = unitLabels.map((_, i) => Number(unitRents[i]) || 0);
+  const occupyChoices = loanPurpose === "Purchase Primary" && !isRefi && totalUnits >= 3
+   ? Array.from({ length: totalUnits - 1 }, (_, i) => i + 1) : [];
+  const setUnitRent = (i, v) => {
+   const next = unitRentVals.slice();
+   next[i] = Math.max(0, Math.min(50000, v));
+   setUnitRents(next);
+  };
+  // Switching to per-unit splits the current total evenly (remainder on the
+  // first unit) unless the saved per-unit figures already add up to it.
+  const pickRentMode = (m) => {
+   if (m === "perUnit" && rentMode !== "perUnit") {
+    const total = Math.round(Number(subjectRentalIncome) || 0);
+    if (unitRentVals.reduce((a, b) => a + b, 0) !== total) {
+     const each = Math.floor(total / rentUnitCount);
+     setUnitRents(unitLabels.map((_, i) => each + (i === 0 ? total - each * rentUnitCount : 0)));
+    }
+   }
+   setRentMode(m);
+  };
   // Swiped-away notes (Christo 2026-10-01). A dismissal lasts until the
   // condition clears: escrow back on / loan back under the limit re-arms it.
   const [hiddenAlerts, setHiddenAlerts] = useState({}); // alert key → swiped away
@@ -1752,11 +1791,97 @@ export default function CalculatorContent(props) {
       </div>
      </div>
     )}
+    {/* Rent — folded into the card (Christo 2026-10-27; replaced the big
+        full-width input under the cards). Total payment drops to a subtotal,
+        the rent subtracts, and NET PAYMENT takes the bottom band, which stays
+        level with Estimated Cash to Close. The card subtracts rent from the
+        payment it shows; the Advanced ladder keeps its full-PITIA basis and
+        says so when escrow is off. */}
+    {rentEligible && !showRentRows && (
+     <div style={{ borderTop: `1px solid ${T.separator}`, padding: "9px 18px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <button type="button" onClick={() => setRentOpen(true)}
+       style={{ border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: FONT, color: T.blue, background: `${T.blue}16`, borderRadius: 9999, padding: "5px 12px", whiteSpace: "nowrap" }}>
+       + Add {rentNoun}
+      </button>
+      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>See your payment net of rent</span>
+     </div>
+    )}
+    {rentEligible && showRentRows && (
+     <div style={{ borderTop: `1px solid ${T.separator}`, padding: "10px 18px 8px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
+       <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Total payment</span>
+       <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
+        <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
+       </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28, gap: 8, flexWrap: "wrap" }}>
+       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 4, background: T.green, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{rentLabel}</span>
+        {rentUnitCount > 1 && (
+         <div role="group" aria-label="Enter rent as a total or per unit" style={{ display: "inline-flex", background: T.pillBg, borderRadius: 9999, padding: 2 }}>
+          {[["total", "Total"], ["perUnit", "Per unit"]].map(([m, label]) => (
+           <button key={m} type="button" aria-pressed={perUnit === (m === "perUnit")} onClick={() => pickRentMode(m)}
+            style={{ border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: FONT, borderRadius: 9999, padding: "3px 10px", lineHeight: 1.3,
+             background: perUnit === (m === "perUnit") ? T.blue : "transparent", color: perUnit === (m === "perUnit") ? "#fff" : T.textSecondary }}>
+            {label}
+           </button>
+          ))}
+         </div>
+        )}
+       </div>
+       {perUnit ? (
+        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
+         <span style={{ fontSize: 14, fontWeight: 700, color: T.green, fontFamily: FONT }}>−{fmt(subjectRentalIncome || 0)}</span>
+         <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
+        </div>
+       ) : (
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+         <span style={{ color: T.green, fontWeight: 700, fontSize: 14, fontFamily: FONT }}>−</span>
+         <InlineEditValue value={subjectRentalIncome || 0} onChange={(v) => setSubjectRentalIncome(Math.max(0, Math.min(50000, v)))} T={T} />
+        </div>
+       )}
+      </div>
+      {perUnit && unitLabels.map((label, i) => (
+       <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 26, paddingLeft: 14 }}>
+        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{label}</span>
+        <InlineEditValue value={unitRentVals[i]} onChange={(v) => setUnitRent(i, v)} T={T} />
+       </div>
+      ))}
+      {/* A 3–4 unit owner picks how many units they live in: it sets the
+          rented-unit count, the 75% qualifying rent and the Schedule A/E split. */}
+      {occupyChoices.length > 1 && (
+       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", paddingLeft: 14, minHeight: 26 }}>
+        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>You live in</span>
+        <div role="group" aria-label="Units you occupy" style={{ display: "inline-flex", background: T.pillBg, borderRadius: 9999, padding: 2 }}>
+         {occupyChoices.map(n => (
+          <button key={n} type="button" aria-pressed={occupiedUnits === n} onClick={() => setOccupiedUnits(n)}
+           style={{ border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: FONT, borderRadius: 9999, padding: "3px 10px", lineHeight: 1.3,
+            background: occupiedUnits === n ? T.blue : "transparent", color: occupiedUnits === n ? "#fff" : T.textSecondary }}>
+           {n}
+          </button>
+         ))}
+        </div>
+        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>of {totalUnits} units</span>
+       </div>
+      )}
+      {(subjectRentalIncome || 0) > 0 && (
+       <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.45, fontFamily: FONT, paddingLeft: 14 }}>
+        {loanType === "DSCR"
+         ? <>DSCR qualifies on the full rent. The ratio is below the cards.</>
+         : isInvestPurchase
+         ? <>Lenders count 75% (<strong style={{ color: T.textSecondary }}>{fmt(subjectRentalIncome * 0.75)}</strong>) against the payment when qualifying. You collect the full rent.</>
+         : <>Lenders count 75% (<strong style={{ color: T.textSecondary }}>{fmt(subjectRentalIncome * 0.75)}</strong>) toward qualifying income. You collect the full rent.</>}
+       </div>
+      )}
+     </div>
+    )}
     {/* Total Payment band — mirrors CashToCloseSummary's bottom band. The
         band is the aligned element; the Advanced expander is tucked BELOW it
         (Christo 2026-07-22, matching purchase). CashToCloseSummary reserves a
         matching strip below its band (footerReserve) so the two bands stay on
-        the same line at rest. */}
+        the same line at rest. With rent in play it carries NET payment. */}
     <div style={{
       background: `${T.blue}0E`,
       borderTop: `1.5px solid ${T.blue}40`,
@@ -1773,7 +1898,7 @@ export default function CalculatorContent(props) {
        textTransform: "uppercase",
        fontFamily: FONT,
      }}>
-      Total Payment
+      {netMode ? "Net Payment" : "Total Payment"}
      </div>
      <div style={{
        fontFamily: FONT,
@@ -1781,7 +1906,7 @@ export default function CalculatorContent(props) {
        fontWeight: 800,
        color: T.blue,
        letterSpacing: "-0.02em",
-     }}>{!isRefi && !(salesPrice > 0) ? "--" : `${fmt(calc.displayPayment)}/mo`}</div>
+     }}>{!isRefi && !(salesPrice > 0) ? "--" : `${fmt(netMode ? (calc.displayPayment || 0) - (subjectRentalIncome || 0) : calc.displayPayment)}/mo`}</div>
     </div>
     {/* Advanced — the net-payment ladder, tucked UNDER the Total band. */}
     <div
@@ -1801,7 +1926,7 @@ export default function CalculatorContent(props) {
      <span style={{ fontSize: 12, fontWeight: 700, color: T.blue, fontFamily: FONT }}>
       Advanced
       <span style={{ fontWeight: 500, color: T.textTertiary, marginLeft: 6 }}>
-       net cost after {calc.ladderRentCredit > 0 ? "rent, " : ""}tax savings &amp; equity
+       net cost after tax savings &amp; equity
       </span>
      </span>
      <span style={{
@@ -1960,54 +2085,9 @@ export default function CalculatorContent(props) {
  </div>
  {/* End Row 3 */}
 
- {/* Rental income block — an investment purchase, or a PRIMARY that has units
-     the borrower won't occupy: an SFR with an ADU, or a 2–4 unit they live in
-     (Christo 2026-07-21). calc.rentalUnits carries the count; a plain
-     SFR/condo primary is 0 and this block stays hidden. */}
- {(() => {
-  const rentalUnits = calc.rentalUnits || 0;
-  const isAdu = propType === "Single Family with ADU";
-  const unitWord = rentalUnits > 1 ? "units" : "unit";
-  return (loanPurpose === "Purchase Investment" || (loanPurpose === "Purchase Primary" && rentalUnits > 0)) && (
-  <div style={{ marginBottom: 16 }}>
-   <Inp label={loanPurpose === "Purchase Investment" ? "Expected Monthly Rent" : isAdu ? "ADU Rent" : `Non-Occupying Unit Rent (${rentalUnits} ${unitWord})`}
-    value={subjectRentalIncome} onChange={setSubjectRentalIncome} prefix="$" suffix="/mo" max={50000}
-    tip={loanType === "DSCR"
-     ? "Expected gross monthly rent, from the lease or the appraiser's market rent (Form 1007). DSCR divides the full rent by the full housing payment: no 75% factor, no income."
-     : loanPurpose === "Purchase Investment"
-     ? "Expected gross monthly rent. Lenders use 75% of this to offset your PITIA (housing payment) for DTI qualification. If 75% of rent exceeds PITIA, the excess counts as income."
-     : isAdu
-     ? "Expected gross rent from the accessory dwelling unit. You still occupy the main house, so this stays a primary residence. Lenders add 75% of the ADU rent as qualifying income. Confirm your loan program allows ADU income; agency rules vary."
-     : `Total rent from the ${rentalUnits} ${unitWord} you won't live in. You occupy one unit, so this is still a primary residence. Lenders add 75% of this as qualifying income on top of your regular employment income.`
-    } />
-   {loanType === "DSCR" && <DscrPanel T={T} calc={calc} fmt={fmt} />}
-   {subjectRentalIncome > 0 && loanType !== "DSCR" && (
-    <div style={{ background: tintOver(`${T.green}08`, T.cardGlass), borderRadius: 10, padding: "10px 14px", marginTop: -4, border: `1px solid ${T.green}18` }}>
-     {loanPurpose === "Purchase Investment" ? (
-      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
-       <strong style={{ color: T.green }}>75% of rent: {fmt(subjectRentalIncome * 0.75)}/mo</strong>
-       {calc.subjectRent75 >= calc.housingPayment
-        ? <span>. Exceeds PITIA ({fmt(calc.housingPayment)}). Net <strong style={{ color: T.green }}>{fmt(calc.subjectRent75 - calc.housingPayment)}</strong> added as qualifying income.</span>
-        : <span>. Offsets PITIA ({fmt(calc.housingPayment)}) by {fmt(calc.subjectRent75)}. Net housing cost for DTI: <strong>{fmt(calc.effectiveHousingForDTI)}/mo</strong></span>
-       }
-      </div>
-     ) : (
-      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
-       {/* Two different numbers on purpose: 75% qualifies the loan, 100% is
-           what the borrower actually banks. Spelled out so neither reads as
-           a typo of the other (Christo 2026-07-21). */}
-       <strong style={{ color: T.green }}>Qualifying: 75% of rent = {fmt(subjectRentalIncome * 0.75)}/mo</strong>
-       <span>. Total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong>.</span>
-       <br />
-       <strong style={{ color: T.green }}>Cash flow: the full {fmt(subjectRentalIncome)}/mo</strong>
-       <span> comes in, dropping your net payment to <strong>{fmt(calc.netPayment)}/mo</strong> (see Advanced under Payment Breakdown).</span>
-      </div>
-     )}
-    </div>
-   )}
-  </div>
-  );
- })()}
+ {/* DSCR ratio. The rent itself is entered on the rent line inside
+     Payment Breakdown (moved there 2026-10-27). */}
+ {loanType === "DSCR" && !isRefi && <div style={{ marginBottom: 16 }}><DscrPanel T={T} calc={calc} fmt={fmt} /></div>}
 
  {/* State / City for property tax are set on the Setup tab — removed from Monthly Payment (redundant). */}
 

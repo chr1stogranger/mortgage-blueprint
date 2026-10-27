@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
-  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly,
+  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeRentalTaxEffect,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
   computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance,
 } from "./finance.js";
@@ -97,6 +97,29 @@ describe("vaFundingFeeRate", () => {
 });
 
 // ── 6. Tax savings — standard-vs-itemized crossover + $750k cap ──────────────
+describe("computeRentalTaxEffect", () => {
+  // Single, Texas (no state tax), $160K W-2, half the building rented.
+  // Schedule A: 50% of $8K tax + 50% of $30K interest = $19K > $16,100 std,
+  // so taxable is $141K — and ±$10K of Schedule E stays inside the 24% band
+  // ($105,701–$201,775). Exact federal effect is therefore $10K × 24%.
+  const base = { yearlyInc: 160000, married: "Single", taxState: "Texas", yearlyTax: 8000, loan: 500000, rate: 6, schedAShare: 0.5 };
+
+  it("is zero with no Schedule E figure", () => {
+    expect(computeRentalTaxEffect({ ...base, schedEIncome: 0 }).rentalTaxEffect).toBe(0);
+  });
+
+  it("saves tax at the marginal rate when the rental shows a deductible loss", () => {
+    const r = computeRentalTaxEffect({ ...base, schedEIncome: -10000 });
+    expect(r.fedEffect).toBeCloseTo(2400, 6);
+    expect(r.stateEffect).toBe(0);
+    expect(r.rentalTaxEffect).toBeCloseTo(2400, 6);
+  });
+
+  it("costs tax at the marginal rate when the rental shows a profit", () => {
+    expect(computeRentalTaxEffect({ ...base, schedEIncome: 10000 }).rentalTaxEffect).toBeCloseTo(-2400, 6);
+  });
+});
+
 describe("computeTaxSavings", () => {
   it("returns $0 when the standard deduction wins (small loan, no-tax state)", () => {
     // MFJ itemized = 2000 prop tax + 3000 interest = 5000 < 32200 std → no benefit

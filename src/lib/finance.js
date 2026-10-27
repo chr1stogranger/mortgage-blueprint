@@ -591,6 +591,33 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
   };
 }
 
+/**
+ * Year-1 tax effect of the rented side of an owner-occupied 2–4 unit or ADU.
+ *
+ * computeTaxSavings models only Schedule A (the occupied share). The rented
+ * share runs through Schedule E, whose net result lands in AGI on the owning
+ * side: a profit is taxed, a loss (after §469) lowers tax. This prices that by
+ * running the same engine twice, with and without the Schedule E figure added
+ * to income, so brackets, the SALT-cap phase-out and state tax all move with
+ * it. The renting side never had the rental, so only the owning-side tax is
+ * compared.
+ *
+ * @param {object} p  computeTaxSavings inputs, plus
+ * @param {number} p.schedEIncome  net Schedule E $/yr counted this year: the
+ *   profit, or minus the loss deductible now (suspended losses excluded)
+ * @returns {{ rentalTaxEffect: number, fedEffect: number, stateEffect: number }}
+ *   positive = tax saved, negative = extra tax owed
+ */
+export function computeRentalTaxEffect({ schedEIncome = 0, ...base }) {
+  const e = Number(schedEIncome) || 0;
+  if (e === 0) return { rentalTaxEffect: 0, fedEffect: 0, stateEffect: 0 };
+  const without = computeTaxSavings(base);
+  const withE = computeTaxSavings({ ...base, yearlyInc: (Number(base.yearlyInc) || 0) + e });
+  const fedEffect = without.fedTaxAfter - withE.fedTaxAfter;
+  const stateEffect = without.stateTaxAfter - withE.stateTaxAfter;
+  return { rentalTaxEffect: fedEffect + stateEffect, fedEffect, stateEffect };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AMORTIZATION
 // ─────────────────────────────────────────────────────────────────────────────

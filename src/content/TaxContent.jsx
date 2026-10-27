@@ -8,13 +8,14 @@ import PassiveLossNote from "../components/PassiveLossNote";
 
 export default function TaxContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "assessedLand", "setAssessedLand", "assessedImprovements", "setAssessedImprovements", "rentalSharePctOverride", "setRentalSharePctOverride", "schedEVacancyPct", "setSchedEVacancyPct", "schedEMgmtPct", "setSchedEMgmtPct", "propType", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "InfoTip", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "assessedLand", "setAssessedLand", "assessedImprovements", "setAssessedImprovements", "rentalSharePctOverride", "setRentalSharePctOverride", "schedEVacancyPct", "setSchedEVacancyPct", "schedEMgmtPct", "setSchedEMgmtPct", "occupiedUnits", "setOccupiedUnits", "propType", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "InfoTip", "GuidedNextButton"]);
   const {
   T, isDesktop, calc, fmt,
   loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate,
   assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements,
   rentalSharePctOverride, setRentalSharePctOverride,
   schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, propType,
+  occupiedUnits = 1, setOccupiedUnits = null,
   married, setMarried, FILING_STATUSES,
   taxState, setTaxState, STATE_NAMES,
   STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION,
@@ -215,7 +216,15 @@ export default function TaxContent(props) {
   {/* 1. Hero — kept */}
   {/* "Year 1": interest is computed on the full starting balance, so savings
       decline slightly each year as the loan amortizes (audit M-5). */}
-  <Hero value={fmt(calc.totalTaxSavings)} label="Year-1 Tax Savings" color={T.green} sub={`${fmt(calc.monthlyTaxSavings)}/mo · first-year estimate`} />
+  {/* A rental primary nets both schedules: Schedule A on the occupied share,
+      plus the rented share's Schedule E result (same figure as the ladder). */}
+  {calc.isRentalPrimary && (calc.schedETaxableNow || 0) !== 0 ? (() => {
+   const yr = (calc.ladderTaxSavings || 0) * 12;
+   return <Hero value={fmt(Math.abs(yr))} label={yr >= 0 ? "Year-1 Tax Savings" : "Year-1 Added Tax"} color={yr >= 0 ? T.green : T.orange}
+    sub={`Schedule A ${fmt(calc.totalTaxSavings)} ${(calc.rentalTaxEffect || 0) >= 0 ? "+" : "−"} Schedule E ${fmt(Math.abs(calc.rentalTaxEffect || 0))} · ${fmt(Math.abs(yr) / 12)}/mo`} />;
+  })() : (
+   <Hero value={fmt(calc.totalTaxSavings)} label="Year-1 Tax Savings" color={T.green} sub={`${fmt(calc.monthlyTaxSavings)}/mo · first-year estimate`} />
+  )}
   <Note>Estimates only, for planning. Assumes W2-type income, no AMT, and no California mental health tax on taxable income over $1M. Federal figures are 2026 (IRS Rev. Proc. 2025-32){calc.stateTaxYear ? `; ${taxState} figures are ${calc.stateTaxYear}, the latest published` : ""}. Confirm with your CPA.</Note>
 
   {/* 2. Educational example: how write-offs work (hardcoded teaching numbers) */}
@@ -576,6 +585,7 @@ export default function TaxContent(props) {
        schedEVacancyPct={schedEVacancyPct} setSchedEVacancyPct={setSchedEVacancyPct}
        schedEMgmtPct={schedEMgmtPct} setSchedEMgmtPct={setSchedEMgmtPct}
        isOwnerOccupied={true}
+       occupiedUnits={occupiedUnits} setOccupiedUnits={setOccupiedUnits}
       />
      </div>
      <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Rental Income</div>
@@ -605,6 +615,17 @@ export default function TaxContent(props) {
        </div>
       )}
       <PassiveLossNote T={T} fmt={fmt} calc={calc} />
+      {(calc.schedETaxableNow || 0) !== 0 && (
+       <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}` }}>
+        <MRow
+         label={(calc.rentalTaxEffect || 0) >= 0 ? "Tax this saves you (Yr 1)" : "Tax on the rental profit (Yr 1)"}
+         value={fmt(Math.abs(calc.rentalTaxEffect || 0))}
+         color={(calc.rentalTaxEffect || 0) >= 0 ? T.green : T.orange}
+         bold
+         tip={`${calc.schedETaxableNow >= 0 ? `The ${fmt(calc.schedETaxableNow)} net profit is added` : `The ${fmt(-calc.schedETaxableNow)} loss deductible this year is subtracted`} on top of your other income and run through the same brackets: federal ${fmt(Math.abs(calc.rentalFedEffect || 0))}, ${taxState} ${fmt(Math.abs(calc.rentalStateEffect || 0))}. It's already in the Year-1 total above and the Adjusted Housing Expense.`}
+        />
+       </div>
+      )}
      </div>
      {/* The old note here claimed the personal-use portion of a loss isn't
          deductible. That's the §280A vacation-home rule, and it generally does

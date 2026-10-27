@@ -15,7 +15,7 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js"
 import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, isLumpSumIncome, progressiveTax,
- computeTaxSavings, computePassiveLossAllowance, buildAmortization, computeProp19,
+ computeTaxSavings, computeRentalTaxEffect, computePassiveLossAllowance, buildAmortization, computeProp19,
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
@@ -183,7 +183,14 @@ const UNIT_COUNT = { "Single Family": 1, "Single Family with ADU": 1, "Condo": 1
 // duplex/triplex/fourplex counts units−1. Everything else is zero, so a plain
 // SFR/condo primary never shows a rent field.
 const RENTAL_UNITS = { "Single Family with ADU": 1, "2-Unit": 1, "3-Unit": 2, "4-Unit": 3 };
-const getRentalUnits = (pt) => RENTAL_UNITS[pt] || 0;
+// A 3- or 4-unit owner can live in more than one unit (Christo 2026-10-27),
+// so the rented count is units minus the units occupied, never below one.
+const getRentalUnits = (pt, occupied = 1) => {
+ const base = RENTAL_UNITS[pt] || 0;
+ if (base <= 1) return base;
+ const units = base + 1;
+ return units - Math.max(1, Math.min(units - 1, Number(occupied) || 1));
+};
 // National fallbacks only. `getHighBalLimit` here returns the statutory CEILING
 // (150% of baseline), which is correct ONLY in the highest-cost counties — real
 // per-county high-balance limits sit anywhere between baseline and ceiling
@@ -1668,6 +1675,27 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  //   Tax + Ins → true/false · Tax only → true/true · P&I only → false/*
  const [escrowInsWaived, setEscrowInsWaived] = useState(false);
  const [subjectRentalIncome, setSubjectRentalIncome] = useState(0);
+ // Rent entry lives in Payment Breakdown: one combined figure ("total") or one
+ // line per rented unit ("perUnit"). Per-unit amounts always sum into
+ // subjectRentalIncome, which stays the only number the engine reads.
+ const [rentMode, setRentMode] = useState("total");
+ const [unitRents, setUnitRents] = useState([]);
+ // How many units of a 3–4 unit the borrower lives in. Drives the rented-unit
+ // count, the 75% qualifying rent, and the Schedule A / E split.
+ const [occupiedUnits, setOccupiedUnits] = useState(1);
+ // How many rent lines the Payment Breakdown offers: the rented units on an
+ // owner-occupied ADU / 2–4 unit, every unit on an investment purchase (an
+ // investment ADU is the main house plus the ADU).
+ const rentUnitCount = loanPurpose === "Purchase Investment"
+  ? (UNIT_COUNT[propType] || 1) + (propType === "Single Family with ADU" ? 1 : 0)
+  : loanPurpose === "Purchase Primary" ? getRentalUnits(propType, occupiedUnits) : 0;
+ // Per-unit mode: the per-unit lines are the source of truth and always sum
+ // into subjectRentalIncome, including when the unit count changes.
+ useEffect(() => {
+  if (rentMode !== "perUnit" || rentUnitCount < 2) return;
+  const sum = Array.from({ length: rentUnitCount }, (_, i) => Number(unitRents[i]) || 0).reduce((a, b) => a + b, 0);
+  if (sum !== subjectRentalIncome) setSubjectRentalIncome(sum);
+ }, [rentMode, unitRents, rentUnitCount]); // eslint-disable-line react-hooks/exhaustive-deps
  const [transferTaxCity, setTransferTaxCity] = useState("Not listed");
  // Buyer's share of CITY transfer tax: "buyer" (100%) | "split50" (50%) | "seller" (0%). Default 50/50.
  const [transferTaxSplit, setTransferTaxSplit] = useState("split50");
@@ -2342,6 +2370,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   showVaResidual, vaResidual,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   showProp19, prop19Eligibility, prop19OldTaxableValue, prop19OldSalePrice, prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate, prop19RateOverride,
+  rentMode, unitRents, occupiedUnits,
   darkMode, themeMode,
  });
  // The state a brand-new scenario starts from, captured once from the real
@@ -2400,6 +2429,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.taxRateLocked !== undefined) setTaxRateLocked(s.taxRateLocked);
   if (s.taxExemptionLocked !== undefined) setTaxExemptionLocked(s.taxExemptionLocked);
   if (s.subjectRentalIncome !== undefined) setSubjectRentalIncome(s.subjectRentalIncome);
+  setRentMode(s.rentMode === "perUnit" ? "perUnit" : "total");
+  setUnitRents(Array.isArray(s.unitRents) ? s.unitRents.map(v => Number(v) || 0) : []);
+  setOccupiedUnits(Number(s.occupiedUnits) || 1);
   if (s.includeEscrow !== undefined) setIncludeEscrow(s.includeEscrow);
   setEscrowInsWaived(!!s.escrowInsWaived);
   if (s.transferTaxCity) {
@@ -3432,7 +3464,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   pendingSaveRef.current = runSave;
   saveTimer.current = setTimeout(runSave, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); pendingSaveRef.current = null; };
- }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
+ }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, rentMode, unitRents, occupiedUnits,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
@@ -6209,7 +6241,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Investment: 75% of rent offsets PITIA of subject property
   // Multi-unit Primary: 75% of non-occupying unit rents added as income
   const units = UNIT_COUNT[propType] || 1;
-  const rentalUnits = getRentalUnits(propType);
+  const rentalUnits = getRentalUnits(propType, occupiedUnits);
   const isInvestment = loanPurpose === "Purchase Investment";
   // A primary can carry rental income without being an investment: an SFR with
   // an ADU, or a 2–4 unit the borrower lives in. Both are primary occupancy.
@@ -6227,8 +6259,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // occupied is 67%, a fourplex 75%. Editable, because unit count is a proxy
   // for square footage and a poor one for an ADU.
   const defaultRentalSharePct = isInvestment ? 100 : (units > 1 ? Math.round((rentalUnits / units) * 100) : (rentalUnits > 0 ? 33 : 0));
+  // No rent entered means no rental activity yet, so the whole property stays
+  // on Schedule A instead of losing the rented share to an empty Schedule E.
   const rentalSharePct = isInvestment ? 100
-   : (!isRentalPrimary ? 0
+   : (!isRentalPrimary || !(Number(subjectRentalIncome) > 0) ? 0
    : (rentalSharePctOverride === null ? defaultRentalSharePct : Math.max(0, Math.min(100, Number(rentalSharePctOverride) || 0))));
   const rentalShare = rentalSharePct / 100;
   // The other side of the same building. Schedule A only ever sees this much of
@@ -6875,7 +6909,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const reserveMonths = loanType === "Jumbo" ? 12 : loanType === "DSCR" ? DSCR_RULES.reserveMonths : loanType === "Asset Qualifier" ? 0 : (isRefi ? 0 : 3);
   const reservesReq = totalPayment * reserveMonths;
   const resCheck = totalReserves > 0 ? (totalReserves >= reservesReq ? "Good!" : "Short") : "—";
-  const yearlyInc = annualIncome;
+  // Tax base: qualifying income WITHOUT the subject property's 75% rent. That
+  // 75% is a DTI convention; the rental's real tax effect comes in once, at
+  // its actual Schedule E net, via computeRentalTaxEffect below (2026-10-27).
+  const yearlyInc = annualIncome - multiUnitRentalIncome * 12;
   // Tax-savings engine extracted to lib/finance.js (audit M-1) — year-1 estimate.
   const {
    fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit,
@@ -6902,13 +6939,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // these two intentionally differ and the ladder says so on its face.
   const ladderRentCredit = (isInvestment || isRentalPrimary) ? (Number(subjectRentalIncome) || 0) : 0;
   const netPayment = housingPayment - ladderRentCredit;
-  // Investment deductions run through Schedule E, not the itemized
-  // primary-residence model computeTaxSavings uses — so no tax row there.
-  const ladderTaxSavings = isInvestment ? 0 : monthlyTaxSavings;
-  const afterTaxPayment = netPayment - ladderTaxSavings;
   const monthlyPrinReduction = pi - (loan * mr);
   const monthlyAppreciation = salesPrice * (appreciationRate / 100) / 12;
-  const adjustedHousingExpense = afterTaxPayment - monthlyPrinReduction;
   // ── Schedule E (Investment Property) Pro Forma ──
   const schedEGrossRent = subjectRentalIncome * 12;
   const schedEVacancy = Math.round(schedEGrossRent * (schedEVacancyPct / 100));
@@ -6961,6 +6993,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    allowance: paAllowance, deductibleNow: paDeductibleNow, suspended: paSuspended,
    phaseOutStart: paPhaseOutStart, phaseOutEnd: paPhaseOutEnd, maxAllowance: paMaxAllowance,
   } = computePassiveLossAllowance({ magi: paMagi, loss: schedELoss, married });
+  // ── Rented side's tax effect (owner-occupied 2–4 unit or ADU) ──
+  // Schedule A above covers only the occupied share. The rented share's net
+  // Schedule E result also moves the owner's tax: a profit is taxed, a loss
+  // saves tax up to what §469 lets them deduct this year (suspended losses
+  // carry forward and are excluded). Investment purchases stay out: their
+  // tax story is the Schedule E pro forma, not this ladder.
+  const schedETaxableNow = isRentalPrimary && rentalShare > 0
+   ? (schedENetIncome >= 0 ? schedENetIncome : -paDeductibleNow) : 0;
+  const { rentalTaxEffect, fedEffect: rentalFedEffect, stateEffect: rentalStateEffect } = computeRentalTaxEffect({
+   yearlyInc, married, taxState, yearlyTax, loan, rate, schedAShare: personalUseShare, schedEIncome: schedETaxableNow,
+  });
+  // Investment deductions run through Schedule E, not the itemized
+  // primary-residence model computeTaxSavings uses — so no tax row there.
+  // A rental primary nets both schedules into one Year-1 figure.
+  const ladderTaxSavings = isInvestment ? 0 : monthlyTaxSavings + rentalTaxEffect / 12;
+  const afterTaxPayment = netPayment - ladderTaxSavings;
+  const adjustedHousingExpense = afterTaxPayment - monthlyPrinReduction;
   const netPostSaleExpense = adjustedHousingExpense - monthlyAppreciation;
   const refiNewMr = mr;
   const refiNewPi = calcPI(refiNewLoanAmt, rate, term);
@@ -7210,6 +7259,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ladderRentCredit, netPayment, ladderTaxSavings, afterTaxPayment, monthlyPrinReduction, monthlyAppreciation, adjustedHousingExpense, netPostSaleExpense,
    schedEGrossIncome, schedEDepreciation, schedEMgmt, schedECashExpenses, schedETotalExpenses, schedENetIncome, schedECashFlow,
    schedEGrossRent, schedEVacancy, schedETax, schedEIns, schedEHoa, schedEMI, schedEInterest,
+   schedETaxableNow, rentalTaxEffect, rentalFedEffect, rentalStateEffect, units,
    paMagi, paAllowance, paPhaseOutStart, paPhaseOutEnd, paMaxAllowance, schedELoss, paDeductibleNow, paSuspended,
    rentalSharePct, rentalShare, personalUseShare, defaultRentalSharePct, improvementPct, depreciableBasis, assessedTotal,
    yearlyMortInt, yearlyIns, monthlyHOA: hoa,
@@ -7252,7 +7302,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
- }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
+ }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, rentMode, unitRents, occupiedUnits, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
 
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
@@ -9699,7 +9749,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, nonQm, setNonQm, setTab, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns: setAnnualInsManual, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, nonQm, setNonQm, setTab, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, rentMode, setRentMode, unitRents, setUnitRents, occupiedUnits, setOccupiedUnits, rentUnitCount, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns: setAnnualInsManual, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner && !placeScenarioOn, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns: setAnnualInsManual, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -9714,7 +9764,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
-{tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, InfoTip, GuidedNextButton}} />}
+{tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, occupiedUnits, setOccupiedUnits, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, InfoTip, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
 {tab === "prop19" && <Prop19Content {...{T, isDesktop, fmt, prop19, prop19Eligibility, setProp19Eligibility, prop19OldTaxableValue, setProp19OldTaxableValue, prop19OldSalePrice, setProp19OldSalePrice, prop19SaleDate, setProp19SaleDate, prop19PurchaseDate, setProp19PurchaseDate, prop19TransfersUsed, setProp19TransfersUsed, city, propertyCounty, prop19RateOverride, setProp19RateOverride, fixedAssessments, setFixedAssessments, Hero, Card, Sec, Inp, Note, MRow}} />}
 {/* ═══ SELLER NET ═══ */}
@@ -10041,6 +10091,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements,
    rentalSharePctOverride, setRentalSharePctOverride,
    schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct,
+   /* Rent line in Payment Breakdown + units occupied (2026-10-27) */
+   rentMode, setRentMode, unitRents, setUnitRents, occupiedUnits, setOccupiedUnits, rentUnitCount,
    /* Sell */
    sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff,
    sellLinkedReoId, setSellLinkedReoId,

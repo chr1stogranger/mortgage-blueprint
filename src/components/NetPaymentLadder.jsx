@@ -17,7 +17,9 @@ import React from "react";
    already drifted apart before this component existed.
 
    Rendered in two places:
-     • variant="compact" — the Advanced disclosure under Payment Breakdown
+     • variant="compact" — the Advanced disclosure under Payment Breakdown.
+       Rent and Net Payment already sit in that card (2026-10-27), so the
+       compact ladder opens AT Net Payment instead of repeating the rent step.
      • variant="full"    — the bottom of the Tax Savings section
    Renders bare rows (no card wrapper) so each caller supplies its own
    surface.
@@ -36,12 +38,21 @@ export default function NetPaymentLadder({
   const taxSavings = calc.ladderTaxSavings || 0;
   const netCost = calc.netPostSaleExpense || 0;
 
+  // Rental primary: Year-1 tax nets Schedule A (occupied share) and the rented
+  // side's Schedule E result, which can be a cost when the rental shows a profit.
+  const rentalTax = (calc.rentalTaxEffect || 0) / 12;
+  const hasRentalTax = calc.isRentalPrimary && (calc.schedETaxableNow || 0) !== 0;
+  const schedANote = hasRentalTax
+    ? `Schedule A (the ${100 - (calc.rentalSharePct || 0)}% you live in) saves ${fmt(calc.monthlyTaxSavings || 0)}. Schedule E (the rented ${calc.rentalSharePct || 0}%) ${rentalTax >= 0 ? `saves ${fmt(rentalTax)}: its loss after depreciation offsets other income` : `costs ${fmt(-rentalTax)}: its profit is taxable`}.`
+    : null;
+
   // A deduction line — indented, green, always shown with a leading minus.
+  // A negative value is a cost instead (tax owed on rental profit): "+", orange.
   const Deduct = ({ label, value, note }) => (
     <div style={{ padding: `${pad}px 0 ${pad}px 16px`, borderBottom: `1px solid ${T.separator}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
-        <span style={{ color: T.textSecondary, fontFamily: FONT }}>− {label}</span>
-        <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(value)}</span>
+        <span style={{ color: T.textSecondary, fontFamily: FONT }}>{value < 0 ? "+" : "−"} {label}</span>
+        <span style={{ fontFamily: FONT, fontWeight: 600, color: value < 0 ? T.orange : T.green }}>{value < 0 ? "+" : "−"}{fmt(Math.abs(value))}</span>
       </div>
       {note && (
         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 3, lineHeight: 1.5, fontFamily: FONT }}>{note}</div>
@@ -66,8 +77,22 @@ export default function NetPaymentLadder({
     </div>
   );
 
+  // Compact + rent: the card above already shows Total − rent = Net Payment.
+  const opensAtNet = compact && rentCredit > 0;
+
   return (
     <div>
+      {opensAtNet ? (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: `${pad + 2}px 0`, borderBottom: `1px solid ${T.separator}`, fontSize: 14 }}>
+          <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT }}>
+            Net Payment
+            <span style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginLeft: 6 }}>
+              {includeEscrow ? "from above" : `full PITIA ${fmt(calc.housingPayment)} − rent`}
+            </span>
+          </span>
+          <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(calc.netPayment)}</span>
+        </div>
+      ) : (<>
       {/* Opening line — full PITIA, not displayPayment. Taxes and insurance are
           real monthly cost even when the loan has no escrow account. */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: `${pad + 2}px 0`, borderBottom: `1px solid ${T.separator}`, fontSize: 14 }}>
@@ -90,10 +115,11 @@ export default function NetPaymentLadder({
         />
         <Subtotal label="Net Payment" value={calc.netPayment} tint={T.blue} />
       </>)}
+      </>)}
 
       {/* 2. Tax savings → after-tax cash flow */}
-      {taxSavings > 0 && (<>
-        <Deduct label="Tax Savings (Yr 1)" value={taxSavings} />
+      {(taxSavings > 0 || (hasRentalTax && taxSavings !== 0)) && (<>
+        <Deduct label={taxSavings < 0 ? "Tax on Rental Income (Yr 1)" : "Tax Savings (Yr 1)"} value={taxSavings} note={schedANote} />
         <Subtotal label="After-Tax Cash Flow" value={calc.afterTaxPayment} tint={T.green} />
       </>)}
       {calc.isInvestment && (
