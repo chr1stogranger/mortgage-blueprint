@@ -56,8 +56,8 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
   // trapped this modal under the docked live PDF preview (z 900) no matter its
   // own z-index. Rendering at the body puts it above every panel.
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => !busy && onClose()}>
-      <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 500, width: "100%", padding: "20px 18px 30px", maxHeight: "82vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => !busy && onClose()}>
+      <div style={{ background: T.card, borderRadius: 20, maxWidth: 500, width: "100%", padding: "20px 18px 24px", maxHeight: "82vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text, display: "flex", alignItems: "center", gap: 8 }}>
             <Icon name="download" size={17} /> Import from Arive
@@ -67,7 +67,7 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
         <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginBottom: 14, lineHeight: 1.5 }}>
           Pull an existing Arive file into Blueprint. Client, numbers, property, and deal team come prepopulated.
         </div>
-        <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search Arive by borrower, email, or property…" style={{ ...inputStyle, marginBottom: 12 }} />
+        <input autoFocus autoComplete="off" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search Arive by borrower, email, or property…" style={{ ...inputStyle, marginBottom: 12 }} />
 
         <div style={{ overflowY: "auto", flex: 1, minHeight: 120 }}>
           {searching && (

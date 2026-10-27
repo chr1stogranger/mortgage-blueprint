@@ -3,7 +3,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  * BorrowerPicker — type-ahead search to find a client and open a blueprint.
  *
  * Step 1: search across all clients; a row click opens that client's most-recent
- * loan directly. "Import from Arive" is the bottom action row. (Creating a new
+ * loan directly. "Import from Arive" is the top action row. (Creating a new
  * client lives in the + button in the app header — this picker is a finder.)
  * Step 2 (legacy fallback): pick one of the client's blueprints.
  *
@@ -212,7 +212,8 @@ export default function BorrowerPicker({
       }
       return;
     }
-    // Last keyboard slot is the Import from Arive row (when wired).
+    // Import from Arive (when wired) takes the slot after the last client; it
+    // renders at the top, so ArrowUp from the first client lands on it.
     const total = visible.length + (onImportArive ? 1 : 0);
     if (e.key === 'ArrowDown') { e.preventDefault(); if (total) setHighlightIdx((p) => (p + 1) % total); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); if (total) setHighlightIdx((p) => (p - 1 + total) % total); }
@@ -230,6 +231,29 @@ export default function BorrowerPicker({
     <>
       {step === 1 && (
         <>
+          {/* Import from Arive — build the client from an existing Arive file,
+              prepopulated (numbers, property, FICO, deal team). Pinned to the top so
+              it's reachable without scrolling past the client list. */}
+          {onImportArive && (
+            <div
+              onMouseDown={(e) => { e.preventDefault(); handleImportArive(); }}
+              onMouseEnter={() => setHighlightIdx(visible.length)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s',
+                background: highlightIdx === visible.length ? hoverBg : 'transparent',
+                borderBottom: `1px solid ${border}`, marginBottom: 4,
+              }}
+            >
+              <Icon name="download" size={14} color={accent} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: accent, fontFamily: FONT }}>Import from Arive</div>
+                <div style={{ fontSize: 10.5, color: textTer, fontFamily: FONT }}>
+                  Build from an existing Arive file, prepopulated
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{
             padding: '6px 12px', fontSize: 10, fontWeight: 600, color: textTer,
             textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT,
@@ -285,29 +309,6 @@ export default function BorrowerPicker({
               No clients matching "{search}"
               <div style={{ marginTop: 4, fontSize: 11 }}>
                 Add them with the + button in the top-right.
-              </div>
-            </div>
-          )}
-
-          {/* Import from Arive — build the client from an existing Arive file,
-              prepopulated (numbers, property, FICO, deal team). */}
-          {onImportArive && (
-            <div
-              onMouseDown={(e) => { e.preventDefault(); handleImportArive(); }}
-              onMouseEnter={() => setHighlightIdx(visible.length)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-                borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s',
-                background: highlightIdx === visible.length ? hoverBg : 'transparent',
-                borderTop: `1px solid ${border}`, marginTop: 4,
-              }}
-            >
-              <Icon name="download" size={14} color={accent} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: accent, fontFamily: FONT }}>Import from Arive</div>
-                <div style={{ fontSize: 10.5, color: textTer, fontFamily: FONT }}>
-                  Build from an existing Arive file, prepopulated
-                </div>
               </div>
             </div>
           )}
@@ -444,6 +445,7 @@ export default function BorrowerPicker({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
+            autoComplete="off"
             placeholder="Search clients by name, email, phone..."
             style={{ flex: 1, background: 'transparent', border: 'none', color: text, fontSize: 13, fontFamily: FONT, outline: 'none', padding: 0 }}
           />
