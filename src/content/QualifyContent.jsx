@@ -286,7 +286,7 @@ export default function QualifyContent(props) {
    { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan details", icon: "home", fullLabel: "Loan-to-Value", detail: calc.refiNewLTV > 0 ? `New LTV: ${pct(calc.refiNewLTV, 1)}. Max ${refiPurpose === "Cash-Out" ? "80%" : "95%"} for ${refiPurpose} refi. ${calc.refiNewLTV <= 0.80 ? "Below 80%: no PMI required." : ""}` : "Enter your current loan details in Setup to calculate LTV.", action: "Edit loan details" },
   ] : [
    { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent: best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
-   { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "home", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
+   { label: "Down", ok: !isRefi && !(salesPrice > 0) ? null : calc.dpWarning === null, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "home", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
    { ...repayPillar(calc, { fmt, pct, loanType }), icon: "scale" },
    { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "dollar", fullLabel: "Cash to Close", detail: `Need ${fmt(calc.cashToClose)} (down payment + closing costs – credits). ${calc.totalForClosing > 0 ? `Have ${fmt(calc.totalForClosing)} verified. ${calc.totalForClosing >= calc.cashToClose ? "Fully funded!" : `Short ${fmt(calc.cashToClose - calc.totalForClosing)}.`}` : "Add assets to verify funds."}`, action: "Edit assets" },
    { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark", fullLabel: "Reserves", detail: `${calc.qualMethod === "assets" ? "Built into each asset program's test, so none extra here" : `${calc.reserveMonths} months required (${loanType === "Jumbo" || loanType === "DSCR" ? loanType : "standard"}) = ${fmt(calc.reservesReq)}`}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
@@ -406,12 +406,12 @@ export default function QualifyContent(props) {
  )}
  {calc.qualMethod === "dti" && calc.qualifyingIncome <= 0 && (
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-   <Note color={T.orange} title="Add income to see DTI" style={{ marginTop: 0, marginBottom: 12 }}>Tap to go to the Income tab</Note>
+   <Note color={T.orange} title="Add income to see DTI" style={{ marginTop: 0, marginBottom: 12 }}>{isDesktop ? "Click" : "Tap"} to go to the Income tab</Note>
   </div>
  )}
  {!isRefi && (calc.qualifyingIncome > 0 || calc.qualMethod !== "dti") && calc.totalForClosing <= 0 && (
   <div data-field="qualify-needs-assets" className={isPulse("qualify-needs-assets")} onClick={() => setTab("assets")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-   <Note color={T.orange} title="Add assets to verify cash to close" style={{ marginTop: 0, marginBottom: 12 }}>Tap to go to the Assets tab</Note>
+   <Note color={T.orange} title="Add assets to verify cash to close" style={{ marginTop: 0, marginBottom: 12 }}>{isDesktop ? "Click" : "Tap"} to go to the Assets tab</Note>
   </div>
  )}
  </div>{/* end qualify left column */}
@@ -453,7 +453,7 @@ export default function QualifyContent(props) {
   // "Add income to see DTI" prompt) instead of the debts-exceed warning.
   if (!solved.ok && solved.reason === "no-income") return (
    <div onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-    <Note color={T.orange} title="Add income to see what you can afford" style={{ marginTop: 0 }}>Tap to go to the Income tab</Note>
+    <Note color={T.orange} title="Add income to see what you can afford" style={{ marginTop: 0 }}>{isDesktop ? "Click" : "Tap"} to go to the Income tab</Note>
    </div>
   );
   if (!solved.ok && solved.reason === "debts-exceed") return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;

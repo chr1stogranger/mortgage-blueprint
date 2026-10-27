@@ -381,7 +381,7 @@ export default function CalculatorContent(props) {
       : { label: "LTV",   ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
     ] : [
      { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
+     { label: "Down",     ok: !(salesPrice > 0) ? null : calc.dpWarning === null,                         sub: salesPrice > 0 ? `${downPct}%/${calc.minDPpct}%+` : "—" },
      { label: rp.label,   ok: rp.ok,                                                                     sub: rp.ok === null && rp.label === "DTI" ? "—" : rpSub },
      { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
      { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
@@ -541,7 +541,7 @@ export default function CalculatorContent(props) {
      <span title={liveRates?.source ? `Source: ${liveRates.source}` : undefined}><span style={{ fontWeight: 600, color: T.textSecondary }}>Today's rates</span>{liveRates ? ` · ${ratesWhen()}` : ""}</span>
      {liveRates && (applied
       ? <span style={{ fontWeight: 500, color: T.green }}>✓ Applied</span>
-      : <span>Tap a rate to apply</span>)}
+      : <span>{isDesktop ? "Click" : "Tap"} a rate to apply</span>)}
     </div>
    );
   };
@@ -664,7 +664,7 @@ export default function CalculatorContent(props) {
             // label row stays short and the price box can be the wider one.
             <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req ariaLabel="Down payment percent" />
            ) : (
-            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req ariaLabel="Down payment dollars" />
+            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 1e6) / 1e6); }} prefix="$" step={1000} max={salesPrice} req ariaLabel="Down payment dollars" />
            )}
            {/* Subtitle: shows the inverse format directly under the input
                (desktop; phones carry it in the label). */}
@@ -772,8 +772,17 @@ export default function CalculatorContent(props) {
    { key: "jumbo", show: !!autoJumboSwitch, color: T.orange,
      title: `Jumbo: ${fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the ${fmt(getHighBalLimit(propType))} high-balance limit${UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}`,
      body: "Loans this size usually need 20% down, a 700+ credit score, and monthly debts under about 43–50% of income.",
-     action: <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
-       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Keep Conventional</button> },
+     action: <button type="button" onClick={() => {
+       // Bring today's conventional rate back with it, if Jumbo's was in use.
+       const j = liveRateFor(liveRates, "Jumbo", term), c = liveRateFor(liveRates, "Conventional", term);
+       if (j != null && c != null && Math.abs(Number(rate) - j) < 0.0005) setRate(c);
+       setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
+       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Show Conventional anyway</button> },
+   // "Keep Conventional" on an over-limit loan used to clear every warning
+   // and read as fully eligible (QA 2026-10-27). Stays up while it's true.
+   { key: "conv-over-limit", show: !isRefi && loanType === "Conventional" && !autoJumboSwitch && salesPrice > 0 && downPct > 0 && salesPrice * (1 - downPct / 100) > getHighBalLimit(propType), color: T.red,
+     title: `Over the conventional limit by ${fmt(Math.ceil(salesPrice * (1 - downPct / 100) - getHighBalLimit(propType)))}`,
+     body: `A conventional loan here tops out at ${fmt(getHighBalLimit(propType))}. Put about that much more down, or use a Jumbo loan.` },
    { key: "dscr-occupancy", show: !isRefi && loanType === "DSCR" && loanPurpose !== "Purchase Investment", color: T.red,
      title: "DSCR is for investment properties",
      body: "It qualifies on rent, so the home has to be a rental.",
@@ -908,7 +917,7 @@ export default function CalculatorContent(props) {
    {!isDesktop && priceCard}
    {/* Escrow joins the price-card alerts, ABOVE the donut (Christo
        2026-10-01): it pops up where you're punching in the numbers. */}
-   {!isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 8 })}
+   {!isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "conv-over-limit", "escrow-off", "escrow-required"], { marginBottom: 8 })}
 
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
@@ -1143,7 +1152,7 @@ export default function CalculatorContent(props) {
               ? `\nThis county has no high-balance tier. It goes straight from conforming to jumbo.`
               : ``) },
      { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value (LTV): how much of the home's price you're borrowing. 80% LTV means you put 20% down.\n\nAt 80% or less (20%+ down), a conventional loan has no PMI, the private mortgage insurance lenders charge on smaller down payments." },
-     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
+     { l: "Cash to Close", v: !isRefi && !(salesPrice > 0) ? "--" : fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
     // marginBottom:0 overrides Card's baked-in 12px. Inside a grid cell that
     // margin is phantom height — it kept these cards 12px short of their row
     // while the pillar tiles opposite filled theirs, so the two rows shared a
@@ -1772,7 +1781,7 @@ export default function CalculatorContent(props) {
        fontWeight: 800,
        color: T.blue,
        letterSpacing: "-0.02em",
-     }}>{fmt(calc.displayPayment)}/mo</div>
+     }}>{!isRefi && !(salesPrice > 0) ? "--" : `${fmt(calc.displayPayment)}/mo`}</div>
     </div>
     {/* Advanced — the net-payment ladder, tucked UNDER the Total band. */}
     <div
@@ -1850,7 +1859,7 @@ export default function CalculatorContent(props) {
        loan-structure pills (occupancy/property type/loan type/term) sit
        directly below so changes flow naturally into the rate context. */}
    {isDesktop && priceCard}
-   {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 12 })}
+   {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "conv-over-limit", "escrow-off", "escrow-required"], { marginBottom: 12 })}
    {renderAlerts(["dscr-occupancy", "dscr-refi", "investment", "nonqm-rate", "heloc-rate"], { marginBottom: isDesktop ? 12 : 8 })}
    {/* With loan structure in Quick Start, Rate is the right column's last
        card, so it flexes to meet the payment card's bottom edge (Christo
@@ -1865,7 +1874,7 @@ export default function CalculatorContent(props) {
        </div>
        {isRefi && refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
       </div>
-      <Inp value={rate} onChange={v => { if (v > 0) setRate(v); }} prefix="" suffix="%" step={0.001} max={30} sm req />
+      <Inp value={rate} onChange={v => { if (v > 0) setRate(v); }} prefix="" suffix="%" step={0.001} max={30} sm req ariaLabel="Interest rate" />
      </div>
      {!isRefi && calc.apr > 0 && calc.apr !== rate && (
       <div style={{ flex: 1 }}>
@@ -1925,7 +1934,7 @@ export default function CalculatorContent(props) {
        alignSelf:start, so the two summary cards top-align and neither one
        expanding drags the aligned pillar row with it. */}
    <div style={isDesktop ? { gridColumn: 2, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : { order: 6 }}>
-   <CashToCloseSummary
+   <CashToCloseSummary empty={!isRefi && !(salesPrice > 0)}
     stretch
     /* Matches the Advanced expander bar tucked under Payment Breakdown's
        Total band so the two bands align at rest (Christo 2026-07-22). */

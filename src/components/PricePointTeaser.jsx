@@ -79,7 +79,7 @@ export default function PricePointTeaser({ T, zip, city, onPlay, style }) {
         transform: `translateX(${dx}px)`, opacity: Math.max(0.3, 1 - Math.abs(dx) / 240),
         transition: startX.current !== null ? "none" : "transform 0.18s ease, opacity 0.18s ease", ...style,
       }}>
-      <img src={home.photo} alt="" loading="lazy" draggable={false}
+      <img src={home.photo} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer"
         style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.2)" }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.15em", textTransform: "uppercase", opacity: 0.85 }}>PricePoint · for sale near you</div>

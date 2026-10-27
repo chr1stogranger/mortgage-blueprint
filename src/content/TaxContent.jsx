@@ -508,7 +508,7 @@ export default function TaxContent(props) {
    </Sec>
   ) : (
    <div data-field="tax-needs-income" className={isPulse("tax-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer", marginTop: 16 }}>
-    <Note color={T.orange} title="Add income to see tax savings" style={{ marginTop: 0 }}>Tap to go to the Income tab</Note>
+    <Note color={T.orange} title="Add income to see tax savings" style={{ marginTop: 0 }}>{isDesktop ? "Click" : "Tap"} to go to the Income tab</Note>
    </div>
   )}
 

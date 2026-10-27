@@ -29,6 +29,8 @@ export default function CashToCloseSummary({
   // Breakdown's open Advanced ladder. The card ends at its total band instead
   // of stretching, so the band stays level with Total Payment.
   outsideReserve = 0,
+  // No purchase price yet: the total reads "--" (QA 2026-10-27).
+  empty = false,
 }) {
   const total = isRefi
     ? newLoan - oldLoanPayoff - closingCosts - prepaids - payoffs + credits
@@ -146,7 +148,7 @@ export default function CashToCloseSummary({
           fontWeight: 800,
           color: totalColor,
           letterSpacing: "-0.02em",
-        }}>{isRefi && total < 0 ? `−${fmt(Math.abs(total))}` : fmt(total)}</div>
+        }}>{empty ? "--" : isRefi && total < 0 ? `−${fmt(Math.abs(total))}` : fmt(total)}</div>
       </div>
       {/* Reserve matching Payment Breakdown's Advanced expander so the total
           bands align at rest. Transparent — nothing to show here. */}

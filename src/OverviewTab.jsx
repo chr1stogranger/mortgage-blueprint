@@ -137,7 +137,9 @@ export default function OverviewTab(props) {
   // double-counted it and left a large white gap at the top of the Overview.
   // (Christo 2026-05-27.)
   return (
-    <Suspense fallback={null}>
+    // A visible fallback: null left a blank page for ~5s on slow 3G while the
+    // lazy sections loaded right after the consent modal (QA 2026-10-27).
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
     {/* Edits anywhere on the page (not the sidebar/header that load other
         Blueprints) mark "the user is typing" for Quick Start's auto-collapse. */}
     <div onPointerDownCapture={markEdit} onKeyDownCapture={markEdit} style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>

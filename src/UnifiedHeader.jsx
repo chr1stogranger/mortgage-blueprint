@@ -1,5 +1,5 @@
 import { FONT, MONO } from "./lib/fonts.js";
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
@@ -92,6 +92,22 @@ export default function UnifiedHeader({
   const [presenceOpen, setPresenceOpen] = useState(false);
   const [appPickerOpen, setAppPickerOpen] = useState(false);
   useEscape(!!statPop || presenceOpen || appPickerOpen, () => { setStatPop(null); setPresenceOpen(false); setAppPickerOpen(false); });
+  // Outside press closes the stat popover AND still reaches what was pressed
+  // (QA 2026-10-27: a full-screen click-catcher ate the next click, e.g. Get
+  // Pre-Approved). The stat triggers toggle it themselves.
+  const statPopRef = useRef(null);
+  useEffect(() => {
+    if (!statPop) return;
+    const onDown = (e) => {
+      if (statPopRef.current && statPopRef.current.contains(e.target)) return;
+      if (e.target.closest && e.target.closest("[data-stat-trigger]")) return;
+      setStatPop(null);
+    };
+    const onWheel = () => setStatPop(null);
+    document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("wheel", onWheel, { passive: true });
+    return () => { document.removeEventListener("pointerdown", onDown, true); window.removeEventListener("wheel", onWheel); };
+  }, [statPop]);
   const [shareCopied, setShareCopied] = useState(false);
   const statContent = (key) => {
     if (key === "price") {
@@ -237,6 +253,7 @@ export default function UnifiedHeader({
   // (Pre-Qualified / Almost There / N/5 / Action Needed); taps to Qualify.
   const qualBadge = (
     <div
+      data-stat-trigger=""
       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setStatPop(pv => pv && pv.key === "qualbadge" ? null : { key: "qualbadge", x: r.left + r.width / 2, y: r.bottom }); }}
       title="View qualification"
       style={{
@@ -262,6 +279,7 @@ export default function UnifiedHeader({
   const crowded = !isDesktop && (isRefi || calc.qualifyingIncome > 0);
   const Stat = ({ label, short, value, color, statKey }) => (
     <div
+      data-stat-trigger={statKey ? "" : undefined}
       onClick={statKey ? (e) => { const r = e.currentTarget.getBoundingClientRect(); setStatPop(pv => pv && pv.key === statKey ? null : { key: statKey, x: r.left + r.width / 2, y: r.bottom }); } : undefined}
       style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1, cursor: statKey ? "pointer" : "default", borderRadius: 8, padding: "2px 0", background: (statPop && statPop.key === statKey) ? T.pillBg : "transparent", transition: "background 0.15s" }}
     >
@@ -657,8 +675,7 @@ export default function UnifiedHeader({
         const left = Math.max(10, Math.min(statPop.x - W / 2, vw - W - 10));
         return createPortal(
           <>
-            <div onClick={() => setStatPop(null)} onWheel={() => setStatPop(null)} style={{ position: "fixed", inset: 0, zIndex: 99998 }} />
-            <div style={{ position: "fixed", left, top: statPop.y + 6, width: W, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, boxShadow: "0 14px 40px rgba(0,0,0,0.4)", zIndex: 99999, padding: "12px 14px" }}>
+            <div ref={statPopRef} style={{ position: "fixed", left, top: statPop.y + 6, width: W, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, boxShadow: "0 14px 40px rgba(0,0,0,0.4)", zIndex: 99999, padding: "12px 14px" }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT, marginBottom: 8 }}>{c.title}</div>
               {c.pillars && c.pillars.map((pl, i) => {
                 const col = pl.ok === true ? T.green : pl.ok === null ? T.textTertiary : T.red;

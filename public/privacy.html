@@ -120,7 +120,7 @@
     <h2>2. Four Ways to Use the App — and What Each Stores</h2>
 
     <h3>a. Without an account (the default)</h3>
-    <p>Loan scenario inputs, property details, and financial profile details (purchase price, down payment, interest rate, income, debts, FICO score, assets) are processed on your device and saved in your browser's local storage. In this mode, this data is not transmitted to or stored on our servers, and it is deleted when you clear your browser data or uninstall the App.</p>
+    <p>Loan scenario inputs, property details, and financial profile details (purchase price, down payment, interest rate, income, debts, FICO score, assets) are processed on your device and saved in your browser's local storage. In this mode, this data is not transmitted to or stored on our servers, and it is deleted when you clear your browser data or uninstall the App. One exception: when you enter a ZIP code, the App sends that ZIP code (and the matching city name) to our server to show a few homes for sale nearby, and loads their listing photos from the listing provider (e.g. Zillow's image servers). Nothing else from your scenario is included.</p>
 
     <h3>b. With an optional account and cloud sync</h3>
     <p>If you create an account (via email sign-in link or Google) and turn on cloud sync, the blueprints you choose to upload are stored in our database (hosted by Supabase) so they stay backed up and sync across your devices. You choose what uploads — nothing is uploaded silently. You can turn sync off, export everything as a file, or permanently delete your account and all cloud data at any time from Account settings in the App.</p>
@@ -157,7 +157,7 @@
     <p>Stores account and cloud-synced blueprint data and processes sign-ins. Privacy policy: <a href="https://supabase.com/privacy" target="_blank">supabase.com/privacy</a>.</p>
 
     <h3>Google Sign-In (optional)</h3>
-    <p>If you choose "Continue with Google," Google shares your name, email address, and profile photo with us to create your account. Privacy policy: <a href="https://policies.google.com/privacy" target="_blank">policies.google.com/privacy</a>.</p>
+    <p>The App loads Google's sign-in script on each visit so the "Continue with Google" button is ready; Google may set a cookie (such as <code>g_state</code>) that remembers sign-in prompt preferences. If you choose "Continue with Google," Google shares your name, email address, and profile photo with us to create your account. Privacy policy: <a href="https://policies.google.com/privacy" target="_blank">policies.google.com/privacy</a>.</p>
 
     <h3>Gmail Access (optional, loan-officer accounts only)</h3>
     <p>Loan officers on our team may optionally connect their Gmail account so the App can send loan summary emails from their own address and read mortgage-related messages they choose to view inside the App. If granted, the App requests the Google scopes <code>gmail.send</code> and <code>gmail.readonly</code>. Our use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Google API Services User Data Policy</a>, including the Limited Use requirements: Gmail data is used only to provide these user-facing features, is never used for advertising, and is never sold or transferred to third parties. Gmail access tokens are stored only on your device and can be revoked at any time at <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a>. Borrower accounts are never asked for Gmail access.</p>
@@ -168,14 +168,16 @@
     <h3>Mortgage rates (Mortgage News Daily, FRED)</h3>
     <p>Used to display current mortgage interest rates: daily national averages from Mortgage News Daily, with the Federal Reserve Economic Data (FRED) weekly survey as a fallback. Our server fetches these; no personal information is included in the request. FRED's privacy policy is available at <a href="https://fred.stlouisfed.org/legal" target="_blank">fred.stlouisfed.org/legal</a>.</p>
 
+    <h3>Google Fonts</h3>
+    <p>The App's typefaces are loaded from Google Fonts (fonts.googleapis.com, fonts.gstatic.com), which receives your IP address and browser details as part of the request. Privacy policy: <a href="https://policies.google.com/privacy" target="_blank">policies.google.com/privacy</a>.</p>
     <h3>RapidAPI (Real Estate Data)</h3>
-    <p>Used by the PricePoint feature to display real estate listings for the price-guessing game. The App sends zip code queries to retrieve public listing data. No personal information is included. RapidAPI's privacy policy is available at <a href="https://rapidapi.com/privacy" target="_blank">rapidapi.com/privacy</a>.</p>
+    <p>Used by the PricePoint feature, and by the "for sale near you" card in Mortgage Blueprint once you enter a ZIP code, to display real estate listings. Listing photos load directly from the listing provider's image servers. The App sends zip code queries to retrieve public listing data. No personal information is included. RapidAPI's privacy policy is available at <a href="https://rapidapi.com/privacy" target="_blank">rapidapi.com/privacy</a>.</p>
 
     <h3>Vercel (Hosting)</h3>
     <p>The App is hosted on Vercel. Vercel may collect standard server logs including IP addresses, browser type, and access timestamps as part of normal web hosting operations. Vercel's privacy policy is available at <a href="https://vercel.com/legal/privacy-policy" target="_blank">vercel.com/legal/privacy-policy</a>.</p>
 
     <h2>6. Cookies and Tracking</h2>
-    <p>The App does not use advertising trackers, ad pixels, or cross-site tracking scripts. We do not use Google Analytics, Facebook Pixel, or similar services. Local storage on your device is used for your calculator data, your sign-in session, and (for loan officers who connect Gmail) a short-lived Gmail access token.</p>
+    <p>The App does not use advertising trackers, ad pixels, or cross-site tracking scripts. We do not use Google Analytics, Facebook Pixel, or similar services. The App itself sets no cookies; Google's sign-in script may set its own (see Google Sign-In above). Local storage on your device is used for your calculator data, your sign-in session, and (for loan officers who connect Gmail) a short-lived Gmail access token.</p>
 
     <h2>7. Data Sharing and Sales</h2>
     <div class="highlight-box">

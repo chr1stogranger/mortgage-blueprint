@@ -307,7 +307,7 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
       add line height. */}
   <div style={{ display: "flex", alignItems: "center", boxSizing: "border-box", minHeight: sm ? 42 : 50, background: T.inputBg, borderRadius: 12, padding: sm ? "0 12px" : "0 14px", border: `1px solid ${focused ? T.blue : T.inputBorder}`, boxShadow: focused ? `0 0 0 1px ${T.blue}` : "none", transition: "border-color 0.2s, box-shadow 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT, lineHeight: 1 }}>{prefix}</span>}
-   <input ref={inputRef} id={inputId} aria-label={ariaLabel} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (readOnly) { setEditStr(null); return; } if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); let raw = e.target.value.replace(/,/g, ""); const pasted = raw.replace(/[\s$]/g, "").replace(/^(-?\d*\.?\d+)([kKmM])$/, (_, n, u) => String(parseFloat(n) * (/k/i.test(u) ? 1e3 : 1e6))); const normalized = pasted !== raw; raw = pasted; if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = normalized ? formatted.length : newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
+   <input ref={inputRef} id={inputId} aria-label={ariaLabel} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (readOnly) { setEditStr(null); return; } if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const money = prefix === "$"; /* Paste cleanup (QA 2026-10-27): money takes "$850,000.00" / "850k"; small-range fields (rates, percents — never comma-grouped) read a lone comma as the decimal mark ("7,25"). */ const smallRange = !money && max !== undefined && max <= 100; let raw = smallRange && /^\s*-?\d*,\d+\s*%?\s*$/.test(e.target.value) ? e.target.value.replace(",", ".") : e.target.value.replace(/,/g, ""); const pasted = money ? raw.replace(/[\s$]/g, "").replace(/^(-?\d*\.?\d+)([kKmM])$/, (_, n, u) => String(parseFloat(n) * (/k/i.test(u) ? 1e3 : 1e6))) : raw.replace(/\s/g, "").replace(/%$/, ""); const normalized = pasted !== raw || raw !== e.target.value.replace(/,/g, ""); raw = pasted; if (normalized && (raw === "" || raw.startsWith("-"))) return; if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = normalized ? formatted.length : newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
     placeholder={placeholder || ""}
     /* No negative tracking on numerals. -0.02em is display-headline styling;
        at 15px it computes to -0.3px and closes the gap between a digit and
@@ -530,7 +530,7 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
    {allGreen && getApplyUrl() && (
     <button onClick={() => window.open(getApplyUrl(), "_blank")} style={{ marginTop: 4, width: "100%", maxWidth: 340, padding: "12px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
-     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
+     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Start my loan application (opens in a new tab)</div>
     </button>
    )}
   </div>
@@ -1450,10 +1450,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Back returns to the previous tab instead of leaving the app (QA
  // 2026-10-27). Native keeps its own Android back handling below.
  const tabFromPopRef = useRef(false);
+ const modeFromPopRef = useRef(false);
+ const modeSyncedRef = useRef(false);
  const prevTabRef = useRef(tab);
  useEffect(() => {
   if (Capacitor.isNativePlatform?.()) return;
-  const onPop = (e) => { const t = e.state && e.state.bpTab; if (!t) return; tabFromPopRef.current = true; setTab(t); };
+  const onPop = (e) => {
+   // The section follows the path, so Back/Forward across a Blueprint ⇄
+   // PricePoint ⇄ Markets switch shows what the URL says (QA 2026-10-27).
+   const host = window.location.hostname || '';
+   const p = window.location.pathname;
+   const mode = host.startsWith('pricepoint.') || host.startsWith('markets.') ? null
+    : p === '/pricepoint' ? 'pricepoint' : p === '/markets' ? 'markets' : (p === '/' || p === '/blueprint') ? 'blueprint' : null;
+   if (mode) { modeFromPopRef.current = true; setAppMode(mode); }
+   const t = e.state && e.state.bpTab;
+   if (!t || t === prevTabRef.current) return;
+   tabFromPopRef.current = true; setTab(t);
+  };
   window.addEventListener("popstate", onPop);
   return () => window.removeEventListener("popstate", onPop);
  }, []);
@@ -1511,8 +1524,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    url.pathname = appMode === 'blueprint' ? '/' : `/${appMode}`;
    url.searchParams.delete('mode'); // the path now encodes the section
    const next = url.pathname + url.search + url.hash;
+   // A user's switch between sections is its own history entry (carrying the
+   // tab), so Back returns to it; the first sync, a popstate and native just
+   // rewrite the URL. Existing state is kept — the tab history lives there.
+   const firstSync = !modeSyncedRef.current;
+   modeSyncedRef.current = true;
+   const fromPop = modeFromPopRef.current;
+   modeFromPopRef.current = false;
    if (next !== cur + window.location.search + window.location.hash) {
-    window.history.replaceState(null, '', next);
+    if (firstSync || fromPop || Capacitor.isNativePlatform?.()) {
+     window.history.replaceState(window.history.state, '', next);
+    } else {
+     if (!window.history.state?.bpTab) window.history.replaceState({ ...(window.history.state || {}), bpTab: prevTabRef.current }, '');
+     window.history.pushState({ bpTab: prevTabRef.current }, '', next);
+    }
    }
   } catch { /* ignore */ }
  }, [appMode, realtorPartnerSlug]);
@@ -7485,12 +7510,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const userType = userLoanTypeRef.current;
   // A purchase waits for a down payment: at the 0% default every price over
   // the limit flipped the loan to Jumbo mid-typing (QA 2026-10-27).
+  // A rate that was today's published rate for the old type follows the
+  // switch (QA 2026-10-27: Jumbo kept the conforming 7.33%, so going over the
+  // limit LOWERED the payment). A hand-typed rate is left alone.
+  const followLiveRate = (from, to) => {
+   const a = liveRateFor(liveRates, from, term), b = liveRateFor(liveRates, to, term);
+   if (a != null && b != null && Math.abs(Number(rate) - a) < 0.0005) _setRateRaw(b);
+  };
   if (userType === "Conventional" && jumboTestLoan > hbl && loanType !== "Jumbo" && (isRefi || downPct > 0)) {
    setLoanType("Jumbo");
    setAutoJumboSwitch(true);
+   followLiveRate("Conventional", "Jumbo");
   } else if (autoJumboSwitch && jumboTestLoan <= hbl && loanType === "Jumbo") {
    setLoanType(userLoanTypeRef.current);
    setAutoJumboSwitch(false);
+   followLiveRate("Jumbo", userLoanTypeRef.current);
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [jumboTestLoan, propType, getCountyHighBal]);
@@ -8913,7 +8947,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
             ...(scenarioList.length > 1 && mine ? [
              scnDeleteArm !== scnMenu.name
               ? ["Delete", "trash", () => { scnDeleteArmAt.current = Date.now(); setScnDeleteArm(scnMenu.name); }, true]
-              : [isDesktop ? "Click again to delete" : "Tap again to delete", "trash", () => { if (Date.now() - scnDeleteArmAt.current <= 400) return; deleteScenario(scnMenu.name); setScnMenu(null); setScnDeleteArm(null); }, true],
+              : [isDesktop ? "Click again to delete" : "Tap again to delete", "trash", () => { if (Date.now() - scnDeleteArmAt.current <= 400) return; deleteScenario(scnMenu.name); setTimeout(() => { setScnMenu(null); setScnDeleteArm(null); }, 350); }, true],
             ] : []),
            ]; })().map(([label, ico, fn, keepOpen]) => (
             <button key={label} onClick={() => { fn(); if (!keepOpen) { setScnMenu(null); setScnDeleteArm(null); } }}
