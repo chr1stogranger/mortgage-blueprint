@@ -280,12 +280,16 @@ export default function CalculatorContent(props) {
   // sum effect uses): rented units on a primary, every unit on an investment.
   const isInvestPurchase = !isRefi && loanPurpose === "Purchase Investment";
   const isAduProp = propType === "Single Family with ADU";
-  const rentEligible = !isRefi && rentUnitCount > 0 && (isInvestPurchase || loanPurpose === "Purchase Primary");
+  const totalUnits = (UNIT_COUNT && UNIT_COUNT[propType]) || 1;
+  const isPrimaryPurchase = !isRefi && loanPurpose === "Purchase Primary";
+  // A 2–4 unit owner who lives in every unit has nothing to rent: no rent
+  // lines, but the "You live in" picker must stay so they can change it back.
+  const occupiesAll = isPrimaryPurchase && totalUnits >= 2 && rentUnitCount === 0;
+  const rentEligible = !isRefi && rentUnitCount > 0 && (isInvestPurchase || isPrimaryPurchase);
   const [rentOpen, setRentOpen] = useState(false);
   const perUnit = rentMode === "perUnit" && rentUnitCount > 1;
   const showRentRows = (subjectRentalIncome || 0) > 0 || rentOpen || perUnit;
   const netMode = rentEligible && showRentRows;
-  const totalUnits = (UNIT_COUNT && UNIT_COUNT[propType]) || 1;
   const rentNoun = isInvestPurchase ? "rent" : isAduProp ? "ADU rent" : "unit rents";
   const rentLabel = isInvestPurchase ? "Expected rent" : isAduProp ? "ADU rent" : `Unit rents (${rentUnitCount} ${rentUnitCount > 1 ? "units" : "unit"})`;
   // Rented units are numbered after the ones the owner occupies; an
@@ -294,8 +298,24 @@ export default function CalculatorContent(props) {
    isInvestPurchase ? (isAduProp ? (i === 0 ? "Main house" : "ADU") : `Unit ${i + 1}`) : `Unit ${totalUnits - rentUnitCount + i + 1}`
   ));
   const unitRentVals = unitLabels.map((_, i) => Number(unitRents[i]) || 0);
-  const occupyChoices = loanPurpose === "Purchase Primary" && !isRefi && totalUnits >= 3
-   ? Array.from({ length: totalUnits - 1 }, (_, i) => i + 1) : [];
+  const occupyChoices = isPrimaryPurchase && totalUnits >= 2
+   ? Array.from({ length: totalUnits }, (_, i) => i + 1) : [];
+  // One picker, rendered in the rent block or (living in every unit) alone.
+  const occupyPicker = occupyChoices.length > 1 && (
+   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", paddingLeft: occupiesAll ? 0 : 14, minHeight: 26 }}>
+    <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>You live in</span>
+    <div role="group" aria-label="Units you occupy" style={{ display: "inline-flex", background: T.pillBg, borderRadius: 9999, padding: 2 }}>
+     {occupyChoices.map(n => (
+      <button key={n} type="button" aria-pressed={occupiedUnits === n} onClick={() => setOccupiedUnits(n)}
+       style={{ border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: FONT, borderRadius: 9999, padding: "3px 10px", lineHeight: 1.3,
+        background: occupiedUnits === n ? T.blue : "transparent", color: occupiedUnits === n ? "#fff" : T.textSecondary }}>
+       {n}
+      </button>
+     ))}
+    </div>
+    <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>of {totalUnits} units{occupiesAll ? " · nothing rented" : ""}</span>
+   </div>
+  );
   const setUnitRent = (i, v) => {
    const next = unitRentVals.slice();
    next[i] = Math.max(0, Math.min(50000, v));
@@ -1797,6 +1817,9 @@ export default function CalculatorContent(props) {
         level with Estimated Cash to Close. The card subtracts rent from the
         payment it shows; the Advanced ladder keeps its full-PITIA basis and
         says so when escrow is off. */}
+    {occupiesAll && (
+     <div style={{ borderTop: `1px solid ${T.separator}`, padding: "9px 18px" }}>{occupyPicker}</div>
+    )}
     {rentEligible && !showRentRows && (
      <div style={{ borderTop: `1px solid ${T.separator}`, padding: "9px 18px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       <button type="button" onClick={() => setRentOpen(true)}
@@ -1833,7 +1856,7 @@ export default function CalculatorContent(props) {
        </div>
        {perUnit ? (
         <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
-         <span style={{ fontSize: 14, fontWeight: 700, color: T.green, fontFamily: FONT }}>−{fmt(subjectRentalIncome || 0)}</span>
+         <span style={{ fontSize: 14, fontWeight: 700, color: (subjectRentalIncome || 0) > 0 ? T.green : T.textTertiary, fontFamily: FONT }}>{(subjectRentalIncome || 0) > 0 ? "−" : ""}{fmt(subjectRentalIncome || 0)}</span>
          <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
         </div>
        ) : (
@@ -1849,23 +1872,9 @@ export default function CalculatorContent(props) {
         <InlineEditValue value={unitRentVals[i]} onChange={(v) => setUnitRent(i, v)} T={T} />
        </div>
       ))}
-      {/* A 3–4 unit owner picks how many units they live in: it sets the
+      {/* A 2–4 unit owner picks how many units they live in: it sets the
           rented-unit count, the 75% qualifying rent and the Schedule A/E split. */}
-      {occupyChoices.length > 1 && (
-       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", paddingLeft: 14, minHeight: 26 }}>
-        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>You live in</span>
-        <div role="group" aria-label="Units you occupy" style={{ display: "inline-flex", background: T.pillBg, borderRadius: 9999, padding: 2 }}>
-         {occupyChoices.map(n => (
-          <button key={n} type="button" aria-pressed={occupiedUnits === n} onClick={() => setOccupiedUnits(n)}
-           style={{ border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: FONT, borderRadius: 9999, padding: "3px 10px", lineHeight: 1.3,
-            background: occupiedUnits === n ? T.blue : "transparent", color: occupiedUnits === n ? "#fff" : T.textSecondary }}>
-           {n}
-          </button>
-         ))}
-        </div>
-        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>of {totalUnits} units</span>
-       </div>
-      )}
+      {occupyPicker}
       {(subjectRentalIncome || 0) > 0 && (
        <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.45, fontFamily: FONT, paddingLeft: 14 }}>
         {loanType === "DSCR"

@@ -183,13 +183,14 @@ const UNIT_COUNT = { "Single Family": 1, "Single Family with ADU": 1, "Condo": 1
 // duplex/triplex/fourplex counts units−1. Everything else is zero, so a plain
 // SFR/condo primary never shows a rent field.
 const RENTAL_UNITS = { "Single Family with ADU": 1, "2-Unit": 1, "3-Unit": 2, "4-Unit": 3 };
-// A 3- or 4-unit owner can live in more than one unit (Christo 2026-10-27),
-// so the rented count is units minus the units occupied, never below one.
+// A 2–4 unit owner can live in more than one unit, even all of them (Christo
+// 2026-10-27), so the rented count is units minus the units occupied and can
+// reach zero. An ADU stays one rentable unit.
 const getRentalUnits = (pt, occupied = 1) => {
  const base = RENTAL_UNITS[pt] || 0;
- if (base <= 1) return base;
- const units = base + 1;
- return units - Math.max(1, Math.min(units - 1, Number(occupied) || 1));
+ const units = UNIT_COUNT[pt] || 1;
+ if (units <= 1) return base;
+ return units - Math.max(1, Math.min(units, Number(occupied) || 1));
 };
 // National fallbacks only. `getHighBalLimit` here returns the statutory CEILING
 // (150% of baseline), which is correct ONLY in the highest-cost counties — real
@@ -1684,7 +1685,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // count, the 75% qualifying rent, and the Schedule A / E split.
  const [occupiedUnits, setOccupiedUnits] = useState(1);
  // How many rent lines the Payment Breakdown offers: the rented units on an
- // owner-occupied ADU / 2–4 unit, every unit on an investment purchase (an
+ // owner-occupied ADU / 2–4 unit (zero when they live in every unit), every
+ // unit on an investment purchase (an
  // investment ADU is the main house plus the ADU).
  const rentUnitCount = loanPurpose === "Purchase Investment"
   ? (UNIT_COUNT[propType] || 1) + (propType === "Single Family with ADU" ? 1 : 0)

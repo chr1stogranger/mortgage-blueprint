@@ -94,16 +94,17 @@ export default function SchedEInputs({
 
       {/* Owner-occupied only: how much of the building is actually rented. This
           drives the Schedule A / Schedule E split AND the depreciable portion. */}
-      {/* A 3–4 unit owner may live in more than one unit (Christo 2026-10-27).
-          The occupied count sets the unit-count default for the share below. */}
-      {isOwnerOccupied && totalUnits >= 3 && setOccupiedUnits && (
+      {/* A 2–4 unit owner may live in more than one unit, even all of them
+          (Christo 2026-10-27). The occupied count sets the unit-count default
+          for the share below; living in every unit removes this section. */}
+      {isOwnerOccupied && totalUnits >= 2 && setOccupiedUnits && (
         <Row
           T={T}
           label="Units you live in"
           hint={`Occupying ${occupiedUnits} of ${totalUnits} units leaves ${totalUnits - occupiedUnits} rented: ${Math.round(((totalUnits - occupiedUnits) / totalUnits) * 100)}% of the building on Schedule E by unit count.`}
         >
           <div role="group" aria-label="Units you live in" style={{ display: "inline-flex", background: T.pillBg, borderRadius: 9999, padding: 2 }}>
-            {Array.from({ length: totalUnits - 1 }, (_, i) => i + 1).map(n => (
+            {Array.from({ length: totalUnits }, (_, i) => i + 1).map(n => (
               <button key={n} type="button" aria-pressed={occupiedUnits === n} onClick={() => setOccupiedUnits(n)}
                 style={{ border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: FONT, borderRadius: 9999, padding: "3px 12px", lineHeight: 1.3,
                   background: occupiedUnits === n ? T.blue : "transparent", color: occupiedUnits === n ? "#fff" : T.textSecondary }}>
