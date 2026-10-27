@@ -2409,6 +2409,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&]c=[^&]+/, '').replace(/^\?$/, ''));
         return;
       }
+      // Undecodable link (truncated when pasted, usually): say so instead of
+      // silently landing on the generic game (QA 2026-10-27).
+      if (!pendingPropertyLinkRef.current) {
+        setSyncToast("That challenge link didn't open. It may have been cut off when it was copied.");
+        setTimeout(() => setSyncToast(null), 4500);
+      }
     }
     if (!market) {
       try {

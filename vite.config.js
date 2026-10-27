@@ -125,7 +125,8 @@ export default defineConfig({
             options: {
               // v2: bumped 2026-07-17 so installed clients drop the year-old JetBrains
               // cache and fetch Geist Mono (CacheFirst would otherwise pin the old font).
-              cacheName: 'google-fonts-cache-v2',
+              // v3: bumped 2026-10-27 (CSP fix: the SW's fetch() of fonts.googleapis.com was refused by connect-src; start installed clients clean).
+              cacheName: 'google-fonts-cache-v3',
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
             }
           },

@@ -500,7 +500,9 @@ export default function CalculatorContent(props) {
     (t.label === "Jumbo" && loanType === "Jumbo");
    // An estimated tile is never auto-applied (liveRateFor skips it), so it
    // only reads as active once its rate is actually the scenario rate.
-   return { ...t, isActive: matchesType && (!t.est || Math.abs(Number(t.r) - Number(rate)) < 0.0005) };
+   // A tile only reads as active while its rate IS the scenario rate (QA
+   // 2026-10-27: a cleared or hand-typed rate kept the chip lit).
+   return { ...t, isActive: matchesType && Math.abs(Number(t.r) - Number(rate)) < 0.0005 };
   });
   // "2026-10-09" → "Oct 9".
   const ratesWhen = () => {
@@ -519,7 +521,7 @@ export default function CalculatorContent(props) {
        );
       })}
      </div>
-     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}{(liveRates.estimated || []).length ? " · est. = spread off the 30yr, not published" : ""}</div>}
+     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source} · national averages{(liveRates.estimated || []).length ? " · est. = spread off the 30yr, not published" : ""}</div>}
   </>);
 
   // Desktop: today's rates sit inline in the Rate card (Christo 2026-10-12),
@@ -532,7 +534,8 @@ export default function CalculatorContent(props) {
    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDesktop]);
   const ratesHeader = (mb) => {
-   const applied = liveRates && liveRateFor(liveRates, loanType, term);
+   const live = liveRates && liveRateFor(liveRates, loanType, term);
+   const applied = live != null && Math.abs(live - Number(rate)) < 0.0005;
    return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 12, fontFamily: FONT, color: T.textTertiary, marginBottom: mb }}>
      <span title={liveRates?.source ? `Source: ${liveRates.source}` : undefined}><span style={{ fontWeight: 600, color: T.textSecondary }}>Today's rates</span>{liveRates ? ` · ${ratesWhen()}` : ""}</span>
@@ -565,6 +568,8 @@ export default function CalculatorContent(props) {
       ))}
      </div>
     ))}
+    {/* Visible, not a hover title (QA 2026-10-27: "whose rate is this?"). */}
+    {liveRates?.source && <div style={{ fontSize: 10.5, color: T.textTertiary, marginTop: 6, fontFamily: FONT }}>Source: {liveRates.source} · national averages, not priced to your credit or down payment</div>}
    </div>
   );
 
@@ -617,7 +622,7 @@ export default function CalculatorContent(props) {
           <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
          </div>
         </div>
-        <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
+        <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" ariaLabel="Purchase price" />
         {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input.
             Phones drop it: the down summary rides in the Down label instead
             (screenshot-ready layout, Christo 2026-10-01). */}
@@ -657,9 +662,9 @@ export default function CalculatorContent(props) {
            {downMode === "pct" ? (
             // Phones: the dollar amount rides in the box ("15 % · $150K") so the
             // label row stays short and the price box can be the wider one.
-            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req ariaLabel="Down payment percent" />
            ) : (
-            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
+            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req ariaLabel="Down payment dollars" />
            )}
            {/* Subtitle: shows the inverse format directly under the input
                (desktop; phones carry it in the label). */}
@@ -747,7 +752,7 @@ export default function CalculatorContent(props) {
      }
     }} options={isRefi && loanType !== "DSCR" ? LOAN_TYPES.filter(t => t !== "DSCR") : LOAN_TYPES} req sm={!isDesktop} />
     <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
-     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
+     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[30, 25, 20, 15, 10, ...Array.from({length: 26}, (_, i) => 30 - i).filter(y => ![30, 25, 20, 15, 10].includes(y))].map(y => ({value: y, label: `${y} Year${y === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
     </div>
    </div>
    <ClusterContinue stepId="calc-pills" />
@@ -759,14 +764,16 @@ export default function CalculatorContent(props) {
   // and returns (escrow on → off, down payment fixed then short again…).
   const minDownSuffix = loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : "";
   const alerts = [
-   { key: "down-min", show: !isRefi && calc.dpWarning === "fail", color: T.red,
+   // Held until there's a price: a red "needs 5% down" on a blank form read
+   // as an error before the user had typed anything (QA 2026-10-27).
+   { key: "down-min", show: !isRefi && salesPrice > 0 && calc.dpWarning === "fail", color: T.red,
      title: `${loanType} needs ${calc.minDPpct}% down${minDownSuffix}`,
      body: `You're at ${downPct}% · add ${(calc.minDPpct - downPct).toFixed(1)}% to qualify` },
    { key: "jumbo", show: !!autoJumboSwitch, color: T.orange,
      title: `Jumbo: ${fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the ${fmt(getHighBalLimit(propType))} high-balance limit${UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}`,
-     body: "20% down · 700+ FICO · 43–50% max DTI",
+     body: "Loans this size usually need 20% down, a 700+ credit score, and monthly debts under about 43–50% of income.",
      action: <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
-       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button> },
+       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Keep Conventional</button> },
    { key: "dscr-occupancy", show: !isRefi && loanType === "DSCR" && loanPurpose !== "Purchase Investment", color: T.red,
      title: "DSCR is for investment properties",
      body: "It qualifies on rent, so the home has to be a rental.",
@@ -988,7 +995,7 @@ export default function CalculatorContent(props) {
     {true ? (
      <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}) }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46, loanStructureInQuickStart && rightColH > 200 ? rightColH - (donutOverhead || (isRefi ? 36 : 82)) : 999)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
+       <PayRing empty={!isRefi && !(salesPrice > 0)} segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46, loanStructureInQuickStart && rightColH > 200 ? rightColH - (donutOverhead || (isRefi ? 36 : 82)) : 999)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: legendGap }}>
        {legendRows.map((row, i) => (
@@ -1049,7 +1056,7 @@ export default function CalculatorContent(props) {
       ? { flex: 1, minWidth: 0, display: "flex", justifyContent: "center", alignItems: "center" }
       : { display: "flex", justifyContent: "center", order: 1, alignSelf: "stretch", minWidth: 0 }
      }>
-      <PayRing segments={paySegs} total={calc.displayPayment}
+      <PayRing empty={!isRefi && !(salesPrice > 0)} segments={paySegs} total={calc.displayPayment}
        size={sideBySide
         ? Math.max(170, Math.min(280, (donutSlotW || 999) - 170))
         : Math.max(100, Math.min(isDesktop ? 280 : 200, (donutSlotW || 999) - 16))} hideLegend />
@@ -1135,7 +1142,7 @@ export default function CalculatorContent(props) {
             : calc.highBalLimit === calc.confLimit
               ? `\nThis county has no high-balance tier. It goes straight from conforming to jumbo.`
               : ``) },
-     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio: your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
+     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value (LTV): how much of the home's price you're borrowing. 80% LTV means you put 20% down.\n\nAt 80% or less (20%+ down), a conventional loan has no PMI, the private mortgage insurance lenders charge on smaller down payments." },
      { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
     // marginBottom:0 overrides Card's baked-in 12px. Inside a grid cell that
     // margin is phantom height — it kept these cards 12px short of their row
@@ -1816,7 +1823,7 @@ export default function CalculatorContent(props) {
      return (<>
        {isPulse && isPulse("payment-breakdown") && !breakdownExplored && (
          <div style={{ marginTop: 10, fontSize: 12, color: T.textSecondary, fontFamily: FONT, textAlign: "center" }}>
-           Tap the ▾ next to Tax{(calc.monthlyMI || 0) > 0 ? " and PMI" : ""} above to see how they're calculated
+           {isDesktop ? "Click" : "Tap"} the ▾ next to Tax{(calc.monthlyMI || 0) > 0 ? " and PMI" : ""} above to see how they're calculated
          </div>
        )}
      </>);
@@ -1858,7 +1865,7 @@ export default function CalculatorContent(props) {
        </div>
        {isRefi && refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
       </div>
-      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+      <Inp value={rate} onChange={v => { if (v > 0) setRate(v); }} prefix="" suffix="%" step={0.001} max={30} sm req />
      </div>
      {!isRefi && calc.apr > 0 && calc.apr !== rate && (
       <div style={{ flex: 1 }}>

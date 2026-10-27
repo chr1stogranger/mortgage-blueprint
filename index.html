@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Blueprint" />
     <meta name="description" content="Mortgage Blueprint, the supercharged mortgage calculator powered by RealStack. Loan scenarios, payment breakdowns, tax savings, amortization, and more." />
-    <meta property="og:title" content="Mortgage Blueprint: powered by RealStack" />
+    <meta property="og:title" content="Mortgage Blueprint — powered by RealStack" />
     <meta property="og:description" content="The supercharged mortgage calculator. Loan scenarios, payment breakdowns, tax savings, amortization, and side-by-side comparisons." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://blueprint.realstack.app" />
@@ -25,7 +25,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mortgage Blueprint: powered by RealStack" />
+    <meta name="twitter:title" content="Mortgage Blueprint — powered by RealStack" />
     <meta name="twitter:description" content="The supercharged mortgage calculator. Loan scenarios, payments, tax savings, and more." />
     <meta name="twitter:image" content="https://blueprint.realstack.app/og-image.png" />
     <link rel="canonical" href="https://blueprint.realstack.app" />
@@ -33,11 +33,23 @@
          linking to the App Store. Non-blocking: the web app keeps working
          underneath, so shared challenge links stay instant to play. -->
     <meta name="apple-itunes-app" content="app-id=6773117288" />
-    <title>Mortgage Blueprint: powered by RealStack</title>
+    <title>Mortgage Blueprint — powered by RealStack</title>
+    <!-- Static boot shell (2026-10-27): painted before the JS bundle arrives so
+         slow connections don't sit on a blank white page. Lives inside #root,
+         so createRoot().render() replaces it — no cleanup needed. -->
+    <style>
+      .bp-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#0a1120;color:#EDEDED;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+      .bp-boot-mark{font-size:22px;font-weight:700;letter-spacing:-0.01em}
+      .bp-boot-badge{font-family:"Geist Mono","SF Mono",ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#8A8A8A}
+      .bp-boot-bar{width:48px;height:2px;margin-top:18px;border-radius:9999px;background:#3B6BF5;animation:bp-boot-pulse 1.4s ease-in-out infinite}
+      @keyframes bp-boot-pulse{0%,100%{opacity:.25}50%{opacity:1}}
+      @media (prefers-color-scheme: light){.bp-boot{background:#f4f9fc;color:#171717}.bp-boot-badge{color:#6B7280}}
+      @media (prefers-reduced-motion: reduce){.bp-boot-bar{animation:none;opacity:.6}}
+    </style>
     <!-- Google Places API: disabled (key moved to server-side proxy) -->
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="bp-boot" role="status" aria-label="Loading Mortgage Blueprint"><div class="bp-boot-mark">Mortgage Blueprint</div><div class="bp-boot-badge">Powered by RealStack</div><div class="bp-boot-bar"></div></div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

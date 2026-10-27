@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
 import { repayPillar } from "./lib/nonQm.js";
+import useEscape from "./hooks/useEscape.js";
 
 
 /**
@@ -90,6 +91,7 @@ export default function UnifiedHeader({
   const [statPop, setStatPop] = useState(null); // { key, x, y }
   const [presenceOpen, setPresenceOpen] = useState(false);
   const [appPickerOpen, setAppPickerOpen] = useState(false);
+  useEscape(!!statPop || presenceOpen || appPickerOpen, () => { setStatPop(null); setPresenceOpen(false); setAppPickerOpen(false); });
   const [shareCopied, setShareCopied] = useState(false);
   const statContent = (key) => {
     if (key === "price") {
@@ -268,7 +270,7 @@ export default function UnifiedHeader({
         letterSpacing: crowded ? 0.6 : 1.2, fontFamily: FONT, textTransform: "uppercase",
         marginBottom: isDesktop ? 3 : 2, whiteSpace: "nowrap", textAlign: "center",
         display: "flex", alignItems: "center", gap: 3,
-      }}>{crowded && short ? short : label}{statKey && !isNarrow && !crowded && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
+      }}>{(crowded || isNarrow) && short ? short : label}{statKey && !isNarrow && !crowded && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
       <div style={{
         fontSize: isDesktop ? 17 : 13, fontWeight: 700,
         color: color || T.text, fontFamily: FONT,
@@ -305,7 +307,7 @@ export default function UnifiedHeader({
   </>) : (<>
     <Stat label="Price" value={fmt(salesPrice)} statKey="price" />
     <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
-    <Stat label="Cash Close" short="To Close" value={orDash(fmt(calc.cashToClose))} color={T.green} statKey="cashclose" />
+    <Stat label={isDesktop ? "Cash to Close" : "Cash Close"} short="To Close" value={orDash(fmt(calc.cashToClose))} color={T.green} statKey="cashclose" />
     <Stat label="Payment" value={orDash(fmt(calc.displayPayment))} color={T.blue} statKey="payment" />
     {calc.qualMethod === "dscr" ? (
       calc.dscr && calc.dscr.ratio !== null && <Stat label="DSCR" value={calc.dscr.ratio.toFixed(2)} color={calc.dscr.pass ? T.text : T.red} statKey="qualbadge" />
@@ -732,6 +734,7 @@ function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenar
     setOpen(true);
   };
   const close = () => { setOpen(false); setMenuFor(null); setEditing(null); };
+  useEscape(open, close);
   const nextName = () => { let n = scenarioList.length + 1; while (scenarioList.includes(`Scenario ${n}`)) n++; return `Scenario ${n}`; };
   const pillStyle = {
     display: "flex", alignItems: "center", gap: compact ? 5 : 6, minHeight: compact ? 30 : 32,

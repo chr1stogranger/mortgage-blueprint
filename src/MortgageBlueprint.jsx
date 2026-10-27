@@ -102,6 +102,7 @@ import CloudMergeSheet from "./components/CloudMergeSheet";
 import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
 import { syncNativeStatusBar } from "./lib/nativeStatusBar.js";
+import useEscape from "./hooks/useEscape.js";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -243,9 +244,18 @@ function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str 
 let T = DARK;
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
+ useEscape(open, () => setOpen(false));
+ const toggle = e => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o); };
+ // Keyboard-reachable, and a ~32px hit area around the 18px dot (padding
+ // cancelled by an equal negative margin, so layout is unchanged) — QA
+ // 2026-10-27: the dot was a bare span, too small to tap, unreachable by Tab.
  return (<span style={{ position: "relative", display: "inline-flex", marginLeft: 5, verticalAlign: "middle" }}
   onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
-  <span onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: open ? T.blue : `${T.blue}20`, color: open ? "#fff" : T.blue, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT, lineHeight: 1, transition: "all 0.2s", userSelect: "none" }}>i</span>
+  <span role="button" tabIndex={0} aria-label="More info" aria-expanded={open} onClick={toggle}
+   onKeyDown={e => { if (e.key === "Enter" || e.key === " ") toggle(e); }}
+   style={{ display: "inline-flex", padding: 7, margin: -7, cursor: "pointer", borderRadius: "50%" }}>
+  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: open ? T.blue : `${T.blue}20`, color: open ? "#fff" : T.blue, fontSize: 11, fontWeight: 700, fontFamily: FONT, lineHeight: 1, transition: "all 0.2s", userSelect: "none" }}>i</span>
+  </span>
   {open && (
    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}>
     <div onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.35)" }} />
@@ -269,7 +279,7 @@ function FieldLabel({ label, tip, req, filled, htmlFor }) {
  const Tag = htmlFor ? "label" : "div";
  return (<Tag htmlFor={htmlFor} style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</Tag>);
 }
-function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder, readOnly: readOnlyProp, rightSlot, inputMode, pattern, autoComplete }) {
+function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder, readOnly: readOnlyProp, rightSlot, inputMode, pattern, autoComplete, ariaLabel }) {
  const readOnly = React.useContext(ReadOnlyContext) || readOnlyProp;
  const [focused, setFocused] = useState(false);
  const [editStr, setEditStr] = useState(null);
@@ -297,7 +307,7 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
       add line height. */}
   <div style={{ display: "flex", alignItems: "center", boxSizing: "border-box", minHeight: sm ? 42 : 50, background: T.inputBg, borderRadius: 12, padding: sm ? "0 12px" : "0 14px", border: `1px solid ${focused ? T.blue : T.inputBorder}`, boxShadow: focused ? `0 0 0 1px ${T.blue}` : "none", transition: "border-color 0.2s, box-shadow 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT, lineHeight: 1 }}>{prefix}</span>}
-   <input ref={inputRef} id={inputId} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (readOnly) { setEditStr(null); return; } if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
+   <input ref={inputRef} id={inputId} aria-label={ariaLabel} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (readOnly) { setEditStr(null); return; } if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); let raw = e.target.value.replace(/,/g, ""); const pasted = raw.replace(/[\s$]/g, "").replace(/^(-?\d*\.?\d+)([kKmM])$/, (_, n, u) => String(parseFloat(n) * (/k/i.test(u) ? 1e3 : 1e6))); const normalized = pasted !== raw; raw = pasted; if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = normalized ? formatted.length : newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
     placeholder={placeholder || ""}
     /* No negative tracking on numerals. -0.02em is display-headline styling;
        at 15px it computes to -0.3px and closes the gap between a digit and
@@ -583,7 +593,9 @@ function RefiTestLight({ passed, label, detail }) {
   </div>
  </div>);
 }
-function PayRing({ segments, total, size, hideLegend }) {
+// `empty`: no price yet — show "--" rather than a tax+insurance-only total.
+function PayRing({ segments: segs, total, size, hideLegend, empty }) {
+ const segments = empty ? [] : segs;
  const sz = size || 200, sw = size ? Math.max(18, Math.round(size / 10)) : 22, r = (sz - sw) / 2, c = 2 * Math.PI * r;
  let cum = 0;
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: hideLegend ? "8px 0 4px" : "8px 0 20px" }}>
@@ -593,7 +605,7 @@ function PayRing({ segments, total, size, hideLegend }) {
    {/* text-transform is CSS, not an SVG attribute — as a prop React rejected it
        and warned on every render (the label was already literal uppercase). */}
    <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="600" fontFamily={FONT} letterSpacing="1.2" style={{ textTransform: "uppercase" }}>MONTHLY</text>
-   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
+   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{empty ? "--" : fmt(total)}</text>
   </svg>
   {!hideLegend && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>
    {segments.filter(s => s.v > 0).map((s, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -1434,6 +1446,27 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("overview");
+ // Tab switches get a history entry (state only, URL unchanged) so browser
+ // Back returns to the previous tab instead of leaving the app (QA
+ // 2026-10-27). Native keeps its own Android back handling below.
+ const tabFromPopRef = useRef(false);
+ const prevTabRef = useRef(tab);
+ useEffect(() => {
+  if (Capacitor.isNativePlatform?.()) return;
+  const onPop = (e) => { const t = e.state && e.state.bpTab; if (!t) return; tabFromPopRef.current = true; setTab(t); };
+  window.addEventListener("popstate", onPop);
+  return () => window.removeEventListener("popstate", onPop);
+ }, []);
+ useEffect(() => {
+  const prev = prevTabRef.current;
+  prevTabRef.current = tab;
+  if (Capacitor.isNativePlatform?.() || prev === tab) return;
+  if (tabFromPopRef.current) { tabFromPopRef.current = false; return; }
+  try {
+   if (!window.history.state?.bpTab) window.history.replaceState({ ...(window.history.state || {}), bpTab: prev }, "");
+   window.history.pushState({ bpTab: tab }, "");
+  } catch { /* history unavailable */ }
+ }, [tab]);
  // ── App Mode: which top-level app is showing. Blueprint is the default. ──
  // Resolved from the URL on load so a link can deep-link a section, in
  // priority order (most explicit first):
@@ -2098,7 +2131,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [refiSkipMonths, setRefiSkipMonths] = useState(2);
  const [showFedBrackets, setShowFedBrackets] = useState(true);
  const [showStateBrackets, setShowStateBrackets] = useState(true);
- const [showPrivacy, setShowPrivacy] = useState(false);
  const [loaded, setLoaded] = useState(false);
  const [saving, setSaving] = useState(false);
  // ── Borrower account (self-serve cloud sync on the public calculator) ──
@@ -2143,6 +2175,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!selfMode) return;
   try { account.requestPreapproval?.(); } catch { /* non-blocking */ }
  };
+ // Say where the button goes before the click (QA 2026-10-27: first users
+ // hit an off-site account form with no warning, and signed-in clicks also
+ // hand the scenario to the LO).
+ const applyNote = `Opens the loan application in a new tab${selfMode ? ` · shares this Blueprint with ${(loanOfficer || "your loan officer").split(" ")[0]}` : ""}`;
  const [showAccountSheet, setShowAccountSheet] = useState(false);
  const selfSync = useSelfCloudSync({
   enabled: selfMode && account.syncEnabled,
@@ -3127,6 +3163,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [isCloud, activeBorrower, buildCalcSummary, scenarioName, isRefi]);
 
  const saveTimer = useRef(null);
+ // The debounced save waiting to run. Flushed when the page is hidden or
+ // closed — an edit made in the last 1.5s before a reload or app switch was
+ // lost (QA 2026-10-27).
+ const pendingSaveRef = useRef(null);
+ useEffect(() => {
+  const flush = () => {
+   if (!pendingSaveRef.current) return;
+   if (saveTimer.current) clearTimeout(saveTimer.current);
+   pendingSaveRef.current();
+  };
+  const onVis = () => { if (document.visibilityState === "hidden") flush(); };
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", onVis);
+  return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVis); };
+ }, []);
  // Set status bar / theme-color meta tag to match theme
  useEffect(() => {
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -3283,7 +3334,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   clearTimeout(undoRef.current.timer);
   undoRef.current.timer = setTimeout(commitUndoPoint, 700);
   if (saveTimer.current) clearTimeout(saveTimer.current);
-  saveTimer.current = setTimeout(async () => {
+  const runSave = async () => {
+   pendingSaveRef.current = null;
    setSaving(true);
    const stateData = getState();
    // ── Borrower mode: skip localStorage, only sync via Realtime ──
@@ -3319,8 +3371,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // is saveToCloud above — calling this for the LO too double-wrote) ──
    if (isBorrower) sync.scheduleSync();
    setTimeout(() => setSaving(false), 600);
-  }, 1500);
-  return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  };
+  pendingSaveRef.current = runSave;
+  saveTimer.current = setTimeout(runSave, 1500);
+  return () => { if (saveTimer.current) clearTimeout(saveTimer.current); pendingSaveRef.current = null; };
  }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
@@ -3838,7 +3892,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const names = plans.map((x) => x.name);
    const live = listingLiveRef.current;
    // Cancel any pending debounced autosave before the swap.
-   if (saveTimer.current) clearTimeout(saveTimer.current);
+   if (saveTimer.current) clearTimeout(saveTimer.current); pendingSaveRef.current = null;
    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
    const detach = !!live.isCloud && !live.isBorrower;
    if (detach && live.scenariosAreCloud && live.activeScenarioId) {
@@ -3862,7 +3916,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    for (const pl of plans.slice(1)) {
     try { await LS.set("scenario:" + pl.name, JSON.stringify(pl.fresh)); } catch { /* ignore */ }
    }
-   if (saveTimer.current) clearTimeout(saveTimer.current);
+   if (saveTimer.current) clearTimeout(saveTimer.current); pendingSaveRef.current = null;
    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
    // ── One synchronous batch from here: detach + load land in one render ──
    if (detach) {
@@ -4051,7 +4105,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     setBorrowerScenarios(prev => prev.map(s => s.id === activeScenarioId ? { ...s, state_data: outgoing, calc_summary: outSummary } : s));
     try { await apiUpdateScenario({ id: activeScenarioId, state_data: outgoing, calc_summary: outSummary }); } catch(e) { console.warn('[Blueprint] save-outgoing-before-create failed:', e.message); }
    }
-   if (saveTimer.current) clearTimeout(saveTimer.current);
+   if (saveTimer.current) clearTimeout(saveTimer.current); pendingSaveRef.current = null;
    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
    setActiveScenarioId(null); // suppress autosave (saveToCloud skips a null id) while we build the new row
   } else {
@@ -4324,6 +4378,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [editingScenarioName, setEditingScenarioName] = useState(null);
  const [editScenarioValue, setEditScenarioValue] = useState("");
  const [scnMenu, setScnMenu] = useState(null); // sidebar scenario kebab menu: {name,x,y}
+ useEscape(!!scnMenu, () => { setScnMenu(null); setScnDeleteArm(null); });
+ // When Delete was armed: a confirm click inside 400ms is the second half of a
+ // double-click, not a decision (QA 2026-10-27: a double-click deleted the
+ // scenario, then clicked through to the nav item under the closed menu).
+ const scnDeleteArmAt = useRef(0);
  // Borrower delete is two-step: the LO's copy is only recoverable from the LO side.
  const [scnDeleteArm, setScnDeleteArm] = useState(null);
  const [dragScenario, setDragScenario] = useState(null);
@@ -7424,7 +7483,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   const hbl = getCountyHighBal(propType);
   const userType = userLoanTypeRef.current;
-  if (userType === "Conventional" && jumboTestLoan > hbl && loanType !== "Jumbo") {
+  // A purchase waits for a down payment: at the 0% default every price over
+  // the limit flipped the loan to Jumbo mid-typing (QA 2026-10-27).
+  if (userType === "Conventional" && jumboTestLoan > hbl && loanType !== "Jumbo" && (isRefi || downPct > 0)) {
    setLoanType("Jumbo");
    setAutoJumboSwitch(true);
   } else if (autoJumboSwitch && jumboTestLoan <= hbl && loanType === "Jumbo") {
@@ -7621,7 +7682,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   rentvbuy: "Compare the true cost of renting vs. buying over time, including tax savings, equity buildup, and appreciation.",
   learn: "Interactive courses that teach you how mortgages work, from credit scores to closing day. Earn badges as you complete each module.",
   compare: "Side-by-side comparison of all your saved loan options: payment, cash to close, DTI, total interest, and more.",
-  summary: "Share your loan estimate via email or PDF. Pre-qualified based on what you entered. Click Get Pre-Approved to start your official loan application.",
+  summary: "Share your loan estimate via email or PDF. It's an estimate from what you entered, not a pre-qualification. Click Get Pre-Approved to start your official loan application.",
   refi: "Compare your current loan to a new refinance: monthly savings, breakeven timeline, and total interest comparison.",
   refi3: "The 3-point refinance test: does the new loan save money, break even fast enough, and accelerate your payoff?",
   settings: "Customize your experience: PIN lock, privacy mode, theme, and data management.",
@@ -8517,7 +8578,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop && loanType !== "HELOC") ? refiPreviewW : 0 }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
-    input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
+    input::placeholder { color: ${T.textTertiary} !important; opacity: 0.7; font-weight: 400 !important; }
     @viewport { width: device-width; }
     @supports (padding-top: env(safe-area-inset-top)) {
      .mb-safe-top { padding-top: env(safe-area-inset-top) !important; }
@@ -8850,9 +8911,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
              vis === "view_only" ? ["Allow borrower edits", "unlock", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Make view-only", "lock", () => setScenarioVisibility(scnMenu.name, "view_only")],
             ] : []),
             ...(scenarioList.length > 1 && mine ? [
-             isBorrower && scnDeleteArm !== scnMenu.name
-              ? ["Delete", "trash", () => setScnDeleteArm(scnMenu.name), true]
-              : [isBorrower ? "Tap again to delete" : "Delete", "trash", () => deleteScenario(scnMenu.name)],
+             scnDeleteArm !== scnMenu.name
+              ? ["Delete", "trash", () => { scnDeleteArmAt.current = Date.now(); setScnDeleteArm(scnMenu.name); }, true]
+              : [isDesktop ? "Click again to delete" : "Tap again to delete", "trash", () => { if (Date.now() - scnDeleteArmAt.current <= 400) return; deleteScenario(scnMenu.name); setScnMenu(null); setScnDeleteArm(null); }, true],
             ] : []),
            ]; })().map(([label, ico, fn, keepOpen]) => (
             <button key={label} onClick={() => { fn(); if (!keepOpen) { setScnMenu(null); setScnDeleteArm(null); } }}
@@ -8980,6 +9041,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         <Icon name="check-circle" size={14} />
         Get Pre-Approved
        </a>
+       <div style={{ fontSize: 10.5, color: T.textTertiary, textAlign: "center", marginTop: 6, lineHeight: 1.35, fontFamily: FONT }}>{applyNote}</div>
       </div>
      )}
      {sidebarCollapsed && isDesktop && appMode === "blueprint" && applyUrl && (
@@ -9124,6 +9186,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         Get Pre-Approved
        </a>
       )}
+      {applyUrl && <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginTop: 6, lineHeight: 1.35, fontFamily: FONT }}>{applyNote}</div>}
       <div style={{ height: 1, background: T.separator, margin: "12px 0" }} />
       <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, fontFamily: FONT }}>Investor, Rent vs Buy and Seller Net appear here when this loan turns them on.</div>
      </BottomSheet>
@@ -9196,18 +9259,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       still appears the first time they switch into Blueprint. */}
   {!consentGiven && appMode === "blueprint" && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-    <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}></div>
     <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>Before you start</div>
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, marginBottom: 14, textAlign: "center" }}>
-     You'll enter income, debts, credit and assets. By continuing you acknowledge:
+     A price and ZIP get you a payment. Income, debts and assets are optional; they check what you qualify for. By continuing you acknowledge:
     </div>
     <div style={{ background: T.pillBg, borderRadius: 14, padding: "12px 14px", marginBottom: 14, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.7 }}>
      <div><strong>Stays on this device</strong> unless you turn on cloud sync</div>
      <div><strong>Delete it anytime</strong> in Settings</div>
      <div><strong>Estimates only.</strong> Not a commitment to lend</div>
+     <div><strong>Free.</strong> No account or contact info needed</div>
     </div>
-    <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14 }}>
-     Chris Granger NMLS #952015 · Xpert Home Lending, Inc. NMLS #2179191
+    <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14, lineHeight: 1.6 }}>
+     Built by Chris Granger, a licensed loan officer · NMLS #952015 · Xpert Home Lending, Inc. NMLS #2179191
+     <div><a href={`${WEB_ORIGIN}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy</a> · <a href={`${WEB_ORIGIN}/terms.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Terms</a></div>
     </div>
     <button onClick={handleConsent} style={{ width: "100%", padding: 15, background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
      I Understand. Continue
@@ -9649,6 +9713,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
      Get Pre-Approved Now
    </a>
+   <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginTop: 6, lineHeight: 1.35, fontFamily: FONT }}>{applyNote}</div>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
     {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
      <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.card, borderRadius: 10, border: `1px solid ${T.green}15` }}>
@@ -10678,22 +10743,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     )}
    </div>
    <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div onClick={() => setShowPrivacy(!showPrivacy)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-     <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT }}>Privacy Policy</div>
-     <span style={{ fontSize: 18, color: T.textTertiary, transition: "transform 0.3s", transform: showPrivacy ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
-    </div>
-    {showPrivacy && (
-     <div style={{ marginTop: 12, fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>
-      <div style={{ fontWeight: 700, fontSize: 14, color: T.text, marginBottom: 8 }}>Privacy Policy: Mortgage Blueprint</div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 12 }}>Last updated: February 2026</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Storage:</strong> By default, everything you enter is stored locally on this device using browser storage and is not sent to our servers. If you create an account and turn on cloud sync, your blueprints are stored encrypted in our database so they can sync across your devices. You can export or delete them anytime from your account settings. Blueprints shared with you by a loan officer are stored securely so you can both work on them. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Tracking:</strong> Mortgage Blueprint does not use cookies, analytics, or any third-party tracking. We do not collect, store, or sell your personal information.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>FRED API:</strong> If you enable live rate fetching, your device makes direct requests to the Federal Reserve Economic Data (FRED) API to retrieve current mortgage rates. No personal or financial data is included in these requests. Only your API key and the rate series ID.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Accounts:</strong> Mortgage Blueprint does not require account creation, login, or any personal identification to use.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Deletion:</strong> You can permanently delete all stored data at any time using the "Clear All Data" button in Settings.</div>
-      <div><strong style={{ color: T.text }}>Contact:</strong> For questions about this privacy policy, contact Chris Granger (NMLS #952015).</div>
-     </div>
-    )}
+    {/* Real links to the published policies (QA 2026-10-27): the inline
+        copy here was a stale Feb-2026 policy ("no accounts", "FRED") that
+        contradicted /privacy. */}
+    {[["Privacy Policy", "/privacy.html"], ["Terms of Service", "/terms.html"]].map(([label, path]) => (
+     <a key={path} href={`${WEB_ORIGIN}${path}`} target="_blank" rel="noopener noreferrer"
+      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 36, color: T.text, textDecoration: "none" }}>
+      <span style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT }}>{label}</span>
+      <span aria-hidden="true" style={{ fontSize: 18, color: T.textTertiary }}>›</span>
+     </a>
+    ))}
    </div>
    <div style={{ padding: "12px 0" }}>
     {/* The intro tour is gone (2026-10-01); this turns on the step-by-step

@@ -1189,7 +1189,7 @@ export default function CostsContent(props) {
           }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 6, fontFamily: FONT }}>What are closing costs?</div>
             <div style={{ fontSize: 13, lineHeight: 1.55, color: T.textSecondary, fontFamily: FONT }}>
-              These are one-time fees to set up your loan. Lender charges, title &amp; escrow, government taxes, and prepaid items like interest and insurance. They run about <strong style={{ color: T.text }}>{costPct.toFixed(1)}%</strong> of the price (<strong style={{ color: T.text }}>{fmt2(allCosts)}</strong> here), and they're <strong style={{ color: T.text }}>separate from your down payment</strong>. Tap a section below to see the line items, then continue.
+              These are one-time fees to set up your loan. Lender charges, title &amp; escrow, government taxes, and prepaid items like interest and insurance. {costPct > 0 ? <>They run about <strong style={{ color: T.text }}>{costPct.toFixed(1)}%</strong> of the price (<strong style={{ color: T.text }}>{fmt2(allCosts)}</strong> here)</> : <>They're <strong style={{ color: T.text }}>{fmt2(allCosts)}</strong> here</>}, and they're <strong style={{ color: T.text }}>separate from your down payment</strong>. Tap a section below to see the line items, then continue.
             </div>
           </div>
         );

@@ -119,6 +119,9 @@ export default function SetupContent(props) {
   const [refiTaxPeriod, setRefiTaxPeriod] = useState("yr");
   const [refiInsPeriod, setRefiInsPeriod] = useState("yr");
   const [extraTouched, setExtraTouched] = useState(false);
+  // Letters typed into a ZIP box used to vanish silently (QA 2026-10-27:
+  // first users type their city) — say why instead.
+  const [zipLetters, setZipLetters] = useState(false);
   const extraOn = refiExtraPaid > 0 || extraTouched;
   const [showCurSchedule, setShowCurSchedule] = useState(false);
   const [curSchedAll, setCurSchedAll] = useState(false);
@@ -162,7 +165,7 @@ export default function SetupContent(props) {
      which embeds it. */
   const ficoBlock = (
     <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-     <FieldLabel label="Middle FICO Score" tip="Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification." req filled={creditScore > 0} />
+     <FieldLabel label="Middle FICO Score" tip={"Your credit score (FICO is the most common kind, 300–850). Not sure? Use the score from your bank or card app.\n\nLenders pull all three credit bureaus (Equifax, Experian, TransUnion), take the middle of your three scores, and use the lowest middle score if there's more than one borrower."} req filled={creditScore > 0} />
      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ flex: "0 0 90px" }}>
        <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
@@ -224,7 +227,9 @@ export default function SetupContent(props) {
    const z = String(sel.zip || "").replace(/[^0-9]/g, "").slice(0, 5);
    if (z.length === 5) { setPropertyZip(z); markTouched("zip-code-done"); }
   };
-  const onZipChange = v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); };
+  const onZipChange = v => { setZipLetters(/[a-z]/i.test(String(v))); const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); };
+  const zipKnown = !!(propertyZip && propertyZip.length === 5 && lookupZip(propertyZip));
+  const zipLettersHint = zipLetters && <div role="status" style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 4, fontFamily: FONT }}>Numbers only: type the 5-digit ZIP code</div>;
   const propertyLocationCard = (
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s", ...(locationFillsColumn ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
    <Card style={{ marginTop: isDesktop && (isRefi || hideModules) ? 0 : (isDesktop ? 12 : 0), ...(isDesktop ? { marginBottom: 0 } : { padding: "10px 14px", marginBottom: 8 }), ...(locationFillsColumn ? { flex: 1 } : {}) }}>
@@ -296,9 +301,10 @@ export default function SetupContent(props) {
        sm
        req
       />
+      {zipLettersHint}
      </div>
      {/* Auto-filled summary on the right — read-only chip showing what the ZIP resolved to */}
-     {propertyZip && propertyZip.length === 5 && (city || propertyCounty || propertyState) && (
+     {zipKnown && (city || propertyCounty || propertyState) && (
       <div style={{
        flex: 1, display: "flex", alignItems: "center", gap: 6,
        padding: "10px 12px", marginBottom: 2,
@@ -315,7 +321,7 @@ export default function SetupContent(props) {
        </span>
       </div>
      )}
-     {propertyZip && propertyZip.length === 5 && !city && !propertyCounty && (
+     {propertyZip && propertyZip.length === 5 && (!zipKnown || (!city && !propertyCounty)) && (
       <Note color={T.orange} style={{ flex: 1, marginTop: 0, marginBottom: 2, boxShadow: "none" }}>ZIP not in lookup. Fill manually below.</Note>
      )}
     </div>
@@ -996,7 +1002,7 @@ export default function SetupContent(props) {
    <div data-field="fico-input" className={isPulse("fico-input")} style={cell(false)}>
     <div style={overline}>
      Middle FICO
-     {tip("Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification.")}
+     {tip("Your credit score (FICO is the most common kind, 300–850). Not sure? Use the score from your bank or card app.\n\nLenders pull all three credit bureaus (Equifax, Experian, TransUnion), take the middle of your three scores, and use the lowest middle score if there's more than one borrower.")}
      {creditScore > 0 && (
       <span style={{ marginLeft: "auto", paddingLeft: 8, fontFamily: FONT, letterSpacing: 0, textTransform: "none", fontSize: 11, fontWeight: 600, color: ficoMeets ? T.green : T.red }}>
        {ficoMeets ? `✓ ${loanType} ${calc.ficoMin}+` : `${calc.ficoMin - creditScore} pts short of ${calc.ficoMin}+`}
@@ -1055,13 +1061,13 @@ export default function SetupContent(props) {
     </div>
     ) : (
     <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (zipOk) markTouched("zip-code-done"); }} style={cell(false)}>
-     <div style={overline}>Location</div>
+     <div style={overline}>ZIP Code</div>
      <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36 }}>
       <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="postal-code" aria-label="Property ZIP code" placeholder="94501"
        value={propertyZip || ""}
        onChange={e => onZipChange(e.target.value)}
        style={{ ...numInput, width: 76 }} />
-      {zipOk && (city || propertyCounty || propertyState) && (
+      {zipKnown && (city || propertyCounty || propertyState) && (
        <div title={[propertyCounty && `${propertyCounty} County`, propertyState].filter(Boolean).join(", ")}
         style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, color: T.text, fontFamily: FONT }}>
         <span style={{ color: T.green, fontWeight: 700 }}>✓</span>
@@ -1070,10 +1076,11 @@ export default function SetupContent(props) {
         </span>
        </div>
       )}
-      {zipOk && !city && !propertyCounty && (
+      {zipOk && (!zipKnown || (!city && !propertyCounty)) && (
        <span style={{ fontSize: 12, fontWeight: 600, color: T.orange, whiteSpace: "nowrap" }}>ZIP not in lookup</span>
       )}
      </div>
+     {zipLettersHint}
     </div>
     )}
     {isRefi ? threePtCell : ficoCell(36)}
