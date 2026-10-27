@@ -142,7 +142,7 @@ export default function OverviewTab(props) {
     <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
     {/* Edits anywhere on the page (not the sidebar/header that load other
         Blueprints) mark "the user is typing" for Quick Start's auto-collapse. */}
-    <div onPointerDownCapture={markEdit} onKeyDownCapture={markEdit} style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
+    <div onPointerDownCapture={markEdit} onKeyDownCapture={markEdit} style={{ marginTop: 0, paddingTop: 0, paddingBottom: isGuided ? 220 : 80 }}>
       {/* Top-of-page block removed (Christo 2026-09-23): the "Blueprint ·
           loan #" eyebrow, the mobile city/ZIP line, the inline scenario list +
           Compare chip, and the Synced / Sign-in-to-sync chip. Every piece is

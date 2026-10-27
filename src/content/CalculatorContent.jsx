@@ -701,7 +701,14 @@ export default function CalculatorContent(props) {
           ? fmtCompactUSD(salesPrice * downPct / 100)
           : fmtCompactPct(downPct);
          return (
-          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={(e) => {
+           // Focus moving WITHIN the down field (the $/% toggle → the input,
+           // which is where Tab from Price lands) isn't leaving it — that was
+           // marking Down done and skipping the step (QA 2026-10-27).
+           // Leaving it empty (phones: dismissing the keyboard the guide
+           // opened) isn't an answer; the step bar's Continue still allows 0%.
+           if (e.currentTarget.contains(e.relatedTarget) || !(downPct > 0)) return;
+           markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down · $113K' on left, %/$ toggle on far right */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: isDesktop ? 8 : 4 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: isDesktop ? 13 : 12.5, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap" }}>

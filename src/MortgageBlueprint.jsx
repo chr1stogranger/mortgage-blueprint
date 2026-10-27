@@ -5392,7 +5392,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const saveSkillLevel = (level) => {
   setSkillLevel(level);
   try { LS.set("app:skillLevel", level); } catch(e) {}
-  if (level === "guided") {
+  // Saved, unfinished guided progress for this scenario resumes where it
+  // left off (Christo 2026-10-27); otherwise the guide starts fresh.
+  const savedGuide = level === "guided" ? readGuideProgress(guideKey) : null;
+  if (level === "guided" && savedGuide && savedGuide.length && !savedGuide.includes("guide-finish-seen")) {
+   setGuideTouched(new Set(savedGuide));
+   setTab("overview");
+   setGameMode(true);
+  } else if (level === "guided") {
    // Restart the guided flow at step 1 (Transaction Type). Wipe the
    // transaction-type toggle and the pulse-touched set so the pulse walks
    // the sequence from the top — but keep the user's real data (FICO,
@@ -5405,6 +5412,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setShowInvestor(false);
    setShowProp19(false);
    setGuideTouched(new Set());
+   try { localStorage.removeItem(guideKey); } catch { /* blocked */ }
    setTab("overview");
    setGameMode(true);
    // Re-lock progression in case unlockAll was true from a prior
@@ -5669,6 +5677,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   next.add(field);
   return next;
  });
+ // Guided progress is saved per scenario, so a reload or a Guided off/on
+ // resumes where the buyer was instead of restarting at step 1 (Christo
+ // 2026-10-27). Written only while Guided is on.
+ const guideKey = "bp_guide:" + (activeScenarioId || `local:${scenarioName}`);
+ const readGuideProgress = (key) => { try { const v = JSON.parse(localStorage.getItem(key) || "null"); return Array.isArray(v) ? v : null; } catch { return null; } };
+ const guideLoadSkipRef = useRef(false);
+ // The step a bar button was pressed on. Pressing it blurs the field being
+ // typed in, which can complete that step and re-render the bar mid-click;
+ // without this the click then completed the NEXT step too (Price → Down).
+ const guideBarPressRef = useRef(null);
+ useEffect(() => {
+  const saved = readGuideProgress(guideKey);
+  guideLoadSkipRef.current = true;
+  if (saved) setGuideTouched(new Set(saved));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [guideKey]);
+ useEffect(() => {
+  if (guideLoadSkipRef.current) { guideLoadSkipRef.current = false; return; }
+  if (skillLevel !== "guided") return;
+  try { localStorage.setItem(guideKey, JSON.stringify([...guideTouched])); } catch { /* storage full/blocked */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [guideTouched]);
  // Computes which single field should pulse on the current tab.
  // Returns a string matching a data-field attribute, or null if all fields are filled.
  // CRITICAL PATH ONLY — highlights the single most important next field
@@ -5755,7 +5785,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    Current Value advances on blur (markTouched) — it has no predictable
   //    digit count. Funds-for-Closing advances once a 4-digit amount
   //    ($1,000+) is entered, which then moves the pulse to the Debts section.
-  if (!assets || assets.length === 0) return "add-asset";
+  if ((!assets || assets.length === 0) && !guideTouched.has("assets-section-done")) return "add-asset";
   if (!guideTouched.has("assets-section-done")) return "assets-section";
 
   // 11. Debts — answer the "do you own other property?" question
@@ -5766,7 +5796,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (ownsProperties && !guideTouched.has("reo-section")) return "reo-section";
 
   // 13. Income — at least one borrower needs income entered
-  if (!incomes.some(i => i.amount > 0 || i.py1 > 0) || !guideTouched.has("income-section-done")) return "income-section";
+  //     Skippable from the step bar: the welcome screen promises income is
+  //     optional (QA 2026-10-27: it was a hard gate).
+  if (!guideTouched.has("income-section-done")) return "income-section";
 
   // 14. Pre-Qualified — review the qualification result
   if (!guideTouched.has("qualify-section")) return "qualify-section";
@@ -5785,26 +5817,49 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Mirrors the guideField ladder; conditional steps are filtered per scenario.
  const guidedStep = (() => {
   if (skillLevel !== "guided") return null;
+  // keys: the guideTouched entries that mark the step done (Continue/Skip
+  // add them, Back removes them). ready: Continue is allowed. skip: offer
+  // "Skip for now" while there's nothing entered.
+  const hasIncome = incomes.some(i => i.amount > 0 || i.py1 > 0);
   const ladder = [
-   { id: "transaction-type", label: "Transaction", on: true },
-   { id: "fico-input", label: "Credit score", on: true },
-   { id: "zip-code", label: "Location", on: true },
-   { id: "calc-price", label: "Price", on: !isRefi },
-   { id: "calc-down", label: "Down payment", on: !isRefi },
-   { id: "get-rates", label: "Rate", on: true },
-   { id: "calc-pills", label: "Loan structure", on: true },
-   { id: "payment-breakdown", label: "Payment breakdown", on: true },
-   { id: "modules", label: "Add sections", on: !isRefi },
-   { id: "closing-costs", label: "Closing costs", on: true },
-   { id: "prepaids", label: "Prepaid expenses", on: true },
-   { id: "credits", label: "Credits to buyer", on: true },
-   { id: "assets", label: "Assets", on: true },
-   { id: "debts", label: "Debts", on: true },
-   { id: "reo", label: "Other property", on: ownsProperties },
-   { id: "income", label: "Income", on: true },
-   { id: "qualify", label: "Pre-qualified", on: true },
-   { id: "tax", label: "Tax savings", on: true },
-   { id: "equity", label: "Equity", on: true },
+   { id: "transaction-type", label: "Buy or refinance", on: true, keys: ["transaction-type-done"], ready: true,
+     hint: "Are you buying a home, or refinancing one you own? Pick one above." },
+   { id: "fico-input", label: "Credit score", on: true, keys: ["fico-input-done"], ready: creditScore >= 300,
+     hint: "Type your credit score (300 to 850). Not sure? Use the score from your bank or card app." },
+   { id: "zip-code", label: "ZIP code", on: true, keys: ["zip-code-done"], ready: !!propertyZip && propertyZip.length === 5,
+     hint: "Type the 5-digit ZIP code where you want to buy. It sets local taxes and loan limits." },
+   { id: "calc-price", label: "Price", on: !isRefi, keys: ["calc-price-done"], ready: salesPrice >= 100000,
+     hint: "Type the price of the home you have in mind." },
+   { id: "calc-down", label: "Down payment", on: !isRefi, keys: ["calc-down-done"], ready: true,
+     hint: "How much will you put down? Type a percent, or switch to $ to type dollars." },
+   { id: "get-rates", label: "Rate", on: true, keys: ["get-rates"], ready: true,
+     hint: "This is today's average rate. Keep it, or click a different loan's rate." },
+   { id: "calc-pills", label: "Loan details", on: true, keys: ["calc-pills-done"], ready: true,
+     hint: "How you'll use the home and the type of loan. The defaults fit most buyers." },
+   { id: "payment-breakdown", label: "Monthly payment", on: true, keys: ["payment-breakdown-done"], ready: true,
+     hint: "Your monthly payment, piece by piece. Open the ▾ next to Tax to see how it's figured." },
+   { id: "modules", label: "Extras", on: !isRefi, keys: ["modules-done"], ready: true,
+     hint: "Optional extras. Answer Yes to any that fit you, or just continue." },
+   { id: "closing-costs", label: "Closing costs", on: true, keys: ["closing-costs-done"], ready: true,
+     hint: "One-time fees to get the loan. They're filled in for you; look them over and continue." },
+   { id: "prepaids", label: "Prepaid expenses", on: true, keys: ["prepaids-done"], ready: true,
+     hint: "Taxes, insurance and interest you pay ahead at closing. Also filled in for you." },
+   { id: "credits", label: "Credits", on: true, keys: ["credits-done"], ready: true,
+     hint: "Money the seller, lender or agent puts toward your costs. Add any you've agreed on." },
+   { id: "assets", label: "Savings", on: true, keys: ["assets-section-done"], ready: assets.length > 0, skip: assets.length === 0,
+     hint: "Add the bank or investment accounts you'll use for the down payment and closing." },
+   { id: "debts", label: "Debts", on: true, keys: ["owns-properties-toggle", "debts-section-done"], ready: true,
+     hint: "Add monthly payments on your credit report: car, student loans, credit cards. None? Continue." },
+   { id: "reo", label: "Other property", on: ownsProperties, keys: ["reo-section"], ready: true, skip: true,
+     hint: "Tell us about the other property you own." },
+   { id: "income", label: "Income", on: true, keys: ["income-section-done"], ready: hasIncome, skip: !hasIncome,
+     hint: "Add your income to see what you qualify for. You can skip this and still see your payment." },
+   { id: "qualify", label: "Qualify", on: true, keys: ["qualify-section"], ready: true,
+     hint: "How you measure up on the 5 things lenders check." },
+   { id: "tax", label: "Tax savings", on: true, keys: ["tax-filing"], ready: true,
+     hint: "Pick how you file taxes to estimate what owning saves you." },
+   { id: "equity", label: "Equity", on: true, keys: ["amort-section"], ready: true,
+     hint: "How your home builds value over time as you pay it down." },
   ].filter(s => s.on);
   const groupOf = (f) => {
    if (f === "add-asset" || f === "assets-section") return "assets";
@@ -5817,10 +5872,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    return f;
   };
   const total = ladder.length;
-  if (!guideField) return { current: total, total, label: "All steps", done: true };
+  if (!guideField) return { current: total, total, label: "All done", done: true, ladder, idx: total };
   const idx = ladder.findIndex(s => s.id === groupOf(guideField));
   if (idx === -1) return null;
-  return { current: idx + 1, total, label: ladder[idx].label, done: false };
+  return { current: idx + 1, total, label: ladder[idx].label, done: false, ladder, idx, step: ladder[idx] };
  })();
  // ── Real-time update highlighting ──
  const [changedFields, setChangedFields] = useState(new Set());
@@ -5853,7 +5908,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const timer = setTimeout(() => {
    const el = document.querySelector(`[data-field="${guideField}"]`);
    if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // A card taller than most of the screen (Closing Costs) centred with its
+    // title off the top; land on its top edge, under the fixed header.
+    const r = el.getBoundingClientRect();
+    if (r.height > window.innerHeight * 0.55) window.scrollTo({ top: Math.max(0, window.scrollY + r.top - (isDesktop ? 120 : 150)), behavior: "smooth" });
+    else el.scrollIntoView({ behavior: "smooth", block: "center" });
     if (inputFields.includes(guideField)) {
      setTimeout(() => {
       const inp = el.querySelector("input");
@@ -9982,6 +10041,89 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     Jump to" index. Sticks under the fixed header; the pill reads the current
     section (scroll-spy) and opens the section sheet. Standard mode only, as
     the drawer index was (guided flow keeps its wizard). */}
+{/* ── Guided step bar (Christo 2026-10-27) ──
+    One place that always says which step you're on, what to do, and how to
+    move: Back / Skip for now / Continue. It replaces hunting for Continue
+    buttons that sat off-screen (closing costs, prepaids, credits) and makes
+    optional steps (savings, income) skippable. Docked at the bottom, above
+    the phone tab bar; hidden while the phone keyboard is up. */}
+{tab === "overview" && skillLevel === "guided" && guidedStep && !guidedStep.done && guidedStep.step && !(keyboardOpen && !isDesktop) && (() => {
+ const { step, ladder, idx, current, total } = guidedStep;
+ const addKeys = (keys) => setGuideTouched(prev => { const n = new Set(prev); keys.forEach(k => n.add(k)); return n; });
+ const pressed = () => {
+  const id = guideBarPressRef.current; guideBarPressRef.current = null;
+  const i = id ? ladder.findIndex(s => s.id === id) : -1;
+  return i === -1 ? { s: step, i: idx } : { s: ladder[i], i };
+ };
+ const press = { onMouseDown: (e) => e.preventDefault(), onPointerDown: () => { guideBarPressRef.current = step.id; } };
+ const onContinue = () => {
+  const { s: st } = pressed();
+  if (!st.ready) return;
+  if (st.id === "transaction-type" && isRefi === null) setIsRefi(false);
+  addKeys(st.keys);
+ };
+ const onSkip = () => addKeys(pressed().s.keys);
+ const onBack = () => {
+  const { i } = pressed();
+  const prevStep = ladder[i - 1];
+  if (!prevStep) return;
+  setGuideTouched(prev => { const n = new Set(prev); prevStep.keys.forEach(k => n.delete(k)); return n; });
+ };
+ const btn = { border: "none", cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 9999, minHeight: 36, padding: "8px 14px", background: "transparent", color: T.textSecondary };
+ return (
+  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : 270) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
+   <div role="region" aria-label="Guided steps" style={{ maxWidth: 640, margin: "0 auto", pointerEvents: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: "0 10px 30px rgba(15,23,41,0.18)", padding: isDesktop ? "12px 14px" : "10px 12px", fontFamily: FONT }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+     <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: T.blue, fontWeight: 600, whiteSpace: "nowrap" }}>Step {current} of {total} · {step.label}</div>
+     <div style={{ flex: 1, height: 3, background: T.separator, borderRadius: 2, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${Math.round(((current - 1) / total) * 100)}%`, background: T.blue, borderRadius: 2, transition: "width 0.4s ease" }} />
+     </div>
+    </div>
+    <div style={{ fontSize: 13.5, color: T.text, lineHeight: 1.45, marginBottom: 8 }}>{step.hint}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+     {idx > 0 && <button type="button" {...press} onClick={onBack} style={btn}>← Back</button>}
+     <div style={{ flex: 1 }} />
+     {step.skip && <button type="button" {...press} onClick={onSkip} style={btn}>Skip for now</button>}
+     <button type="button" {...press} onClick={onContinue} disabled={!step.ready}
+      title={step.ready ? undefined : "Fill this in first"}
+      style={{ ...btn, background: step.ready ? T.blue : T.pillBg, color: step.ready ? "#fff" : T.textTertiary, cursor: step.ready ? "pointer" : "not-allowed", padding: "8px 18px" }}>
+      {current === total ? "Finish" : "Continue"}
+     </button>
+    </div>
+   </div>
+  </div>
+ );
+})()}
+{/* ── Guided finish (Christo 2026-10-27): the walk used to just stop at the
+    bottom of a very long page. One summary card, shown once per scenario. */}
+{skillLevel === "guided" && tab === "overview" && guidedStep && guidedStep.done && !guideTouched.has("guide-finish-seen") && appMode === "blueprint" && consentGiven && (() => {
+ const close = (then) => { markTouched("guide-finish-seen"); if (then) then(); else { setTab("overview"); setTimeout(() => { try { window.scrollTo({ top: 0 }); } catch { /* old browsers */ } }, 50); } };
+ const row = (label, value) => (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "8px 0", borderBottom: `1px solid ${T.separator}` }}>
+   <span style={{ fontSize: 13, color: T.textSecondary }}>{label}</span>
+   <span style={{ fontSize: 17, fontWeight: 700, color: T.text }}>{value}</span>
+  </div>
+ );
+ return (
+  <div role="dialog" aria-modal="true" aria-label="You're done" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+   <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "26px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.4)", fontFamily: FONT }}>
+    <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.15em", textTransform: "uppercase", color: T.green, fontWeight: 600, textAlign: "center", marginBottom: 6 }}>All done</div>
+    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 14 }}>Here's your Blueprint</div>
+    {row("Monthly payment", `${fmt(calc.displayPayment)}/mo`)}
+    {row("Cash to close", fmt(calc.cashToClose))}
+    {row("Qualification", isRefi ? `${refiPillarCount} of 3 checks` : allGood ? "Pre-qualified" : `${purchPillarCount} of 5 checks`)}
+    <div style={{ fontSize: 12, color: T.textTertiary, margin: "10px 0 16px", lineHeight: 1.5 }}>Estimates from what you entered. Everything stays editable on the page.</div>
+    <button type="button" onClick={() => close()} style={{ width: "100%", padding: 14, background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT }}>See my Blueprint</button>
+    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+     <button type="button" onClick={() => close(() => setTab("summary"))} style={{ flex: 1, padding: 11, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.text, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Share it</button>
+     {applyUrl && <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={() => { notifyPreapprovalIntent(); markTouched("guide-finish-seen"); }}
+      style={{ flex: 1, padding: 11, background: "transparent", border: `1px solid ${T.green}55`, borderRadius: 9999, color: T.green, fontWeight: 700, fontSize: 13, textAlign: "center", textDecoration: "none", fontFamily: FONT, whiteSpace: "nowrap" }}>Get Pre-Approved</a>}
+    </div>
+    {applyUrl && <div style={{ fontSize: 10.5, color: T.textTertiary, textAlign: "center", marginTop: 6 }}>{applyNote}</div>}
+   </div>
+  </div>
+ );
+})()}
 {tab === "overview" && !isDesktop && skillLevel !== "guided" && OVERVIEW_SECTIONS.length > 0 && !keyboardOpen && !sectionPillHidden && (
  <>
   {/* Fixed (html/body carry overflow-x:hidden, so sticky would scroll away).

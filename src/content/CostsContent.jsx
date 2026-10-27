@@ -1201,7 +1201,9 @@ export default function CostsContent(props) {
       <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "stretch" }}>
       <div style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
-      <div data-field="closing-costs" />
+      {/* The step's highlight wraps the card itself (QA 2026-10-27: an empty
+          anchor div meant guided steps 10-12 showed nothing). */}
+      <div data-field="closing-costs" className={isPulse ? isPulse("closing-costs") : ""} style={{ borderRadius: 16, display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill inset
         headerExtra={masterLockPill(isRefi ? ["A", "B", "C", "E"] : ["A", "B", "C", "E", "H"])}>
 
@@ -1419,6 +1421,7 @@ export default function CostsContent(props) {
           </LetterSection>
         )}
       </CollapsibleBox>
+      </div>
 
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
       </div>{/* end left column */}
@@ -1426,7 +1429,7 @@ export default function CostsContent(props) {
 
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
-      <div data-field="prepaids" />
+      <div data-field="prepaids" className={isPulse ? isPulse("prepaids") : ""} style={{ borderRadius: 16 }}>
       <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={!isGuided} inset>
 
         {/* F. Prepaids — lockable so the two Property Tax rows can be revealed for editing.
@@ -1633,13 +1636,14 @@ export default function CostsContent(props) {
           />
         </LetterSection>
       </CollapsibleBox>
+      </div>
 
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="prepaids" />}
 
 
 
       {/* ─── MASTER 3: Credits to Buyer (default COLLAPSED) ───── */}
-      <div data-field="credits" />
+      <div data-field="credits" className={isPulse ? isPulse("credits") : ""} style={{ borderRadius: 16 }}>
       <CollapsibleBox
         title="Credits to Buyer"
         total={`−${fmt2(calc.totalCredits)}`}
@@ -1711,6 +1715,7 @@ export default function CostsContent(props) {
         {renderSectionExtras('CR', { alwaysEdit: true, alwaysOn: true })}
         </LetterSection>
       </CollapsibleBox>
+      </div>
 
 
       {/* Guided "continue" — only renders while costs is the active step.
