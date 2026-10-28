@@ -11,13 +11,22 @@ const OWNER_OPTIONS = [
 
 export default function AssetsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("AssetsContent", props, ["T", "isDesktop", "calc", "fmt", "assets", "addAsset", "updateAsset", "removeAsset", "Hero", "Card", "Progress", "Sec", "TextInp", "Inp", "Sel", "Note", "RESERVE_FACTORS", "ASSET_TYPES", "getReserveFactor", "loanType", "guideField", "isPulse", "markTouched", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("AssetsContent", props, ["T", "isDesktop", "calc", "fmt", "assets", "addAsset", "updateAsset", "removeAsset", "Hero", "Card", "Progress", "Sec", "TextInp", "Inp", "Sel", "Note", "RESERVE_FACTORS", "ASSET_TYPES", "getReserveFactor", "loanType", "guideField", "isPulse", "markTouched", "GuidedNextButton", "ClusterContinue", "openMismoImport"]);
   const {
   T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset,
   Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note,
   RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType,
   guideField, isPulse, markTouched, GuidedNextButton, ClusterContinue,
+  openMismoImport,
 } = props;
+
+  // Fannie 3.4 (MISMO XML) import — LO-only; null for borrowers / read-only.
+  const importLink = openMismoImport ? (
+    <button onClick={openMismoImport} title="Fills Assets, Debts, and REO from the 1003 exported out of Arive"
+      style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: T.blue, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
+      Import from a Fannie Mae 3.4 file
+    </button>
+  ) : null;
 
   // Defensive default — if AssetsContent renders before getReserveFactor wires through,
   // fall back to the static factors so the math still works.
@@ -101,6 +110,7 @@ export default function AssetsContent(props) {
               <button onClick={onAdd} style={{ background: "none", border: `2px dashed ${T.separator}`, color: T.blue, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "16px 24px", borderRadius: 12, fontFamily: FONT }}>
                 + Add Asset Account
               </button>
+              {importLink}
             </div>
           ) : (<>
             {assets.map((a, aIdx) => {
@@ -197,6 +207,7 @@ export default function AssetsContent(props) {
               <button onClick={onAdd} style={{ width: "100%", padding: 12, background: `${T.blue}10`, border: `1px dashed ${T.blue}44`, borderRadius: 10, color: T.blue, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
                 + Add Asset Account
               </button>
+              {importLink}
             </div>
           )}
         </div>
@@ -261,12 +272,14 @@ export default function AssetsContent(props) {
           <div data-field="add-asset" className={isPulse("add-asset")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
             <Card style={{ border: `2px dashed ${T.separator}`, background: "transparent", boxShadow: "none", textAlign: "center", padding: 24 }}>
               <button onClick={onAdd} style={{ background: "none", border: "none", color: T.blue, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>+ Add Asset Account</button>
+              {importLink}
             </Card>
           </div>
         )}
         {assets.length > 0 && (
           <button onClick={onAdd} style={{ width: "100%", padding: 14, background: `${T.blue}15`, border: `1px dashed ${T.blue}44`, borderRadius: 12, color: T.blue, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT, marginTop: 10 }}>+ Add Another Account</button>
         )}
+        {assets.length > 0 && importLink}
       </Sec>
     )}
 

@@ -92,6 +92,7 @@ import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
 import ImportAriveModal from "./components/ImportAriveModal";
+import Mismo34ImportModal from "./components/Mismo34ImportModal";
 import SidebarSwitcher from "./components/SidebarSwitcher";
 import useBlueprintShelf from "./hooks/useBlueprintShelf";
 import useAccount from "./hooks/useAccount";
@@ -1961,6 +1962,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [createClientOpen, setCreateClientOpen] = useState(false);
  const [createClientPrefill, setCreateClientPrefill] = useState("");
  const [importAriveOpen, setImportAriveOpen] = useState(false);
+ // Fannie 3.4 (MISMO XML) import into the open scenario — Arive's API has
+ // no assets/liabilities, so the 1003 export is the only source. LO-only.
+ const [mismoImportOpen, setMismoImportOpen] = useState(false);
  const [importArivePrefill, setImportArivePrefill] = useState("");
  // ── Share modal: live-link send state (ephemeral, modal-local) ──
  // liveLinkSending disables both new buttons during the create-borrower →
@@ -2023,6 +2027,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [rbRentGrowth, setRbRentGrowth] = useState(3);
  const [rbInvestReturn, setRbInvestReturn] = useState(7);
  const addReo = () => setReos(prev => [...prev, { id: Date.now(), address: "", propType: "Single Family", occupancy: "Invest.", value: 0, mortgageBalance: 0, payment: 0, includesTI: true, reoTax: 0, reoIns: 0, reoHoa: 0, rentalIncome: 0, propUse: "Investment", linkedDebtIdx: -1 }]);
+ // Apply a mergeMismoImport() result (rows already appended + deduped).
+ const applyMismoImport = (merged) => {
+  setAssets(merged.assets);
+  setDebts(merged.debts);
+  setReos(merged.reos);
+  if (merged.added.debts > 0) setDebtFree(false);
+  if (merged.reos.length > 0) setOwnsProperties(true);
+  setMismoImportOpen(false);
+ };
+ const openMismoImport = !isBorrower && !scenarioReadOnly ? () => setMismoImportOpen(true) : null;
  const updateReo = (id, k, v) => setReos(prev => prev.map(r => {
   if (r.id !== id) return r;
   const next = { ...r, [k]: v };
@@ -9545,6 +9559,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    T={T}
   />}
   {/* ═══ IMPORT CLIENT FROM ARIVE ═══ */}
+  {mismoImportOpen && <Mismo34ImportModal
+   open={mismoImportOpen}
+   onClose={() => setMismoImportOpen(false)}
+   onApply={applyMismoImport}
+   existing={{ assets, debts, reos }}
+   T={T} fmt={fmt}
+  />}
   {importAriveOpen && <ImportAriveModal
    open={importAriveOpen}
    onClose={() => setImportAriveOpen(false)}
@@ -9832,9 +9853,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, otherIncomeItems, setOtherIncomeItems, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue, isBorrower}} />}
 {/* ═══ ASSETS ═══ */}
-{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} />}
+{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, openMismoImport, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ DEBTS ═══ */}
-{tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} />}
+{tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, openMismoImport, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ REO (Real Estate Owned) ═══ */}
 {tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, MRow, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
@@ -10212,6 +10233,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ownsProperties, setOwnsProperties, reos, setReos,
    syncDebtBalance, syncDebtPayment,
    DEBT_TYPES, PAYOFF_OPTIONS,
+   openMismoImport,
    /* REO — addReo/updateReo/removeReo so the embedded REO section in Overview can function.
       Sell-related props (sellLinkedReoId, setSellPrice, setSellMortgagePayoff,
       setSellPrimaryRes) used to be duplicated here; they're now only in the Sell block

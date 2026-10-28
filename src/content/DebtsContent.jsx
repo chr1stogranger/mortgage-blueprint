@@ -24,7 +24,7 @@ const COLS = "minmax(0,1.45fr) minmax(0,0.8fr) minmax(0,1fr) minmax(0,1fr) minma
 
 export default function DebtsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton", "ClusterContinue", "openMismoImport"]);
   const {
   T, isDesktop, calc, fmt,
   debts, debtFree, setDebtFree,
@@ -34,6 +34,7 @@ export default function DebtsContent(props) {
   guideTouched, markTouched, isPulse,
   Card, TextInp, Inp, Sel, Note, Progress,
   DEBT_TYPES, GuidedNextButton, ClusterContinue,
+  openMismoImport,
 } = props;
 
   const [linkOpenId, setLinkOpenId] = useState(null);
@@ -171,6 +172,14 @@ export default function DebtsContent(props) {
     : debts.length === 0 ? "No debts"
     : `${fmt(totalMonthly)}/mo · ${debts.length} ${debts.length === 1 ? "account" : "accounts"}`;
 
+  // Fannie 3.4 (MISMO XML) import — LO-only; null for borrowers / read-only.
+  const importLink = openMismoImport ? (
+    <button onClick={openMismoImport} title="Fills Assets, Debts, and REO from the 1003 exported out of Arive"
+      style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: T.blue, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
+      Import from a Fannie Mae 3.4 file
+    </button>
+  ) : null;
+
   const addButton = (
     <button onClick={onAdd} style={{ width: "100%", padding: 12, marginTop: 10, background: `${T.blue}10`, border: `1px dashed ${T.blue}44`, borderRadius: 10, color: T.blue, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
       + Add Debt
@@ -183,6 +192,7 @@ export default function DebtsContent(props) {
         + Add Debt
       </button>
       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>Or switch on Debt-free above if there's nothing on the credit report.</div>
+      {importLink}
     </div>
   );
 
@@ -329,7 +339,7 @@ export default function DebtsContent(props) {
               <span></span>
             </div>
           )}
-          {debts.length > 0 && addButton}
+          {debts.length > 0 && <>{addButton}{importLink}</>}
         </>) : (<>
           {/* ─── MOBILE: one tile per debt (mirrors Assets' card-per-account) ─── */}
           {debts.length === 0 ? emptyState : debts.map((d) => (
@@ -364,7 +374,7 @@ export default function DebtsContent(props) {
               <span style={{ fontFamily: FONT, color: T.orange }}>{fmt(countedInDti)}/mo in DTI</span>
             </div>
           )}
-          {debts.length > 0 && addButton}
+          {debts.length > 0 && <>{addButton}{importLink}</>}
         </>)}
       </div>
     </div>
