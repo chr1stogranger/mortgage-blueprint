@@ -2036,7 +2036,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (merged.reos.length > 0) setOwnsProperties(true);
   setMismoImportOpen(false);
  };
- const openMismoImport = !isBorrower && !scenarioReadOnly ? () => setMismoImportOpen(true) : null;
+ // Signed-in LOs only — same audience as Import from Arive. Anonymous
+ // visitors and borrowers on a share link never see the link.
+ const openMismoImport = isCloud && !isBorrower ? () => setMismoImportOpen(true) : null;
  const updateReo = (id, k, v) => setReos(prev => prev.map(r => {
   if (r.id !== id) return r;
   const next = { ...r, [k]: v };
