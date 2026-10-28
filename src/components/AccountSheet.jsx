@@ -76,7 +76,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
   });
 
   async function handleGoogle() {
-    if (!consented) { setError('Please agree to the Terms & Privacy Policy first'); return; }
+    if (!consented) { setError('Please confirm you\'re 18+ and agree to the Terms & Privacy Policy first'); return; }
     try {
       setError('');
       try { localStorage.setItem('bp_pending_consent', '1'); } catch { /* noop */ }
@@ -88,7 +88,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
 
   async function handleMagic(e) {
     e.preventDefault();
-    if (!consented) { setError('Please agree to the Terms & Privacy Policy first'); return; }
+    if (!consented) { setError('Please confirm you\'re 18+ and agree to the Terms & Privacy Policy first'); return; }
     if (!email.trim()) return;
     setBusy(true);
     setError('');
@@ -218,7 +218,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
                 style={{ marginTop: 2, accentColor: accent }}
               />
               <span style={{ fontSize: 12, color: secondary, lineHeight: 1.5 }}>
-                I agree to the{' '}
+                I'm 18 or older and agree to the{' '}
                 <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: accent }}>Terms</a>
                 {' '}and{' '}
                 <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: accent }}>Privacy Policy</a>

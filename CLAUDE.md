@@ -63,9 +63,19 @@
    phantoms are a repeat offender here (black screen ≈ stale SW, never
    auth/API; a kill-switch SW pattern exists in ops for reference).
 2. Confirm the bundle hash changed; console clean; spot-check the change.
-3. PWA gotcha: Google Fonts are cached CacheFirst for 1 year — font-stack
-   changes require bumping the workbox `google-fonts-cache-vN` name in
-   `vite.config.js` (done v1→v2 on 2026-07-17).
+3. Fonts are self-hosted in `public/fonts/` (`fonts.css` + Inter/Geist Mono
+   variable woff2) since 2026-10-28 — never load Google Fonts (visitor IPs
+   would go to Google; CSP no longer allows it). The SW precaches them with
+   revision hashes, so font changes ship with the next build.
+
+## Compliance (2026-10-28)
+- Users must be 18+ (Terms §1, first-run consent line, AccountSheet checkbox).
+  Markets is play money only — keep that stated wherever balances appear.
+- Every PricePoint email needs the one-click unsubscribe + footer from
+  `api/_ppUnsub.js` (List-Unsubscribe headers, `/api/pp-unsubscribe` link,
+  NMLS, postal address). The address is read from the legacy workspace's Ops
+  `campaign_settings.postal_address` (Ops → CRM → Sender & compliance);
+  `MAILING_ADDRESS` env overrides.
 
 ## Gotchas
 - `email-templates/*.html` are pasted into Supabase Auth settings by hand —

@@ -175,7 +175,7 @@ describe("helpers", () => {
 
   it("renders escaped, script-free HTML with parseable JSON-LD", () => {
     expect(esc(`<a href="x">&'`)).toBe("&lt;a href=&quot;x&quot;&gt;&amp;&#39;");
-    const html = renderPage(byPath.get("/loan-limits/california/alameda-county/"), { fontHref: "https://fonts.googleapis.com/css2?family=Inter&display=swap" });
+    const html = renderPage(byPath.get("/loan-limits/california/alameda-county/"), { fontHref: "/fonts/fonts.css" });
     expect(html).toContain("<h1>2026 Conforming Loan Limits in Alameda County, California</h1>");
     expect(html).toContain('<link rel="canonical" href="https://blueprint.realstack.app/loan-limits/california/alameda-county/" />');
     expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
@@ -203,7 +203,7 @@ describe("property tax calculator", () => {
   });
 
   it("is on every CA tax page, pre-filled and readable without JS; never on loan-limit pages", () => {
-    const font = { fontHref: "https://fonts.googleapis.com/css2?family=Inter&display=swap" };
+    const font = { fontHref: "/fonts/fonts.css" };
     for (const p of site.pages) {
       const html = renderPage(p, font);
       const hasCalc = html.includes("data-taxcalc");

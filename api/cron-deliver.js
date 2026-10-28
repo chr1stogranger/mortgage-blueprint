@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { deliverPush, notificationUrl } from './_push.js';
 import { safeEq } from './_safeEq.js';
 import { safePhotoUrl } from './_photoUrl.js';
+import { unsubUrl, unsubHeaders, loadSender, FALLBACK_SENDER } from './_ppUnsub.js';
 
 const ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",
@@ -96,7 +97,7 @@ function boardHtml(board, playerId, soldPrice) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden">${body}</table>`;
 }
 
-export function buildEmailHtml(notification, board) {
+export function buildEmailHtml(notification, board, sender = FALLBACK_SENDER) {
   const payload = notification.payload || {};
   // Deep link straight to the property's board when the notification is about one.
   const ctaUrl = `https://blueprint.realstack.app${notificationUrl(notification)}`;
@@ -136,17 +137,21 @@ export function buildEmailHtml(notification, board) {
   <div style="margin-top:28px"><a href="${ctaUrl}" class="cta">${resolved ? "See the board" : "Open PricePoint"}</a></div>
   <div class="foot">
     <p>You're receiving this because you enabled email notifications on PricePoint.<br>
-    <a href="${ctaUrl}">Manage preferences</a></p>
+    <a href="${escapeHtml(unsubUrl(notification.player_id))}">Unsubscribe</a> &middot; <a href="${ctaUrl}">Manage preferences</a></p>
+    <p>PricePoint &mdash; powered by RealStack &middot; ${escapeHtml(sender.company)} NMLS #${escapeHtml(sender.companyNmls)} &middot; Chris Granger NMLS #${escapeHtml(sender.nmls)}${sender.address ? `<br>${escapeHtml(sender.address)}` : ""}</p>
   </div>
   </div>
 </div></body></html>`;
 }
 
 // ── Email via Resend API ──
-async function deliverEmail(notification, email, board = null) {
+async function deliverEmail(notification, email, board = null, sender = FALLBACK_SENDER) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { success: false, error: "RESEND_API_KEY not configured" };
   if (!email) return { success: false, error: "No email address" };
+  // One-click unsubscribe needs a signing key; without one the footer link
+  // would be dead, so don't send rather than send non-compliant mail.
+  if (!process.env.UNSUBSCRIBE_SECRET && !process.env.CRON_SECRET) return { success: false, error: "No unsubscribe signing key" };
 
   try {
     const resp = await fetch("https://api.resend.com/emails", {
@@ -156,7 +161,8 @@ async function deliverEmail(notification, email, board = null) {
         from: process.env.RESEND_FROM || "PricePoint <blueprint@realstack.app>",
         to: email,
         subject: notification.title,
-        html: buildEmailHtml(notification, board),
+        html: buildEmailHtml(notification, board, sender),
+        headers: unsubHeaders(notification.player_id),
       }),
     });
     return { success: resp.ok, error: resp.ok ? null : `Resend ${resp.status}` };
@@ -253,6 +259,7 @@ export default async function handler(req, res) {
     // 5. Process each queue item
     const stats = { push: 0, email: 0, sms: 0 };
     let failCount = 0;
+    let sender = null; // footer identity, looked up once on the first email
 
     for (const item of queue) {
       const notif = notifMap[item.notification_id];
@@ -282,10 +289,16 @@ export default async function handler(req, res) {
           await supabase.from("pp_device_tokens").delete().eq("player_id", player.id).eq("token", dead.token);
         }
       } else if (item.channel === "email") {
-        const board = notif.type === "prediction_resolved" ? await loadBoard(supabase, notif.payload?.zpid) : null;
-        const result = await deliverEmail(notif, player.email, board);
-        if (result.success) stats.email++;
-        else { failCount++; deliveryError = result.error; }
+        if (!player.email_enabled) {
+          // Unsubscribed (email link or in-app toggle) after this was queued.
+          deliveryError = "Email notifications turned off";
+        } else {
+          const board = notif.type === "prediction_resolved" ? await loadBoard(supabase, notif.payload?.zpid) : null;
+          sender ??= await loadSender(supabase);
+          const result = await deliverEmail(notif, player.email, board, sender);
+          if (result.success) stats.email++;
+          else { failCount++; deliveryError = result.error; }
+        }
       } else if (item.channel === "sms") {
         const result = await deliverSms(notif, player.phone);
         if (result.success) stats.sms++;

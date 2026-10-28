@@ -310,6 +310,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
           {/* Disclaimer */}
           <div style={{ background: `${T.blue}10`, borderRadius: 12, padding: 14, marginBottom: 20 }}>
             <p style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6, margin: 0 }}>
+              Markets uses play money only. Balances have no cash value. You must be 18 or older.
               By continuing, you agree to our prediction market terms. Trading while in possession of
               material non-public information about a specific property is prohibited and will result in
               account restriction. All attestations are logged for compliance purposes.

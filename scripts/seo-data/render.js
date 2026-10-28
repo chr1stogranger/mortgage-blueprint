@@ -98,7 +98,7 @@ function section(s) {
 
 /**
  * @param {object} page   one entry of buildSite().pages
- * @param {{ fontHref: string }} opts  the Google Fonts stylesheet index.html loads
+ * @param {{ fontHref: string }} opts  the self-hosted font stylesheet index.html loads
  */
 export function renderPage(page, { fontHref }) {
   const crumbs = page.breadcrumbs.map((b, i) => {
@@ -128,8 +128,6 @@ export function renderPage(page, { fontHref }) {
 <meta name="theme-color" content="${LIGHT.bg}" media="(prefers-color-scheme: light)" />
 <link rel="icon" href="/icons/favicon.ico" sizes="16x16 32x32 64x64" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="${esc(fontHref)}" />
 <link rel="stylesheet" href="${CSS_PATH}" />
 ${page.jsonLd.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n")}

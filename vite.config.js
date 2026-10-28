@@ -118,18 +118,10 @@ export default defineConfig({
               expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 }
             }
           },
-          {
-            // Cache Google Fonts
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              // v2: bumped 2026-07-17 so installed clients drop the year-old JetBrains
-              // cache and fetch Geist Mono (CacheFirst would otherwise pin the old font).
-              // v3: bumped 2026-10-27 (CSP fix: the SW's fetch() of fonts.googleapis.com was refused by connect-src; start installed clients clean).
-              cacheName: 'google-fonts-cache-v3',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
-            }
-          },
+          // Fonts are self-hosted in public/fonts/ since 2026-10-28 (no Google
+          // Fonts request, so visitor IPs never reach Google). The globPatterns
+          // above precache fonts.css + the woff2 files with revision hashes, so
+          // a font change ships with the next SW — no cache-name bump needed.
           {
             // Cache FRED API rate data (refresh every hour)
             urlPattern: /^https:\/\/api\.stlouisfed\.org\/.*/i,

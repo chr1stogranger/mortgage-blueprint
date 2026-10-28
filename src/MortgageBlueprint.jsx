@@ -9487,7 +9487,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14, lineHeight: 1.6 }}>
      Built by Chris Granger, a licensed loan officer · NMLS #952015 · Xpert Home Lending, Inc. NMLS #2179191
-     <div>By continuing you agree to the <a href={`${WEB_ORIGIN}/terms.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Terms</a> and <a href={`${WEB_ORIGIN}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
+     <div>By continuing you confirm you're 18 or older and agree to the <a href={`${WEB_ORIGIN}/terms.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Terms</a> and <a href={`${WEB_ORIGIN}/privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
     </div>
     <button onClick={handleConsent} style={{ width: "100%", padding: 15, background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
      Get started

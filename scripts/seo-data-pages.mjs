@@ -18,8 +18,8 @@ import { renderPage, renderCss, CSS_PATH, TAX_CALC_JS, TAX_DATA_JSON } from "./s
 
 const now = new Date().toISOString().slice(0, 10);
 const limitSource = parseLimitSource(readFileSync("src/data/loanLimits.js", "utf8"));
-const fontHref = readFileSync("index.html", "utf8").match(/href="(https:\/\/fonts\.googleapis\.com\/css2\?[^"]+)"/)?.[1];
-if (!fontHref) throw new Error("seo-data-pages: Google Fonts stylesheet not found in index.html");
+const fontHref = readFileSync("index.html", "utf8").match(/href="(\/fonts\/[^"]+\.css)"/)?.[1];
+if (!fontHref) throw new Error("seo-data-pages: self-hosted font stylesheet (/fonts/*.css) not found in index.html");
 
 const { pages, sitemap, taxData } = buildSite({ now, limitSource });
 
