@@ -1105,6 +1105,99 @@ function EmployerGroup({
 // pills drifted off the headers (Christo 2026-09-23).
 const INCOME_ROW_COLS = "24px minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(80px, 0.8fr) 22px";
 
+// Other-income sources — the URLA (Form 1003) section 1e list, so the
+// type an LO picks maps 1:1 onto the application.
+const OTHER_INCOME_TYPES = [
+  "Alimony", "Automobile Allowance", "Boarder Income", "Capital Gains",
+  "Child Support", "Disability", "Foster Care", "Housing or Parsonage",
+  "Interest and Dividends", "Mortgage Credit Certificate",
+  "Mortgage Differential Payments", "Notes Receivable", "Public Assistance",
+  "Retirement (Pension, IRA)", "Royalty Payments", "Separate Maintenance",
+  "Social Security", "Trust", "Unemployment Benefits", "VA Compensation",
+  "Other",
+];
+
+// Reconcile the typed breakdown with the per-borrower total (the calc's
+// source of truth). Older scenarios, the Income sheet, and a collaborator on
+// an older build only write the total — fold a mismatch into one row.
+function resolveOtherItems(stored, total) {
+  const list = Array.isArray(stored) ? stored : [];
+  const sum = list.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+  if (Math.abs(sum - total) < 0.005) return list;
+  if (!(total > 0)) return [];
+  if (list.length === 1) return [{ ...list[0], amount: total }];
+  return [{ id: "legacy", type: "Other", amount: total }];
+}
+
+// Other Monthly Income — one slim row per source (type dropdown + $/mo).
+// Deliberately quiet: no rows means a single text link, not an open input.
+function OtherIncomeRows({ items, onChange, T, ACCENT, isDesktop, borrowerNum }) {
+  const setItem = (id, patch) => onChange(items.map(it => it.id === id ? { ...it, ...patch } : it));
+  const addItem = () => onChange([...items, { id: Date.now(), type: "", amount: 0 }]);
+  const removeItem = (id) => onChange(items.filter(it => it.id !== id));
+  const control = {
+    height: 34, boxSizing: "border-box", borderRadius: 9999,
+    border: `1px solid ${T.inputBorder}`, background: T.inputBg,
+    fontFamily: FONT, fontSize: 13, color: T.text, outline: "none",
+  };
+  const addLink = (label) => (
+    <button type="button" onClick={addItem} style={{
+      background: "none", border: "none", padding: 0, cursor: "pointer",
+      color: ACCENT, fontSize: 13, fontWeight: 600, fontFamily: FONT,
+    }}>{label}</button>
+  );
+  if (items.length === 0) {
+    return (
+      <div style={{ borderTop: `1px solid ${T.separator}`, padding: "10px 16px", display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        {addLink("+ Other income")}
+        <span style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT }}>
+          pension, Social Security, alimony, disability…
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div style={{ borderTop: `1px solid ${T.separator}`, padding: "10px 16px" }}>
+      <div style={{ fontSize: 10, fontFamily: MONO, letterSpacing: "0.1em", textTransform: "uppercase", color: T.textTertiary, marginBottom: 6 }}>
+        Other income
+      </div>
+      {items.map(it => (
+        <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <select
+            value={it.type || ""}
+            onChange={(e) => setItem(it.id, { type: e.target.value })}
+            aria-label={`Other income type, borrower ${borrowerNum}`}
+            style={{
+              ...control, flex: 1, minWidth: 0, maxWidth: isDesktop ? 280 : "none",
+              padding: "0 12px", cursor: "pointer", WebkitAppearance: "none",
+              color: it.type ? T.text : T.textTertiary,
+            }}>
+            <option value="" disabled>Select type…</option>
+            {OTHER_INCOME_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <div style={{ ...control, width: isDesktop ? 150 : 124, flexShrink: 0, padding: "0 12px", display: "flex", alignItems: "center", gap: 3 }}>
+            <span style={{ color: T.textTertiary }}>$</span>
+            <MoneyInput value={it.amount} onChange={(v) => setItem(it.id, { amount: v })}
+              ariaLabel={`${it.type || "Other income"} monthly amount`}
+              style={{ background: "transparent", border: "none", outline: "none", flex: 1, minWidth: 0, padding: 0, fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }} />
+            <span style={{ fontSize: 11, color: T.textTertiary }}>/mo</span>
+          </div>
+          <button type="button" onClick={() => removeItem(it.id)} aria-label="Remove other income" style={{
+            background: "transparent", border: "none", color: T.textTertiary, cursor: "pointer",
+            width: 28, height: 28, padding: 0, flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ pointerEvents: "none" }}>
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ))}
+      {addLink("+ Add another")}
+    </div>
+  );
+}
+
 export default function IncomeContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
   if (import.meta.env.DEV) devCheckProps("IncomeContent", props, ["T", "isDesktop", "calc", "fmt", "incomes", "addIncome", "updateIncome", "removeIncome", "removeBorrower", "otherIncome", "setOtherIncome", "otherIncome2", "setOtherIncome2", "setNumBorrowers", "setBorrowerNames", "setOtherIncomeByBorrower", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "VARIABLE_PAY_TYPES", "PAY_TYPES", "loanType", "isPulse", "GuidedNextButton", "ClusterContinue"]);
@@ -1115,6 +1208,7 @@ export default function IncomeContent(props) {
   numBorrowers = 2, setNumBorrowers,
   borrowerNames = {}, setBorrowerNames,
   otherIncomeByBorrower = {}, setOtherIncomeByBorrower,
+  otherIncomeItems = {}, setOtherIncomeItems,
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   VARIABLE_PAY_TYPES, PAY_TYPES, loanType,
   isPulse, GuidedNextButton, ClusterContinue,
@@ -1145,10 +1239,6 @@ export default function IncomeContent(props) {
     return initial;
   });
   const [expandedComponents, setExpandedComponents] = useState({});
-  // Other-income rows follow the same summary-first rule: a row with a
-  // value collapses to "label · $/mo"; a zero row starts open (it IS
-  // the input — nothing to summarize yet). Keyed by borrower number.
-  const [expandedOther, setExpandedOther] = useState({});
 
   // Auto-expand NEW empty employer groups as they appear (a fresh "+ Add
   // Employer" click lands in edit mode). Only touches keys we haven't
@@ -1500,54 +1590,14 @@ export default function IncomeContent(props) {
               </div>
             )}
 
-            {/* Other Monthly Income — same summary-row grammar as the
-                employer rows (B4). Collapsed: label + $/mo + chevron;
-                tap to reveal the input. Zero rows start open. */}
-            {(() => {
-              const otherOpen = expandedOther[n] != null
-                ? expandedOther[n]
-                : !((getOther(n) || 0) > 0);
-              return (
-                <div style={{ borderTop: `1px solid ${T.separator}` }}>
-                  <div
-                    onClick={() => setExpandedOther(prev => ({ ...prev, [n]: !otherOpen }))}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "12px 14px", cursor: "pointer",
-                    }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text, letterSpacing: "-0.01em" }}>
-                        Other monthly income
-                      </div>
-                      <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>
-                        alimony, SSI, pension, disability, child support…
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>
-                      <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 14, color: T.text }}>
-                        {fmt(getOther(n) || 0)}
-                      </span>
-                      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
-                    </div>
-                    <span style={{
-                      color: T.textSecondary, fontSize: 18, flexShrink: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      width: 28, height: 28,
-                      transition: "transform 0.2s",
-                      transform: `rotate(${otherOpen ? 0 : -90}deg)`,
-                    }}>▾</span>
-                  </div>
-                  {otherOpen && (
-                    <div style={{ padding: "0 14px 12px", maxWidth: isDesktop ? 220 : "none" }}>
-                      <Inp
-                        value={getOther(n)}
-                        onChange={(v) => setOther(n, v)}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            <OtherIncomeRows
+              items={resolveOtherItems(otherIncomeItems[n], getOther(n) || 0)}
+              onChange={(next) => {
+                if (setOtherIncomeItems) setOtherIncomeItems(prev => ({ ...prev, [n]: next }));
+                setOther(n, next.reduce((acc, it) => acc + (Number(it.amount) || 0), 0));
+              }}
+              T={T} ACCENT={ACCENT} isDesktop={isDesktop} borrowerNum={n}
+            />
           </div>
         );
       })}

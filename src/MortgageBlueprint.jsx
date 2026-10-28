@@ -1812,6 +1812,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Other Monthly Income per borrower beyond #2 (kept as a map so
  // 3rd / 4th borrower additions don't require new top-level state).
  const [otherIncomeByBorrower, setOtherIncomeByBorrower] = useState({});
+ // Typed breakdown of each borrower's Other Monthly Income — borrower-number
+ // → [{ id, type, amount }]. The per-borrower total above stays the source of
+ // truth for calc; IncomeContent writes both together.
+ const [otherIncomeItems, setOtherIncomeItems] = useState({});
  const [assets, setAssets] = useState([]);
  const [creditScore, setCreditScore] = useState(0);
  const [pmiRateLocked, setPmiRateLocked] = useState(true);
@@ -2356,7 +2360,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra: extraPayment > 0, debtFree, autoJumboSwitch,
   // Borrower roster travels with the scenario so a 2-borrower file (Arive
   // import, or a manually added co-borrower) reopens with both cards.
-  numBorrowers, borrowerNames,
+  numBorrowers, borrowerNames, otherIncomeItems,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
@@ -2522,6 +2526,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // and auto-compacts an empty trailing one, so a stale 2 is self-healing.
   if (s.numBorrowers !== undefined) setNumBorrowers(Math.max(1, Number(s.numBorrowers) || 1));
   if (s.borrowerNames) setBorrowerNames(s.borrowerNames);
+  // Reset when absent so an older scenario doesn't inherit the previous one's types.
+  setOtherIncomeItems(s.otherIncomeItems && typeof s.otherIncomeItems === "object" ? s.otherIncomeItems : {});
   if (s.assets) setAssets(s.assets);
   if (s.creditScore !== undefined) setCreditScore(s.creditScore);
   if (s.pmiRateLocked !== undefined) setPmiRateLocked(s.pmiRateLocked);
@@ -3473,7 +3479,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, otherIncome2, assets, creditScore, extraPayment, payExtra,
+  incomes, otherIncome, otherIncome2, otherIncomeItems, assets, creditScore, extraPayment, payExtra,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
@@ -5301,6 +5307,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    return next;
   });
   setOtherIncomeByBorrower(prev => {
+   const next = {};
+   Object.keys(prev).forEach(k => {
+    const num = Number(k);
+    if (num === n) return;
+    next[shift(num)] = prev[k];
+   });
+   return next;
+  });
+  setOtherIncomeItems(prev => {
    const next = {};
    Object.keys(prev).forEach(k => {
     const num = Number(k);
@@ -9815,7 +9830,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns: setAnnualInsManual, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue, isBorrower}} />}
+{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, otherIncomeItems, setOtherIncomeItems, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue, isBorrower}} />}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ DEBTS ═══ */}
@@ -10220,6 +10235,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    numBorrowers, setNumBorrowers,
    borrowerNames, setBorrowerNames,
    otherIncomeByBorrower, setOtherIncomeByBorrower,
+   otherIncomeItems, setOtherIncomeItems,
    VARIABLE_PAY_TYPES, PAY_TYPES,
    subjectRentalIncome, setSubjectRentalIncome,
    /* Assets */
