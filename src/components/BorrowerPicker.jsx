@@ -134,10 +134,18 @@ export default function BorrowerPicker({
     if (isOpen && step === 1 && inputRef.current) inputRef.current.focus();
   }, [isOpen, step]);
 
+  // Keep the keyboard-highlighted row in view. Only arrow keys scroll — hover
+  // also moves highlightIdx, and scrolling on hover yanked the list away from
+  // the pointer. Rows are found by data-pick-idx, not listRef.children: the
+  // Import row and the section header sit before the clients, so child index
+  // ≠ highlightIdx (hovering Import, idx = visible.length, used to scroll to a
+  // client near the bottom).
+  const keyNavRef = useRef(false);
   useEffect(() => {
-    if (!listRef.current) return;
-    const items = listRef.current.children;
-    if (items[highlightIdx]) items[highlightIdx].scrollIntoView({ block: 'nearest' });
+    if (!keyNavRef.current || !listRef.current) return;
+    keyNavRef.current = false;
+    const row = listRef.current.querySelector(`[data-pick-idx="${highlightIdx}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
   }, [highlightIdx]);
 
   // Auto-create when a client has no blueprints yet.
@@ -200,6 +208,7 @@ export default function BorrowerPicker({
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') keyNavRef.current = true;
     if (step === 2) {
       if (e.key === 'Escape') { setStep(1); setPendingBorrower(null); setHighlightIdx(0); if (onSelect) onSelect(null); return; }
       const total = scenarios.length + 1;
@@ -236,6 +245,7 @@ export default function BorrowerPicker({
               it's reachable without scrolling past the client list. */}
           {onImportArive && (
             <div
+              data-pick-idx={visible.length}
               onMouseDown={(e) => { e.preventDefault(); handleImportArive(); }}
               onMouseEnter={() => setHighlightIdx(visible.length)}
               style={{
@@ -274,6 +284,7 @@ export default function BorrowerPicker({
             return (
               <div
                 key={b.id}
+                data-pick-idx={i}
                 onMouseDown={(e) => { e.preventDefault(); handleSelectBorrower(b); }}
                 onMouseEnter={() => setHighlightIdx(i)}
                 style={{
@@ -341,6 +352,7 @@ export default function BorrowerPicker({
                 return (
                   <div
                     key={s.id}
+                    data-pick-idx={i}
                     onClick={() => handleSelectScenario(s)}
                     onMouseEnter={() => setHighlightIdx(i)}
                     style={{
@@ -380,6 +392,7 @@ export default function BorrowerPicker({
               )}
 
               <div
+                data-pick-idx={scenarios.length}
                 onClick={handleNewBlueprint}
                 onMouseEnter={() => setHighlightIdx(scenarios.length)}
                 style={{
