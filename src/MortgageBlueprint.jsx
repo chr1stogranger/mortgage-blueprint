@@ -4634,7 +4634,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    };
   }
   const miMode = miModeFor(s.loanType || "Conventional", ltv, s.downPct || 20);
+  // Rent the borrower collects — same rule as the live engine's ladderRentCredit
+  // (investment, or a primary with rentable units), so Compare can show net payment.
+  const qPropType = s.propType || "Single Family";
+  const rent = (qLP === "Purchase Investment" || (qLP === "Purchase Primary" && getRentalUnits(qPropType, s.occupiedUnits) > 0)) ? (Number(s.subjectRentalIncome) || 0) : 0;
   return { isRefi: false, salesPrice: sp, downPct: s.downPct || 20, downAmt: dp, rate: s.rate || 6.5, term: s.term || 30, loanType: s.loanType || "Conventional", loan, pi, monthlyPayment, cashToClose, closingCosts, dti: dtiFor(monthlyPayment), totalInt, monthlyInc: qualInc, monthlyTax, ins, mi, miMode, hoaM, ltv,
+   rent, loanPurpose: qLP, propType: qPropType, units: UNIT_COUNT[qPropType] || 1,
    costSeries: borrowCostSeries({ loan, rate: s.rate || 6.5, termYears: s.term || 30, miMonthly: mi, miMode, value: sp, closingCosts }) };
  };
  // Load all scenarios for compare view
@@ -4672,6 +4677,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     monthlyPayment: calc.housingPayment, cashToClose: calc.cashToClose, closingCosts: calc.totalClosingCosts,
     dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome,
     monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, miMode: liveMiMode, hoaM: hoa, ltv: calc.ltv,
+    rent: calc.ladderRentCredit || 0, loanPurpose, propType, units: UNIT_COUNT[propType] || 1,
     costSeries: borrowCostSeries({ loan: calc.loan, rate, termYears: term, miMonthly: calc.monthlyMI, miMode: liveMiMode, value: salesPrice, closingCosts: calc.totalClosingCosts }),
    };
    // Build STRICTLY from the current scenario list so a just-deleted scenario
@@ -4681,7 +4687,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // simply isn't shown until things settle.
    for (const name of scenarioList) {
     if (name === scenarioName) {
-     results.push({ name, metrics: liveMetrics, isCurrent: true });
+     results.push({ name, metrics: liveMetrics, isCurrent: true, state: getState() });
     } else {
      try {
       let s = null;
@@ -4697,7 +4703,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       }
       if (s) {
        const m = calcQuickMetrics(s, { isRefi, closing: calc.totalClosingCosts, points: calc.pointsCost });
-       if (m) results.push({ name, metrics: m, isCurrent: false });
+       if (m) results.push({ name, metrics: m, isCurrent: false, state: s });
       }
      } catch(e) { /* skip broken scenarios */ }
     }
@@ -10902,6 +10908,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <CompareContent T={T} isDesktop={isDesktop} fmt={fmt} pct={pct} privacy={privacyMode}
   compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName}
   switchScenario={switchScenario} isRefi={isRefi}
+  // "Line them up by" re-quotes an option at another price / down payment.
+  // Auto insurance follows price the way the live engine's does; a typed
+  // premium scales with price.
+  requote={(s, o) => calcQuickMetrics({ ...s, ...o, annualIns: s.annualInsAuto ? defaultAnnualIns(o.salesPrice, s.propType) : (s.annualIns || 1500) * o.salesPrice / (s.salesPrice || o.salesPrice) }, { isRefi, closing: calc.totalClosingCosts, points: calc.pointsCost })}
   onAddOption={isBorrower && !borrowerCanCreate ? null : async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
 )}
 {tab === "settings" && (<>

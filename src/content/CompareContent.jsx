@@ -1,6 +1,7 @@
 import { FONT, MONO } from "../lib/fonts.js";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { winnerBy, firstLeaderChange } from "../lib/compareMetrics.js";
+import { LENS_MODES, LENS_HELD, netOf, solveLens, minDownFor } from "../lib/compareLens.js";
 
 /* ═══════════════════════════════════════════════════════════════
    CompareContent — the Compare tab (rebuilt 2026-09-23, Christo).
@@ -13,11 +14,20 @@ import { winnerBy, firstLeaderChange } from "../lib/compareMetrics.js";
    Scenario management lives in the sidebar / header menu, so it's not
    repeated here; "+ Add option" duplicates the option on screen.
    Up to 4 columns; with more options the user picks which 4.
+
+   2026-10-28 (Christo): purchases moved to BlueprintCompare below —
+   mini Blueprint column heads (price, loan, payment ring) over Overview's
+   row-by-row breakdown, plus "Line them up by". Refinances keep this
+   spec sheet.
    ═══════════════════════════════════════════════════════════════ */
 
 const MAX_COLS = 4;
 
-export default function CompareContent({ T, isDesktop, fmt, pct, compareData, compareLoading, scenarioName, switchScenario, onAddOption, isRefi, privacy }) {
+export default function CompareContent(props) {
+  return props.isRefi ? <SpecSheetCompare {...props} /> : <BlueprintCompare {...props} />;
+}
+
+function SpecSheetCompare({ T, isDesktop, fmt, pct, compareData, compareLoading, scenarioName, switchScenario, onAddOption, isRefi, privacy }) {
   const [picked, setPicked] = useState(null);      // null = default pick
   const [showSame, setShowSame] = useState(false);
   const [showAllMobile, setShowAllMobile] = useState(false);
@@ -449,6 +459,362 @@ function CostChart({ T, entries, refiMode, colorOf, fmt, privacy, isDesktop, S }
           : cross
             ? <><b>{cross.to}</b> becomes cheaper to borrow than <b>{cross.from}</b> around year {cross.year} (green line).</>
             : "The lowest line stays cheapest the whole way; dots mark year 5."}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Purchase compare: mini Blueprints on a breakdown (2026-10-28) ───
+   Each column opens like a small Overview (name, purchase price + down,
+   loan, payment ring); below, every line runs straight across one grid
+   so the numbers line up, grouped like Overview's Payment Breakdown and
+   Cash to Close cards, each ending in a blue total band with the winner.
+   "Line them up by" re-quotes the other options with one number held
+   equal (lib/compareLens.js); it's a what-if, saved options don't change. */
+const LETTERS = "ABCDEFGH";
+
+function compareDetail(m) {
+  const r = (Number(m.rate) || 0) / 1200, loan = Number(m.loan) || 0, pi = Number(m.pi) || 0;
+  const interest = loan * r;
+  let bal = loan, int5 = 0;
+  for (let i = 0; i < 60; i++) { const it = bal * r; int5 += it; bal = Math.max(0, bal - (pi - it)); }
+  const cost5 = m.costSeries ? m.costSeries[Math.min(5, m.costSeries.length - 1)] : null;
+  // Whatever the payment carries beyond PITI + MI + HOA (a piggyback HELOC,
+  // live-engine extras) gets its own line so the rows add up to the total.
+  const other = (m.monthlyPayment || 0) - (pi + (m.monthlyTax || 0) + (m.ins || 0) + (m.mi || 0) + (m.hoaM || 0));
+  return {
+    interest, principal: Math.max(0, pi - interest), int5, cost5,
+    mi5: cost5 != null ? Math.max(0, cost5 - int5 - (m.closingCosts || 0)) : (m.mi || 0) * 60,
+    other: other > 0.5 ? other : 0, net: netOf(m),
+    prepaids: (m.cashToClose || 0) - (m.downAmt || 0) - (m.closingCosts || 0),
+    equity5: m.loanType === "HELOC" ? null : (m.salesPrice || 0) - bal,
+  };
+}
+
+function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scenarioName, switchScenario, onAddOption, privacy, requote }) {
+  const [picked, setPicked] = useState(null);
+  const [lens, setLens] = useState({ mode: "off", target: null });
+  const [showMore, setShowMore] = useState(false);
+  const requoteRef = useRef(requote);
+  requoteRef.current = requote;
+
+  const all = (compareData || []).filter(e => e.metrics && !e.metrics.isRefi);
+  const refiCount = (compareData || []).length - all.length;
+  const defaultPick = [all.find(e => e.isCurrent), ...all.filter(e => !e.isCurrent)].filter(Boolean).slice(0, MAX_COLS).map(e => e.name);
+  const pickNames = (picked || defaultPick).filter(n => all.some(e => e.name === n));
+  const entries = all.length > MAX_COLS ? all.filter(e => pickNames.includes(e.name)) : all;
+  const togglePick = (name) => {
+    const cur = picked || defaultPick;
+    if (cur.includes(name)) { if (cur.length > 2) setPicked(cur.filter(n => n !== name)); }
+    else if (cur.length < MAX_COLS) setPicked([...cur, name]);
+  };
+  const letterOf = name => LETTERS[Math.max(0, all.findIndex(e => e.name === name))] || "?";
+  const PALETTE = [T.blue, T.orange, T.purple, T.cyan];
+  const colorOf = name => PALETTE[Math.max(0, all.findIndex(e => e.name === name)) % PALETTE.length];
+
+  const targetE = entries.find(e => e.name === lens.target) || entries.find(e => e.isCurrent) || entries[0];
+  const entryKey = entries.map(e => e.name).join("|");
+  // Solving re-quotes each option a few thousand times in "Same payment + cash";
+  // keyed on the data and the lens only, not on every parent render.
+  const cols = useMemo(() => {
+    const tm = targetE && targetE.metrics;
+    const t = tm ? { price: tm.salesPrice, net: netOf(tm), cash: tm.cashToClose } : null;
+    return entries.map(e => {
+      let m = e.metrics, adj = false;
+      if (lens.mode !== "off" && t && e !== targetE && e.state && requoteRef.current) {
+        const quote = (price, downPct) => requoteRef.current(e.state, { salesPrice: price, downPct });
+        const solved = solveLens(lens.mode, t, quote, { price: e.metrics.salesPrice, downPct: e.metrics.downPct });
+        if (solved) { m = solved; adj = true; }
+      }
+      return { e, m, adj, d: compareDetail(m) };
+    });
+  }, [compareData, entryKey, lens.mode, targetE && targetE.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (compareLoading && all.length === 0) {
+    return <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginTop: 20, padding: 24, textAlign: "center", color: T.textSecondary }}>Loading comparison…</div>;
+  }
+  if (all.length <= 1) return <SpecSheetCompare T={T} isDesktop={isDesktop} fmt={fmt} compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName} switchScenario={switchScenario} onAddOption={onAddOption} privacy={privacy} />;
+
+  const n = cols.length, tight = !isDesktop && n > 3;
+  const held = LENS_HELD[lens.mode] || [];
+  const tName = targetE.name, tm = targetE.metrics;
+
+  // ── Formatting ──
+  const money = v => (v == null || !isFinite(v)) ? "—" : fmt(v);
+  const short = v => {
+    if (privacy) return fmt(v);
+    if (v == null || !isFinite(v)) return "—";
+    if (Math.abs(v) >= 1e6) return `$${(v / 1e6).toFixed(2).replace(/\.?0+$/, "")}M`;
+    return `$${Math.round(v / 1000)}K`;
+  };
+  const moneyFit = v => isDesktop ? money(v) : short(v);
+  const pctTxt = v => privacy ? "••%" : `${Number(v).toFixed(Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1)}%`;
+  const rateTxt = v => privacy ? "•.••%" : `${Number(v).toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}%`;
+  const mo = v => <>{money(v)}<span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>/mo</span></>;
+  const dash = <span style={{ color: T.textTertiary, fontWeight: 500 }}>—</span>;
+  const small = (t, color) => <span style={{ display: "block", fontSize: 11, color: color || T.textTertiary, fontWeight: 500, letterSpacing: 0 }}>{t}</span>;
+  const CHECK = <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3L12.5 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  const winPill = t => <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 11px ${FONT}`, color: T.green, background: `${T.green}1c`, borderRadius: 9999, padding: "4px 10px", whiteSpace: "nowrap", letterSpacing: 0 }}>{CHECK}{t}</span>;
+  const heldTag = key => held.includes(key) ? <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, color: T.blue, background: `${T.blue}18`, border: `1px solid ${T.blue}38`, borderRadius: 9999, padding: "2px 8px" }}>Held equal</span> : null;
+  const badge = name => <span style={{ width: 22, height: 22, borderRadius: 7, background: `${T.blue}1c`, color: T.blue, font: `700 12px ${FONT}`, display: "inline-grid", placeItems: "center", flexShrink: 0 }}>{letterOf(name)}</span>;
+  const est = <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "0 5px", marginRight: 4 }}>Est.</span>;
+  const overline = { fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, fontWeight: 600 };
+
+  // ── Winners: best per row, skipping whatever the lens holds equal ──
+  const GET = { net: c => c.d.net, cash: c => c.m.cashToClose, cost5: c => c.d.cost5, price: c => c.m.salesPrice };
+  const top = (key, dir, tol) => {
+    if (held.includes(key)) return null;
+    const ranked = cols.filter(c => GET[key](c) != null).sort((a, b) => dir === "min" ? GET[key](a) - GET[key](b) : GET[key](b) - GET[key](a));
+    if (ranked.length < 2) return null;
+    const gap = Math.abs(GET[key](ranked[0]) - GET[key](ranked[1]));
+    return gap < tol ? null : { c: ranked[0], runner: ranked[1], gap };
+  };
+  const W = { net: top("net", "min", 3), cash: top("cash", "min", 300), cost5: top("cost5", "min", 300),
+    price: ["payment", "cash", "both"].includes(lens.mode) ? top("price", "max", 300) : null };
+
+  // ── The short version ──
+  const PH = { net: "has the lowest net payment", cash: "needs the least cash to close", cost5: "costs the least to borrow over 5 years",
+    price: `buys the most home for the same ${lens.mode === "payment" ? "payment" : lens.mode === "cash" ? "cash" : "payment and cash"}` };
+  const keys = lens.mode === "both" ? ["price", "cost5"] : lens.mode === "payment" ? ["price", "cash", "cost5"] : lens.mode === "cash" ? ["net", "cost5", "price"] : ["net", "cash", "cost5"];
+  const groups = [];
+  keys.filter(k => W[k]).forEach(k => { const g = groups.find(x => x.c === W[k].c); if (g) g.keys.push(k); else groups.push({ c: W[k].c, keys: [k] }); });
+  const verdict = [];
+  groups.forEach(g => {
+    verdict.push({ t: g.c.e.name, b: 1 }, { t: " " });
+    g.keys.forEach((k, i) => {
+      verdict.push({ t: `${PH[k]}, ` }, { t: `${money(W[k].gap)}${k === "net" ? "/mo" : ""} ${k === "price" ? "more" : "less"}`, c: "green" }, { t: ` than ${W[k].runner.e.name}` });
+      verdict.push({ t: i < g.keys.length - 1 ? ", and " : ". " });
+    });
+  });
+  const rented = cols.find(c => (c.m.rent || 0) > 0);
+  if (rented) verdict.push({ t: `If ${rented.e.name}'s rented unit sits empty, its payment is ` }, { t: `${money(rented.m.monthlyPayment)}/mo`, c: "orange" }, { t: "." });
+
+  const lensNote = {
+    off: "Each option as entered. Hold one number equal to see how the others change.",
+    payment: `Each price is solved so the net payment matches ${tName}'s ${money(netOf(tm))}/mo. Down %, rate and rent stay as entered.`,
+    cash: `Each down payment is solved so cash to close matches ${tName}'s ${money(tm.cashToClose)}. Prices and rates stay as entered.`,
+    both: `Price and down payment are solved together to match ${tName}'s ${money(netOf(tm))}/mo net payment and ${money(tm.cashToClose)} cash to close. Rate and rent stay as entered.`,
+    price: `Every option priced at ${tName}'s ${money(tm.salesPrice)}. Down %, rate and rent stay as entered.`,
+  }[lens.mode] + (lens.mode === "off" ? "" : " A what-if estimate: saved options don't change.");
+
+  // ── Grid ──
+  const grid = isDesktop ? `minmax(150px, 1.2fr) repeat(${n}, minmax(0, 1fr))` : `repeat(${n}, minmax(0, 1fr))`;
+  const padX = isDesktop ? 16 : tight ? 8 : 12;
+  const tint = c => c.e.isCurrent ? `${T.blue}0b` : "transparent";
+  const card = { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: T.cardShadow, overflow: "hidden" };
+  const glass = { background: T.glass, WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", border: `1px solid ${T.glassBorder}`, borderRadius: 14, boxShadow: T.glassShadow };
+
+  const row = (key, { label, sub, dot, tag, kind = "row" }, render) => {
+    const band = kind === "band", over = kind === "price" || kind === "loan" || kind === "ring";
+    return (
+      <div key={key} style={{ display: "grid", gridTemplateColumns: grid, borderTop: band ? `1.5px solid ${T.blue}40` : `1px solid ${T.separator}`, background: band ? `${T.blue}0e` : "transparent", alignItems: band || over ? "stretch" : "start" }}>
+        <div style={{ ...(isDesktop ? { padding: band ? "16px 16px" : over ? "16px 16px 10px" : "10px 16px" } : { gridColumn: "1 / -1", padding: `${band ? 11 : 9}px ${padX}px 0` }),
+          display: "flex", flexWrap: "wrap", alignItems: over ? "flex-start" : "center", alignContent: "flex-start", gap: "4px 7px", minWidth: 0, fontFamily: FONT,
+          ...(over ? overline : band ? { fontSize: isDesktop ? 12 : 11, fontWeight: 700, color: T.blue, letterSpacing: "0.08em", textTransform: "uppercase" }
+            : { fontSize: isDesktop ? 13 : 12, color: kind === "sub" ? T.text : kind === "adv" ? T.textTertiary : T.textSecondary, fontWeight: kind === "sub" ? 600 : 400 }) }}>
+          {dot && <span style={{ width: 8, height: 8, borderRadius: 4, background: dot, flexShrink: 0 }} />}
+          <span>{label}{sub && isDesktop && <span style={{ display: "block", fontFamily: FONT, fontSize: 11, color: T.textTertiary, fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>{sub}</span>}</span>
+          {tag}
+        </div>
+        {cols.map((c, i) => (
+          <div key={i} style={{ background: tint(c), minWidth: 0, fontFamily: FONT, textAlign: isDesktop ? "right" : "left",
+            padding: isDesktop ? (band ? "14px 16px" : over ? "14px 16px" : kind === "adv" ? "9px 16px" : "10px 16px") : `${over || band ? 4 : 3}px ${padX}px ${band || over ? 12 : 9}px`,
+            ...(band ? { fontSize: isDesktop ? 19 : 16, fontWeight: 800, color: T.blue, letterSpacing: "-0.02em", display: "flex", flexDirection: "column", alignItems: isDesktop ? "flex-end" : "flex-start", gap: 4 }
+              : kind === "price" ? { display: "flex", flexDirection: "column", alignItems: isDesktop ? "flex-end" : "flex-start", gap: 3 }
+              : kind === "ring" ? { display: "flex", justifyContent: "center", padding: isDesktop ? "14px 10px" : "6px 2px 12px" }
+              : kind === "loan" ? { fontSize: isDesktop ? 17 : 14, fontWeight: 700, color: T.text }
+              : { fontSize: isDesktop ? 14 : 13, fontWeight: kind === "sub" ? 700 : kind === "adv" ? 500 : 600, color: kind === "adv" ? T.textTertiary : T.text }) }}>
+            {render(c, i)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  const band = (key, label, f, win) => row(key, { label, kind: "band", tag: heldTag(key) }, c => <>{f(c)}{W[key] && W[key].c === c && winPill(win)}</>);
+  const slimHead = (
+    <div style={{ display: "grid", gridTemplateColumns: grid, background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`, borderBottom: `1px solid ${T.blue}38` }}>
+      {isDesktop && <div style={{ padding: "9px 16px", alignSelf: "center", fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.blue, fontWeight: 600 }}>Option</div>}
+      {cols.map((c, i) => (
+        <div key={i} style={{ background: tint(c), padding: `${isDesktop ? 9 : 8}px ${padX}px`, display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+          {badge(c.e.name)}<b style={{ fontSize: 13, fontFamily: FONT, color: T.text, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: tight ? "nowrap" : "normal" }}>{c.e.name}</b>
+        </div>
+      ))}
+    </div>
+  );
+  const secBar = (title, extra) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: isDesktop ? "11px 16px" : "10px 14px", borderRadius: 12, background: `linear-gradient(90deg, ${T.blue}, ${T.accentDeep})`, color: "#fff", fontFamily: FONT, fontWeight: 700, fontSize: 15, boxShadow: `0 8px 18px -10px ${T.accentDeep}b3` }}>
+      <span style={{ width: 5, height: 5, borderRadius: 9, background: "currentColor", opacity: 0.75 }} />{title}{extra}
+    </div>
+  );
+  const PARTS = [
+    ["principal", "Principal", T.cyan, c => c.d.principal],
+    ["interest", "Interest", T.blue, c => c.d.interest],
+    ["tax", "Tax", T.orange, c => c.m.monthlyTax || 0],
+    ["ins", "Insurance", T.green, c => c.m.ins || 0],
+    ["mi", "Mortgage insurance", T.red, c => c.m.mi || 0],
+    ["other", "HELOC & other", T.pink, c => c.d.other],
+    ["hoa", "HOA", T.purple, c => c.m.hoaM || 0],
+  ].filter(([k, , , get]) => k !== "other" || cols.some(c => get(c) > 0));
+  const miNote = m => !(m.mi > 0) ? null : m.miMode === "conv" ? "PMI · drops at 78% LTV" : m.miMode === "fha-11" ? "MIP · 11 years" : m.miMode === "fha-life" ? "MIP · life of loan" : null;
+  const ringSize = isDesktop ? 124 : n > 3 ? 70 : 92;
+
+  return (<div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+    {secBar("Compare", <>
+      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", opacity: 0.8, fontWeight: 600 }}>{all.length > MAX_COLS ? `${n} of ${all.length} options` : `${n} options`}</span>
+      {onAddOption && <button onClick={onAddOption} style={{ marginLeft: "auto", font: `600 12px ${FONT}`, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.38)", borderRadius: 9999, padding: "5px 12px", cursor: "pointer", whiteSpace: "nowrap" }}>+ Add option</button>}
+    </>)}
+    {all.length > MAX_COLS && (
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
+        <span>Pick up to {MAX_COLS}:</span>
+        {all.map(e => {
+          const on = pickNames.includes(e.name), disabled = !on && pickNames.length >= MAX_COLS;
+          return <button key={e.name} onClick={() => togglePick(e.name)} disabled={disabled} aria-pressed={on}
+            style={{ font: `600 12px ${FONT}`, padding: "5px 12px", borderRadius: 9999, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1,
+              background: on ? `${T.blue}18` : T.inputBg, color: on ? T.blue : T.textSecondary, border: `1px solid ${on ? T.blue + "66" : T.separator}` }}>{letterOf(e.name)} · {e.name}</button>;
+        })}
+      </div>
+    )}
+
+    {/* Line them up by */}
+    {requote && (
+      <div style={{ ...glass, padding: "12px 14px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 14px" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>Line them up by</span>
+        <span role="group" aria-label="Hold one number equal" style={{ display: isDesktop ? "inline-flex" : "grid", gridTemplateColumns: "1fr 1fr", width: isDesktop ? "auto" : "100%", gap: 3, padding: 3, borderRadius: isDesktop ? 9999 : 16, background: T.pillBg, border: `1px solid ${T.separator}`, flexWrap: "wrap" }}>
+          {LENS_MODES.map(([m, l], i) => {
+            const on = lens.mode === m;
+            return <button key={m} type="button" aria-pressed={on} onClick={() => setLens(s => ({ ...s, mode: m }))}
+              style={{ gridColumn: !isDesktop && i === 0 ? "1 / -1" : undefined, border: "none", background: on ? T.card : "transparent", color: on ? T.blue : T.textSecondary, boxShadow: on ? T.cardShadow : "none", font: `600 12px ${FONT}`, padding: "6px 12px", borderRadius: isDesktop ? 9999 : 12, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>;
+          })}
+        </span>
+        {lens.mode !== "off" && (
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
+            Match to
+            <select value={tName} onChange={e => setLens(s => ({ ...s, target: e.target.value }))}
+              style={{ font: `600 12px ${FONT}`, color: T.text, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "5px 10px", cursor: "pointer" }}>
+              {entries.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
+            </select>
+          </label>
+        )}
+        <div style={{ flexBasis: "100%", fontSize: 12.5, color: T.textSecondary, display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.45, fontFamily: FONT }}>
+          <span style={{ width: 6, height: 6, borderRadius: 9, background: T.blue, marginTop: 6, flexShrink: 0 }} />{lensNote}
+        </div>
+      </div>
+    )}
+
+    {/* The short version */}
+    {verdict.length > 0 && (
+      <div style={{ ...glass, padding: isDesktop ? "14px 18px" : "14px 16px" }}>
+        <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT }}>The short version</div>
+        <p style={{ margin: "4px 0 0", fontSize: isDesktop ? 15 : 14, lineHeight: 1.5, fontWeight: 500, color: T.text, fontFamily: FONT, maxWidth: "80ch", textWrap: "pretty" }}>
+          {verdict.map((p, i) => <span key={i} style={p.c ? { color: T[p.c], fontWeight: 700 } : p.b ? { fontWeight: 700 } : null}>{p.t}</span>)}
+        </p>
+      </div>
+    )}
+
+    {/* Column heads: the mini Blueprints */}
+    <div style={card}>
+      <div style={{ display: "grid", gridTemplateColumns: grid, background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`, borderBottom: `1px solid ${T.blue}38` }}>
+        {isDesktop && <div style={{ padding: "12px 16px", alignSelf: "center", fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.blue, fontWeight: 600 }}>{n} options</div>}
+        {cols.map((c, i) => (
+          <div key={i} style={{ background: tint(c), padding: `${isDesktop ? 12 : 10}px ${isDesktop ? 14 : padX}px`, display: "flex", flexDirection: isDesktop ? "row" : "column", alignItems: isDesktop ? "center" : "flex-start", gap: isDesktop ? 9 : 6, minWidth: 0 }}>
+            {badge(c.e.name)}
+            <div style={{ minWidth: 0, flex: 1, fontFamily: FONT }}>
+              <b style={{ display: "block", fontSize: isDesktop ? 15 : 13, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: tight ? "nowrap" : "normal" }}>{c.e.name}</b>
+              {isDesktop && <span style={{ display: "block", fontSize: 11, color: T.textTertiary, lineHeight: 1.4, marginTop: 1 }}>{(!c.e.isCurrent || c.adj) && est}{c.m.loanType} · {c.m.term}-yr · {rateTxt(c.m.rate)}</span>}
+            </div>
+            <button type="button" onClick={() => !c.e.isCurrent && switchScenario(c.e.name)} disabled={c.e.isCurrent}
+              style={{ font: `600 11px ${FONT}`, borderRadius: 9999, padding: "3px 10px", whiteSpace: "nowrap", background: "none", color: c.e.isCurrent ? T.textTertiary : T.blue, border: `1px solid ${c.e.isCurrent ? T.separator : T.blue + "4d"}`, cursor: c.e.isCurrent ? "default" : "pointer" }}>{c.e.isCurrent ? "Viewing" : "Open"}</button>
+          </div>
+        ))}
+      </div>
+      {row("price", { label: "Purchase price", kind: "price", tag: heldTag("price") }, c => {
+        const o = c.e.metrics, priceAdj = Math.abs(c.m.salesPrice - o.salesPrice) > 1, downAdj = Math.abs(c.m.downAmt - o.downAmt) > 1;
+        const min = minDownFor(c.m);
+        return <>
+          <span style={{ fontSize: isDesktop ? 24 : tight ? 14 : 17, fontWeight: 800, letterSpacing: "-0.02em", color: priceAdj ? T.blue : T.text }}>{moneyFit(c.m.salesPrice)}</span>
+          <span style={{ fontSize: isDesktop ? 13 : 11.5, color: T.textSecondary }}>{isDesktop || !tight ? "Down " : ""}<b style={{ color: priceAdj || downAdj ? T.blue : T.text, fontWeight: 700 }}>{moneyFit(c.m.downAmt)}</b> · {pctTxt(c.m.downPct)}</span>
+          {priceAdj ? small(`was ${short(o.salesPrice)}`) : downAdj ? small(`was ${short(o.downAmt)}${isDesktop ? " down" : ""}`) : null}
+          {min && c.m.downPct < min.pct - 0.001 && small(isDesktop ? `Below the ${min.pct}% minimum for ${min.label}` : `Below ${min.pct}% min.`, T.orange)}
+          {W.price && W.price.c === c && winPill("Most home")}
+        </>;
+      })}
+      {row("loan", { label: "Loan amount", kind: "loan" }, c => {
+        const adj = Math.abs(c.m.loan - c.e.metrics.loan) > 1;
+        return <><span style={{ color: adj ? T.blue : T.text }}>{moneyFit(c.m.loan)}</span>{small(`${pctTxt((c.m.ltv || 0) * 100)} LTV`)}</>;
+      })}
+      {row("ring", { label: "Payment split", sub: "Ring colors match the rows below", kind: "ring" }, c => (
+        <Ring T={T} size={ringSize} segs={PARTS.map(([k, , col, get]) => ({ k, c: col, v: get(c) }))} label={(c.m.rent || 0) > 0 ? "Net / mo" : "Monthly"} value={isDesktop || n < 4 ? money(c.d.net) : short(c.d.net)} />
+      ))}
+    </div>
+
+    {secBar("Monthly Payment")}
+    <div style={card}>
+      {slimHead}
+      {PARTS.map(([k, l, col, get]) => row(k, { label: l, dot: col }, c => get(c) > 0.5 ? <>{mo(get(c))}{k === "mi" && isDesktop && miNote(c.m) && small(miNote(c.m))}</> : dash))}
+      {/* With no rent anywhere the band already is the total. */}
+      {cols.some(c => (c.m.rent || 0) > 0) && row("total", { label: "Total payment", kind: "sub" }, c => mo(c.m.monthlyPayment))}
+      {cols.some(c => (c.m.rent || 0) > 0) && row("rent", { label: "Unit rents", sub: "You collect the full rent" }, c => (c.m.rent || 0) > 0
+        ? <><span style={{ color: T.green }}>−{money(c.m.rent)}</span><span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>/mo</span>{isDesktop && small("Lenders count 75%")}</> : dash)}
+      {band("net", cols.some(c => (c.m.rent || 0) > 0) ? "Net payment" : "Total payment", c => mo(c.d.net), "Lowest")}
+    </div>
+
+    {secBar("Cash to Close")}
+    <div style={card}>
+      {slimHead}
+      {row("down", { label: "Down payment" }, c => <>{money(c.m.downAmt)}{isDesktop && small(`${pctTxt(c.m.downPct)} of ${short(c.m.salesPrice)}`)}</>)}
+      {row("closing", { label: "Closing costs" }, c => money(c.m.closingCosts))}
+      {row("prepaids", { label: "Prepaids and credits", sub: "Taxes, insurance, interest, less credits" }, c => money(c.d.prepaids))}
+      {band("cash", "Cash to close", c => money(c.m.cashToClose), "Least")}
+    </div>
+
+    {secBar("Over Time")}
+    <div style={card}>
+      {slimHead}
+      {row("int5", { label: "Interest", sub: "First 5 years" }, c => money(c.d.int5))}
+      {row("mi5", { label: "Mortgage insurance", sub: "First 5 years" }, c => c.d.mi5 > 0.5 ? money(c.d.mi5) : dash)}
+      {row("closing5", { label: "Closing costs" }, c => money(c.m.closingCosts))}
+      {band("cost5", "Cost to borrow, 5 yrs", c => money(c.d.cost5), "Lowest")}
+      {row("equity5", { label: "Equity after 5 years, before appreciation", kind: "adv" }, c => c.d.equity5 == null ? dash : money(c.d.equity5))}
+      {showMore && <>
+        {row("rate", { label: "Rate" }, c => rateTxt(c.m.rate))}
+        {row("term", { label: "Term" }, c => `${c.m.term} yr`)}
+        {row("type", { label: "Loan type" }, c => c.m.loanType)}
+        {row("dti", { label: "DTI" }, c => c.m.dti == null ? dash : pctTxt(c.m.dti * 100))}
+        {row("int", { label: "Total interest", sub: "Full term" }, c => short(c.m.totalInt))}
+      </>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 16px", borderTop: `1px solid ${T.separator}`, fontSize: 12, color: T.textTertiary, background: T.inputBg, fontFamily: FONT }}>
+        <span>{showMore ? "Rate, term, loan type, DTI and total interest" : "Rate, DTI, total interest and the cost chart"}</span>
+        <button type="button" onClick={() => setShowMore(v => !v)} style={{ font: `600 12px ${FONT}`, color: T.blue, background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}>{showMore ? "Show fewer" : "See every number"}</button>
+      </div>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 11.5, color: T.textTertiary, fontFamily: FONT }}>
+      <span>Est. = quick estimate. Open an option for exact figures.</span>
+      {refiCount > 0 && <span>{refiCount} refinance {refiCount === 1 ? "option isn't" : "options aren't"} shown here. Open one to compare refinances.</span>}
+    </div>
+    {showMore && <div style={{ marginTop: -14 }}><CostChart T={T} entries={entries} refiMode={false} colorOf={colorOf} fmt={fmt} privacy={privacy} isDesktop={isDesktop} S={{ card: { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow }, label: { fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT } }} /></div>}
+  </div>);
+}
+
+// Payment ring with the net payment in the middle — Overview's PayRing
+// colors, sized to sit in a compare column.
+function Ring({ T, size, segs, label, value }) {
+  const sw = Math.max(9, Math.round(size / 9)), r = (size - sw) / 2, circ = 2 * Math.PI * r;
+  const live = segs.filter(s => s.v > 0.5), total = live.reduce((a, s) => a + s.v, 0);
+  let off = 0;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: "block", transform: "rotate(-90deg)" }} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={sw} />
+        {total > 0 && live.map(s => {
+          const len = s.v / total * circ;
+          const el = <circle key={s.k} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.c} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${Math.max(0.1, len - 3)} ${circ}`} strokeDashoffset={-off} />;
+          off += len;
+          return el;
+        })}
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: FONT }}>
+        <span style={{ fontFamily: MONO, fontSize: size > 100 ? 9 : 7, letterSpacing: "0.12em", textTransform: "uppercase", color: T.textTertiary, fontWeight: 600 }}>{label}</span>
+        <b style={{ fontSize: size > 100 ? 19 : size > 80 ? 14 : 11.5, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>{value}</b>
       </div>
     </div>
   );
