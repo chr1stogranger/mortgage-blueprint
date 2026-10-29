@@ -84,8 +84,11 @@ export const SnapshotCard = React.forwardRef(function SnapshotCard({ data, dark,
       </div>
 
       <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: z(12, 8), alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: z(56, 28), lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.035em", textWrap: "balance", maxWidth: z("21ch", "none") }}>
-          {data.headline[0]} <span style={{ color: P.blue }}>{data.headline[1]}</span>
+        {/* Two lines (Christo 2026-10-28): what's held or shared, then the
+            question in blue. */}
+        <h2 style={{ margin: 0, fontSize: z(56, 28), lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.035em", textWrap: "balance" }}>
+          <span style={{ display: "block" }}>{data.headline[0]}</span>
+          <span style={{ display: "block", color: P.blue }}>{data.headline[1]}</span>
         </h2>
         <p style={{ margin: 0, fontSize: z(23, 15), lineHeight: 1.4, color: P.textSecondary, maxWidth: "46ch", textWrap: "balance" }}>{data.sub}</p>
       </div>

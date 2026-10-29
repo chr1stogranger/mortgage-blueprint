@@ -1048,11 +1048,12 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
     };
   });
   const legend = PARTS.filter(([, , , get]) => cols.some(c => get(c) > 0.5)).map(([, l, col]) => ({ l: l === "Mortgage insurance" ? "Mortgage ins." : l, c: col }));
-  // Your numbers on the card: the maxes being checked and the numbers held.
+  // The Budget pill shows only the maxes being checked; held numbers are
+  // already in the headline and the "Same for all" strip.
   const budget = [
     checkPrice && { v: money(mine.price), l: "max price" },
-    (checkNet || held.includes("net")) && { v: `${money(checkNet ? mine.net : tVal.net)}/mo`, l: "net" },
-    (checkCash || held.includes("cash")) && { v: money(checkCash ? mine.cash : tVal.cash), l: "cash to close" },
+    checkNet && { v: `${money(mine.net)}/mo`, l: "net" },
+    checkCash && { v: money(mine.cash), l: "cash to close" },
   ].filter(Boolean);
   const termOf = c => `${money(c.m.salesPrice)}, ${pctTxt(c.m.downPct)} down, ${money(c.m.loan)} ${c.m.term}-year ${c.m.loanType} at ${rateTxt(c.m.rate)}${c.m.apr > 0 ? ` (APR ${rateTxt(c.m.apr)})` : ""}`;
   const terms2 = cols.every(c => termOf(c) === termOf(cols[0])) ? [`All ${word.toLowerCase()}: ${termOf(cols[0])}`] : cols.map(c => `${c.e.name}: ${termOf(c)}`);
