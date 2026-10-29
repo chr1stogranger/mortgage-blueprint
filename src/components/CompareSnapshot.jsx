@@ -118,7 +118,7 @@ export const SnapshotCard = React.forwardRef(function SnapshotCard({ data, dark,
               <b style={{ fontSize: z(28, 21), fontWeight: 800, letterSpacing: "-0.02em" }}>{c.name}</b>
               {c.sub && <small style={{ fontSize: z(16, 13), color: P.textTertiary }}>{c.sub}</small>}
             </div>
-            <SnapRing segs={c.segs} size={big ? (n > 3 ? 190 : 230) : 168} sw={big ? 22 : 17} track={track} label={c.ringLabel} value={c.ringValue} note={c.ringNote} P={P} win={!!c.win} big={big} />
+            <SnapRing segs={c.segs} size={big ? (n > 3 ? 190 : 230) : 168} sw={big ? 22 : 17} track={track} label={c.ringLabel} value={c.ringValue} note={c.ringNote} P={P} win={!!c.ringBlue} big={big} />
             {(big ? hasSlot : (c.note || c.status.length > 0)) && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               {c.note && <div style={{ fontSize: z(15.5, 13), fontWeight: 600, color: P.orange, textAlign: "center" }}>{c.note}</div>}
               {c.status.length > 0 && <div style={{ display: "flex", gap: 7, justifyContent: "center", flexWrap: "wrap" }}>

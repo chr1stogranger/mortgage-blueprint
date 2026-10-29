@@ -1009,18 +1009,25 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
   const ribbonKey = solving ? "price" : lens.mode === "pricePay" ? "cash" : "net";
   const winC = W[ribbonKey] ? W[ribbonKey].c : null;
   const differs = get => !allEq(get);
+  // Blue marks the answer — the number being solved for — on every card
+  // (Christo 2026-10-28: blue on only some cards read as random). The winner
+  // keeps the ribbon and border instead.
+  const answer = { payment: "price", both: "price", pricePay: "cash" }[lens.mode] || "net";
   // Property type only when the option's name doesn't already say it.
   const subLine = (m, name) => [!String(name).toLowerCase().includes(String(m.propType || "").toLowerCase()) && m.propType, m.hoaM > 0.5 && `HOA ${money(m.hoaM)}/mo`, m.rent > 0.5 && `rents ${money(m.rent)}/mo`].filter(Boolean).join(" · ");
   const cards = cols.map(c => {
     // The three numbers everyone looks at (Christo 2026-10-28): home price
     // leads every card, the payment is the ring, cash to close closes it.
-    const rows = [{ label: "Home price", value: money(c.m.salesPrice), em: true, tone: Math.abs(c.m.salesPrice - c.e.metrics.salesPrice) > 1 ? "blue" : null }];
+    const rows = [{ label: "Home price", value: money(c.m.salesPrice), em: true, tone: answer === "price" ? "blue" : null }];
     if (differs(x => x.m.downAmt)) rows.push({ label: "Down payment", value: `${short(c.m.downAmt)} · ${pctTxt(c.m.downPct)}` });
+    // Different products (rate, term or loan type) get a Rate row; when they
+    // match, the rate lives in the "Same for all" strip instead.
+    if (differs(x => x.m.rate * 1000) || differs(x => x.m.term) || cols.some(x => x.m.loanType !== cols[0].m.loanType)) rows.push({ label: "Rate", value: `${rateTxt(c.m.rate)} · ${c.m.term}-yr ${c.m.loanType === "Conventional" ? "Conv." : c.m.loanType}` });
     if (cols.some(x => (x.m.rent || 0) > 0)) rows.push({ label: "Total payment", value: money(c.m.monthlyPayment) });
     [["Insurance", x => x.m.ins || 0], ["HOA", x => x.m.hoaM || 0], ["Mortgage ins.", x => x.m.mi || 0]]
       .forEach(([l, get]) => { if (differs(get)) rows.push({ label: l, value: get(c) > 0.5 ? money(get(c)) : "—", tone: get(c) > 0.5 ? null : "muted" }); });
     if (differs(x => x.m.rent || 0)) rows.push({ label: "Rent collected", value: c.m.rent > 0.5 ? `−${money(c.m.rent)}` : "—", tone: c.m.rent > 0.5 ? "green" : "muted" });
-    rows.push({ label: "Cash to close", value: money(c.m.cashToClose), em: true });
+    rows.push({ label: "Cash to close", value: money(c.m.cashToClose), em: true, tone: answer === "cash" ? "blue" : null });
     const status = [];
     if (checkPrice) status.push(fitsPrice(c) ? { ok: true, text: "Price fits" } : { ok: false, text: `${short(c.m.salesPrice - mine.price)} over on price` });
     if (checkNet) status.push(fitsNet(c) ? { ok: true, text: "Payment fits" } : { ok: false, text: `${money(c.d.net - mine.net)}/mo over` });
@@ -1029,7 +1036,7 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
     return {
       letter: letterOf(c.e.name), name: c.e.name, sub: subLine(c.m, c.e.name),
       segs: PARTS.map(([, , col, get]) => ({ c: col, v: get(c) })),
-      ringLabel: c.m.rent > 0.5 ? "Net / mo" : "Per month", ringValue: money(c.d.net), ringNote: c.m.rent > 0.5 ? "after rent" : "all in",
+      ringLabel: c.m.rent > 0.5 ? "Net / mo" : "Per month", ringValue: money(c.d.net), ringNote: c.m.rent > 0.5 ? "after rent" : "all in", ringBlue: answer === "net",
       // No "if the unit sits empty" line here: the Total payment row already says it.
       note: null,
       // A held number can be out of reach (the payment jumps where mortgage
@@ -1052,7 +1059,12 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
   return {
     headline, sub, stamp, budget, cards, legend,
     // Five fit across the 1200px card; the rate drops the loan type to stay on one line.
-    same: sameItems.filter(([l]) => l !== "Price").slice(0, 5).map(([l, v]) => ({ l, v: l === "Rate" ? v.replace(/(-yr).*$/, "$1") : v })),
+    // Held numbers are the same for every option by design, so they lead the strip.
+    same: [
+      ...(held.includes("net") ? [["Net payment", `${money(tVal.net)}/mo`]] : []),
+      ...(held.includes("cash") ? [["Cash to close", money(tVal.cash)]] : []),
+      ...sameItems.filter(([l]) => l !== "Price"),
+    ].slice(0, 5).map(([l, v]) => ({ l, v: l === "Rate" ? v.replace(/(-yr).*$/, "$1") : v })),
     take: sentences[0] || null,
     disclosure: `Example only, not a loan offer or commitment. ${terms2.join("; ")}. Payments include principal, interest, estimated property tax and homeowners insurance, plus HOA and mortgage insurance where shown${rented ? "; net payments subtract the rent shown" : ""}. Rates, APRs and payments are estimates and vary by borrower and market.`,
   };
