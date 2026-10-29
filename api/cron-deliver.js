@@ -123,7 +123,7 @@ export function buildEmailHtml(notification, board, sender = FALLBACK_SENDER) {
   .body{font-size:15px;line-height:1.6;color:#525252;margin:0 0 20px}
   .stat{display:inline-block;background:#EFF3FE;color:#3B6BF5;font-weight:700;padding:4px 12px;border-radius:8px;font-size:14px;margin:0 0 20px}
   .cta{display:inline-block;background:linear-gradient(135deg,#3B6BF5, #2B4FCE);background-color:#3B6BF5;color:#fff !important;padding:14px 28px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:15px}
-  .foot{border-top:1px solid #e5e5e5;margin-top:32px;padding-top:16px;font-size:11px;color:#999}
+  .foot{border-top:1px solid #e5e5e5;margin-top:32px;padding-top:16px;font-size:11px;color:#999;-webkit-text-size-adjust:none;text-size-adjust:none}
   @media (max-width:480px){.in{padding:24px 20px 28px}}
 </style></head>
 <body><div class="c">
