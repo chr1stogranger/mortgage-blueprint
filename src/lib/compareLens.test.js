@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bisect, solveLens, minDownFor, netOf } from "./compareLens.js";
+import { bisect, solveLens, minDownFor, netOf, modeForHeld } from "./compareLens.js";
 
 // Toy quote with the same moving parts as calcQuickMetrics: P&I on the loan,
 // tax and insurance on price, PMI above 80% LTV, rent, closing on the loan.
@@ -43,8 +43,30 @@ describe("solveLens", () => {
     expect(netOf(m)).toBeCloseTo(target.net, 1);
     expect(m.cashToClose).toBeCloseTo(target.cash, 1);
   });
+  it("price + payment solves the down payment", () => {
+    // $3,750 rent: at $900K the net payment runs ~$2,165 (20% down) to ~$3,700 (no down).
+    const m = solveLens("pricePay", { ...target, price: 900000, net: 2500 }, duplex, { price: 1350000, downPct: 20 });
+    expect(m.salesPrice).toBe(900000);
+    expect(netOf(m)).toBeCloseTo(2500, 1);
+    expect(m.downPct).toBeLessThan(20);
+  });
+  it("price + cash solves the down payment and lets the payment fall out", () => {
+    const m = solveLens("priceCash", { ...target, price: 900000 }, house, { price: 1100000, downPct: 20 });
+    expect(m.salesPrice).toBe(900000);
+    expect(m.cashToClose).toBeCloseTo(target.cash, 1);
+  });
   it("same price applies the target's price", () => {
     expect(solveLens("price", target, house, { price: 1100000, downPct: 20 }).salesPrice).toBe(650000);
+  });
+});
+
+describe("modeForHeld", () => {
+  it("maps any two of three to a solve", () => {
+    expect(modeForHeld([])).toBe("off");
+    expect(modeForHeld(["price", "net"])).toBe("pricePay");
+    expect(modeForHeld(["cash", "price"])).toBe("priceCash");
+    expect(modeForHeld(["net", "cash"])).toBe("both");
+    expect(modeForHeld(["net"])).toBe("payment");
   });
 });
 
