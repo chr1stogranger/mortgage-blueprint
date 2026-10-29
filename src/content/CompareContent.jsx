@@ -500,13 +500,13 @@ function compareDetail(m) {
 }
 
 // Dollar box for "My numbers": digits only, shown with thousands commas.
-function MoneyBox({ T, label, value, onChange, suffix, strong }) {
+function MoneyBox({ T, label, value, onChange, suffix, strong, placeholder }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONT }}>
       <span style={{ fontSize: 11.5, color: strong ? T.blue : T.textTertiary, fontWeight: 600 }}>{label}</span>
       <span style={{ display: "flex", alignItems: "center", gap: 3, background: T.inputBg, border: `1px solid ${strong ? T.blue + "66" : T.inputBorder}`, borderRadius: 10, padding: "0 10px" }}>
         <span style={{ color: T.textTertiary, fontWeight: 600, fontSize: 14 }}>$</span>
-        <input inputMode="numeric" aria-label={label} value={value == null ? "" : Math.round(value).toLocaleString("en-US")}
+        <input inputMode="numeric" aria-label={label} value={value == null ? "" : Math.round(value).toLocaleString("en-US")} placeholder={placeholder > 0 ? Math.round(placeholder).toLocaleString("en-US") : ""}
           onChange={e => { const n = Number(e.target.value.replace(/[^0-9]/g, "")); onChange(n > 0 ? n : null); }}
           style={{ width: 104, border: "none", background: "transparent", color: T.text, font: `600 14px ${FONT}`, padding: "7px 0", outline: "none" }} />
         {suffix && <span style={{ color: T.textTertiary, fontSize: 12, fontWeight: 500 }}>{suffix}</span>}
@@ -543,7 +543,10 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const colorOf = name => PALETTE[Math.max(0, all.findIndex(e => e.name === name)) % PALETTE.length];
 
   const current = entries.find(e => e.isCurrent) || entries[0];
-  const useMine = lens.target === MINE;
+  // My numbers drive a "Same …" mode on their own once the numbers it needs are
+  // typed; picking an option in Match to overrides that.
+  const needs = { price: ["price"], payment: ["net"], cash: ["cash"], both: ["net", "cash"] }[lens.mode] || [];
+  const useMine = lens.target === MINE || (lens.target == null && needs.length > 0 && needs.every(k => mine[k] > 0));
   const targetE = useMine ? null : (entries.find(e => e.name === lens.target) || current);
   const entryKey = entries.map(e => e.name).join("|");
   const mineKey = useMine ? `${mineD.price}|${mineD.net}|${mineD.cash}` : "";
@@ -604,8 +607,8 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const overline = { fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, fontWeight: 600 };
 
   // ── Budget: My numbers double as caps the totals are checked against ──
-  const checkNet = useMine && mine.net > 0 && !held.includes("net");
-  const checkCash = useMine && mine.cash > 0 && !held.includes("cash");
+  const checkNet = mine.net > 0 && !held.includes("net");
+  const checkCash = mine.cash > 0 && !held.includes("cash");
   const fitsNet = c => !checkNet || Math.round(c.d.net) <= mine.net;
   const fitsCash = c => !checkCash || Math.round(c.m.cashToClose) <= mine.cash;
   const budgetTag = (key, c) => {
@@ -669,8 +672,7 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const budgetBits = [checkNet && `${money(mine.net)}/mo net`, checkCash && `${money(mine.cash)} cash to close`].filter(Boolean);
   const checkSuffix = budgetBits.length ? ` Totals are checked against your budget of ${budgetBits.join(" and ")}.` : "";
   const lensNote = ({
-    off: useMine ? (budgetBits.length ? `Each option as entered, checked against your budget of ${budgetBits.join(" and ")}.` : "Enter a max net payment or cash to close to check each option against it.")
-      : "Each option as entered. Hold one number equal to see how the others change.",
+    off: budgetBits.length ? `Each option as entered, checked against your budget of ${budgetBits.join(" and ")}.` : "Each option as entered. Hold one number equal to see how the others change.",
     price: `Every option priced at ${whose} ${money(tVal.price)}. Down %, rate and rent stay as entered.`,
     payment: `Each price is solved so the net payment matches ${whose} ${money(tVal.net)}/mo. Down %, rate and rent stay as entered.`,
     cash: `Each down payment is solved so cash to close matches ${whose} ${money(tVal.cash)}. Prices and rates stay as entered.`,
@@ -787,7 +789,47 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
         {onAddOption && <button type="button" onClick={onAddOption} style={barPill}>+ Add option</button>}
       </span>
     </>)}
-    {/* The payoff first: the newsletter card, inline. Details follow below. */}
+    {/* Your numbers + Line them up by: the inputs come first (Christo
+        2026-10-28), then the payoff card they drive, then every detail. */}
+    {requote && (
+      <div style={{ ...glass, padding: isDesktop ? "16px 18px" : "14px", display: "flex", flexDirection: "column", gap: 12, fontFamily: FONT }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "4px 10px", flexWrap: "wrap" }}>
+          <b style={{ fontSize: 15, color: T.text }}>Your numbers</b>
+          <span style={{ fontSize: 12.5, color: T.textTertiary }}>Leave any blank to skip it. Net payment and cash to close are checked as your budget.</span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 14px", alignItems: "flex-end" }}>
+          <MoneyBox T={T} label="Purchase price" value={mine.price} placeholder={bm.salesPrice} strong={lens.mode === "price" && useMine} onChange={v => setMine(m => ({ ...m, price: v }))} />
+          <MoneyBox T={T} label={useMine && (lens.mode === "payment" || lens.mode === "both") ? "Net payment" : "Max net payment"} suffix="/mo" value={mine.net} placeholder={netOf(bm)} strong={useMine && (lens.mode === "payment" || lens.mode === "both")} onChange={v => setMine(m => ({ ...m, net: v }))} />
+          <MoneyBox T={T} label={useMine && (lens.mode === "cash" || lens.mode === "both") ? "Cash to close" : "Max cash to close"} value={mine.cash} placeholder={bm.cashToClose} strong={useMine && (lens.mode === "cash" || lens.mode === "both")} onChange={v => setMine(m => ({ ...m, cash: v }))} />
+          {(mine.price || mine.net || mine.cash) && <button type="button" onClick={() => setMine({ price: null, net: null, cash: null })} style={{ font: `600 12px ${FONT}`, color: T.blue, background: "none", border: "none", cursor: "pointer", padding: "0 0 9px" }}>Clear</button>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 14px" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.textTertiary }}>Line them up by</span>
+          <span role="group" aria-label="Hold one number equal" style={{ display: isDesktop ? "inline-flex" : "grid", gridTemplateColumns: "1fr 1fr", width: isDesktop ? "auto" : "100%", gap: 3, padding: 3, borderRadius: isDesktop ? 9999 : 16, background: T.pillBg, border: `1px solid ${T.separator}`, flexWrap: "wrap" }}>
+            {LENS_MODES.map(([m, l], i) => {
+              const on = lens.mode === m;
+              return <button key={m} type="button" aria-pressed={on} onClick={() => setLens(s => ({ ...s, mode: m }))}
+                style={{ gridColumn: !isDesktop && i === 0 ? "1 / -1" : undefined, border: "none", background: on ? T.card : "transparent", color: on ? T.blue : T.textSecondary, boxShadow: on ? T.cardShadow : "none", font: `600 12px ${FONT}`, padding: "6px 12px", borderRadius: isDesktop ? 9999 : 12, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>;
+            })}
+          </span>
+          {lens.mode !== "off" && (
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textSecondary }}>
+              Match to
+              <select value={useMine ? MINE : targetE.name} onChange={e => setTarget(e.target.value)}
+                style={{ font: `600 12px ${FONT}`, color: T.text, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "5px 10px", cursor: "pointer" }}>
+                <option value={MINE}>My numbers</option>
+                {entries.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+        <div style={{ fontSize: 12.5, color: T.textSecondary, display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.45 }}>
+          <span style={{ width: 6, height: 6, borderRadius: 9, background: T.blue, marginTop: 6, flexShrink: 0 }} />{lensNote}
+        </div>
+      </div>
+    )}
+
+    {/* The payoff: the newsletter card, inline. Details follow below. */}
     <InlineSnapshot data={snapData} dark={T.bg === DARK.bg} />
     {all.length > MAX_COLS && (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
@@ -798,45 +840,6 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
             style={{ font: `600 12px ${FONT}`, padding: "5px 12px", borderRadius: 9999, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1,
               background: on ? `${T.blue}18` : T.inputBg, color: on ? T.blue : T.textSecondary, border: `1px solid ${on ? T.blue + "66" : T.separator}` }}>{letterOf(e.name)} · {e.name}</button>;
         })}
-      </div>
-    )}
-
-    {/* Line them up by */}
-    {requote && (
-      <div style={{ ...glass, padding: "12px 14px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 14px" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>Line them up by</span>
-        <span role="group" aria-label="Hold one number equal" style={{ display: isDesktop ? "inline-flex" : "grid", gridTemplateColumns: "1fr 1fr", width: isDesktop ? "auto" : "100%", gap: 3, padding: 3, borderRadius: isDesktop ? 9999 : 16, background: T.pillBg, border: `1px solid ${T.separator}`, flexWrap: "wrap" }}>
-          {LENS_MODES.map(([m, l], i) => {
-            const on = lens.mode === m;
-            return <button key={m} type="button" aria-pressed={on} onClick={() => setLens(s => ({ ...s, mode: m }))}
-              style={{ gridColumn: !isDesktop && i === 0 ? "1 / -1" : undefined, border: "none", background: on ? T.card : "transparent", color: on ? T.blue : T.textSecondary, boxShadow: on ? T.cardShadow : "none", font: `600 12px ${FONT}`, padding: "6px 12px", borderRadius: isDesktop ? 9999 : 12, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>;
-          })}
-        </span>
-        {lens.mode !== "off" ? (
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
-            Match to
-            <select value={useMine ? MINE : targetE.name} onChange={e => setTarget(e.target.value)}
-              style={{ font: `600 12px ${FONT}`, color: T.text, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "5px 10px", cursor: "pointer" }}>
-              {entries.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
-              <option value={MINE}>My numbers</option>
-            </select>
-          </label>
-        ) : (
-          <button type="button" aria-pressed={useMine} onClick={() => setTarget(useMine ? null : MINE)}
-            style={{ font: `600 12px ${FONT}`, borderRadius: 9999, padding: "6px 12px", cursor: "pointer", whiteSpace: "nowrap", color: useMine ? T.blue : T.textSecondary, background: useMine ? `${T.blue}14` : "none", border: `1px solid ${useMine ? T.blue + "55" : T.separator}` }}>
-            {useMine ? "Checking against my budget" : "Check against my budget"}
-          </button>
-        )}
-        {useMine && (
-          <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: "10px 14px" }}>
-            {lens.mode === "price" && <MoneyBox T={T} label="Purchase price" value={mine.price} strong onChange={v => setMine(m => ({ ...m, price: v }))} />}
-            <MoneyBox T={T} label={lens.mode === "payment" || lens.mode === "both" ? "Net payment" : "Max net payment"} suffix="/mo" value={mine.net} strong={lens.mode === "payment" || lens.mode === "both"} onChange={v => setMine(m => ({ ...m, net: v }))} />
-            <MoneyBox T={T} label={lens.mode === "cash" || lens.mode === "both" ? "Cash to close" : "Max cash to close"} value={mine.cash} strong={lens.mode === "cash" || lens.mode === "both"} onChange={v => setMine(m => ({ ...m, cash: v }))} />
-          </div>
-        )}
-        <div style={{ flexBasis: "100%", fontSize: 12.5, color: T.textSecondary, display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.45, fontFamily: FONT }}>
-          <span style={{ width: 6, height: 6, borderRadius: 9, background: T.blue, marginTop: 6, flexShrink: 0 }} />{lensNote}
-        </div>
       </div>
     )}
 
@@ -1021,10 +1024,10 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
   });
   const legend = PARTS.filter(([, , , get]) => cols.some(c => get(c) > 0.5)).map(([, l, col]) => ({ l: l === "Mortgage insurance" ? "Mortgage ins." : l, c: col }));
   // "My numbers" shown on the card when they're the budget or the target.
-  const budget = useMine ? [
-    (checkNet || held.includes("net")) && { v: `${money(tVal.net)}/mo`, l: "net" },
-    (checkCash || held.includes("cash")) && { v: money(tVal.cash), l: "cash to close" },
-  ].filter(Boolean) : null;
+  const budget = [
+    (checkNet || (useMine && held.includes("net"))) && { v: `${money(checkNet ? mine.net : tVal.net)}/mo`, l: "net" },
+    (checkCash || (useMine && held.includes("cash"))) && { v: money(checkCash ? mine.cash : tVal.cash), l: "cash to close" },
+  ].filter(Boolean);
   const termOf = c => `${money(c.m.salesPrice)}, ${pctTxt(c.m.downPct)} down, ${money(c.m.loan)} ${c.m.term}-year ${c.m.loanType} at ${rateTxt(c.m.rate)}${c.m.apr > 0 ? ` (APR ${rateTxt(c.m.apr)})` : ""}`;
   const terms2 = cols.every(c => termOf(c) === termOf(cols[0])) ? [`All ${word.toLowerCase()}: ${termOf(cols[0])}`] : cols.map(c => `${c.e.name}: ${termOf(c)}`);
   return {
