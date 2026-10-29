@@ -504,7 +504,8 @@ function MoneyBox({ T, label, value, onChange, suffix, strong, placeholder }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONT }}>
       <span style={{ fontSize: 11.5, color: strong ? T.blue : T.textTertiary, fontWeight: 600 }}>{label}</span>
-      <span style={{ display: "flex", alignItems: "center", gap: 3, background: T.inputBg, border: `1px solid ${strong ? T.blue + "66" : T.inputBorder}`, borderRadius: 10, padding: "0 10px" }}>
+      {/* Solid card fill (white in light mode) so the box reads as a field on the glass panel. */}
+      <span style={{ display: "flex", alignItems: "center", gap: 3, background: T.card, border: `1px solid ${strong ? T.blue + "88" : T.inputBorder}`, borderRadius: 10, padding: "0 10px", boxShadow: "inset 0 1px 2px rgba(16,27,46,0.06)" }}>
         <span style={{ color: T.textTertiary, fontWeight: 600, fontSize: 14 }}>$</span>
         <input inputMode="numeric" aria-label={label} value={value == null ? "" : Math.round(value).toLocaleString("en-US")} placeholder={placeholder > 0 ? Math.round(placeholder).toLocaleString("en-US") : ""}
           onChange={e => { const n = Number(e.target.value.replace(/[^0-9]/g, "")); onChange(n > 0 ? n : null); }}
