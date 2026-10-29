@@ -520,7 +520,7 @@ function MoneyBox({ T, label, value, onChange, suffix, strong, placeholder, hold
   );
 }
 
-function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scenarioName, switchScenario, onAddOption, privacy, requote }) {
+function BlueprintCompare({ T, isDesktop, fmt, pct, compareData, compareLoading, scenarioName, switchScenario, onAddOption, privacy, requote }) {
   const [picked, setPicked] = useState(null);
   // Pick two of three (Christo 2026-10-28): hold up to two of price / net /
   // cash equal across every option; the rest is solved per option.
@@ -578,7 +578,7 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   if (compareLoading && all.length === 0) {
     return <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginTop: 20, padding: 24, textAlign: "center", color: T.textSecondary }}>Loading comparison…</div>;
   }
-  if (all.length <= 1) return <SpecSheetCompare T={T} isDesktop={isDesktop} fmt={fmt} compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName} switchScenario={switchScenario} onAddOption={onAddOption} privacy={privacy} />;
+  if (all.length <= 1) return <SpecSheetCompare T={T} isDesktop={isDesktop} fmt={fmt} pct={pct} compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName} switchScenario={switchScenario} onAddOption={onAddOption} privacy={privacy} />;
 
   const n = cols.length, tight = !isDesktop && n > 3;
   const held = LENS_HELD[lens.mode] || [];
