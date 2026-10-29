@@ -128,9 +128,9 @@ export const SnapshotCard = React.forwardRef(function SnapshotCard({ data, dark,
             </div>}
             <div style={{ width: "100%", display: "flex", flexDirection: "column", borderTop: `1px solid ${line}` }}>
               {c.rows.map((r, j) => (
-                <div key={j} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, padding: r.tone === "strong" ? z("14px 2px 12px", "11px 2px 4px") : z("12px 2px", "9px 2px"), fontSize: z(18.5, 14.5), color: r.tone === "strong" ? P.text : P.textSecondary, fontWeight: r.tone === "strong" ? 600 : 400, borderTop: j ? `1px solid ${line}` : "none" }}>
+                <div key={j} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, padding: r.em ? z("13px 2px", "10px 2px") : z("12px 2px", "9px 2px"), fontSize: z(18.5, 14.5), color: r.em ? P.text : P.textSecondary, fontWeight: r.em ? 600 : 400, borderTop: j ? `1px solid ${line}` : "none" }}>
                   <span>{r.label}</span>
-                  <b style={{ fontWeight: 700, fontSize: r.tone === "strong" ? z(21, 16) : undefined, color: r.tone === "green" ? P.green : r.tone === "blue" ? P.blue : r.tone === "muted" ? P.textTertiary : P.text }}>{r.value}</b>
+                  <b style={{ fontWeight: r.em ? 800 : 700, fontSize: r.em ? z(23, 17) : undefined, letterSpacing: r.em ? "-0.01em" : undefined, color: r.tone === "green" ? P.green : r.tone === "blue" ? P.blue : r.tone === "muted" ? P.textTertiary : P.text }}>{r.value}</b>
                 </div>
               ))}
             </div>
@@ -146,9 +146,9 @@ export const SnapshotCard = React.forwardRef(function SnapshotCard({ data, dark,
       {data.same.length > 0 && (
         <div style={{ background: P.card, border: `1px solid ${line}`, borderRadius: z(22, 16), padding: z("18px 22px", "14px 14px"), display: "flex", flexDirection: big ? "row" : "column", alignItems: big ? "center" : "stretch", gap: z(22, 10), boxShadow: shadow }}>
           <div style={{ fontFamily: MONO, fontSize: z(12.5, 10), letterSpacing: "0.15em", textTransform: "uppercase", color: P.textTertiary, fontWeight: 600, lineHeight: 1.35, width: big ? 92 : "auto", flexShrink: 0 }}>Same for all {n === 2 ? "two" : n === 3 ? "three" : n === 4 ? "four" : n}</div>
-          <div style={big ? { display: "flex", flex: 1, justifyContent: "space-between" } : { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px" }}>
+          <div style={big ? { display: "flex", flex: 1, flexWrap: "wrap", rowGap: 10 } : { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px" }}>
             {data.same.map((s, i) => (
-              <div key={s.l} style={{ display: "flex", flexDirection: "column", gap: 3, padding: big ? "0 16px" : 0, borderLeft: big && i ? `1px solid ${line}` : "none" }}>
+              <div key={s.l} style={{ display: "flex", flexDirection: "column", gap: 3, padding: big ? "0 26px" : 0, borderLeft: big && i ? `1px solid ${line}` : "none" }}>
                 <span style={{ fontSize: z(14.5, 11.5), color: P.textTertiary }}>{s.l}</span>
                 <b style={{ fontSize: z(20, 15), fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>{s.v}</b>
               </div>
