@@ -2,7 +2,8 @@ import { FONT, MONO } from "../lib/fonts.js";
 import React, { useMemo, useRef, useState } from "react";
 import { winnerBy, firstLeaderChange } from "../lib/compareMetrics.js";
 import { LENS_MODES, LENS_HELD, netOf, solveLens, minDownFor } from "../lib/compareLens.js";
-import CompareSnapshot from "../components/CompareSnapshot.jsx";
+import CompareSnapshot, { InlineSnapshot } from "../components/CompareSnapshot.jsx";
+import { DARK } from "../lib/theme.js";
 
 /* ═══════════════════════════════════════════════════════════════
    CompareContent — the Compare tab (rebuilt 2026-09-23, Christo).
@@ -521,6 +522,7 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const [showMore, setShowMore] = useState(false);
   const [unfold, setUnfold] = useState(false);
   const [shot, setShot] = useState(false);
+  const [pair, setPair] = useState(""); // "" = all options, else "A name\u0001B name"
   // Typing in My numbers re-solves every option; let React keep the input snappy.
   const mineD = React.useDeferredValue(mine);
   const requoteRef = useRef(requote);
@@ -625,28 +627,44 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const W = { net: top("net", "min", 3), cash: top("cash", "min", 300), cost5: top("cost5", "min", 300),
     price: ["payment", "cash", "both"].includes(lens.mode) ? top("price", "max", 300) : null };
 
-  // ── The short version: one sentence per winning option ──
-  const PH = { net: "has the lowest net payment", cash: "needs the least cash to close", cost5: "costs the least to borrow over 5 years",
-    price: `buys the most home for the same ${lens.mode === "payment" ? "payment" : lens.mode === "cash" ? "cash" : "payment and cash"}` };
-  const keys = lens.mode === "both" ? ["price", "cost5"] : lens.mode === "payment" ? ["price", "cash", "cost5"] : lens.mode === "cash" ? ["net", "cost5", "price"] : ["net", "cash", "cost5"];
-  const groups = [];
-  keys.filter(k => W[k]).forEach(k => { const g = groups.find(x => x.c === W[k].c); if (g) g.keys.push(k); else groups.push({ c: W[k].c, keys: [k] }); });
-  const sentences = groups.map(g => {
-    const s = [{ t: g.c.e.name, b: 1 }, { t: " " }];
-    g.keys.forEach((k, i) => {
-      s.push({ t: `${PH[k]}, ` }, { t: `${money(W[k].gap)}${k === "net" ? "/mo" : ""} ${k === "price" ? "more" : "less"}`, c: "green" }, { t: ` than ${W[k].runner.e.name}` });
-      s.push({ t: i < g.keys.length - 1 ? ", and " : ". " });
-    });
-    return s;
+  // ── The short version ──
+  // All options: each winner against every other option. Head to head:
+  // just the two picked (Christo 2026-10-28: "the duplex versus the condo").
+  const DIR = { net: "min", cash: "min", cost5: "min", price: "max" }, TOL = { net: 3, cash: 300, cost5: 300, price: 300 };
+  const sameWhat = lens.mode === "payment" ? "payment" : lens.mode === "cash" ? "cash" : "payment and cash";
+  const PH = { net: "has the lowest net payment", cash: "needs the least cash to close", cost5: "costs the least to borrow over 5 years", price: `buys the most home for the same ${sameWhat}` };
+  const PH2 = { net: "has the lower net payment", cash: "needs less cash to close", cost5: "costs less to borrow over 5 years", price: `buys more home for the same ${sameWhat}` };
+  const EVEN = { net: "net payment", cash: "cash to close", cost5: "5-year cost", price: "price" };
+  const keys = (lens.mode === "both" ? ["price", "cost5"] : lens.mode === "payment" ? ["price", "cash", "cost5"] : lens.mode === "cash" ? ["net", "cost5", "price"] : ["net", "cash", "cost5"]).filter(k => !held.includes(k));
+  const gapTxt = (k, g) => `${money(g)}${k === "net" ? "/mo" : ""} ${DIR[k] === "max" ? "more" : "less"}`;
+  const joinParts = list => list.flatMap((x, i) => i === 0 ? x : [{ t: i === list.length - 1 ? " and " : ", " }, ...x]);
+  const pairNames = pair ? pair.split("\u0001") : null;
+  const pairCols = pairNames ? pairNames.map(nm => cols.find(c => c.e.name === nm)).filter(Boolean) : [];
+  const headToHead = pairCols.length === 2;
+  const talk = headToHead ? pairCols : cols;
+  const groups = [], even = [];
+  keys.forEach(k => {
+    const ranked = talk.filter(c => GET[k](c) != null).sort((a, b) => DIR[k] === "min" ? GET[k](a) - GET[k](b) : GET[k](b) - GET[k](a));
+    if (ranked.length < 2) return;
+    const w = ranked[0], rest = ranked.slice(1).filter(o => Math.abs(GET[k](o) - GET[k](w)) >= TOL[k]);
+    if (!rest.length) { even.push(k); return; }
+    const phrase = [{ t: `${(headToHead ? PH2 : PH)[k]}, ` }, ...joinParts(rest.map(o => [{ t: gapTxt(k, Math.abs(GET[k](o) - GET[k](w))), c: "green" }, { t: ` than ${o.e.name}` }]))];
+    const g = groups.find(x => x.c === w);
+    if (g) g.phrases.push(phrase); else groups.push({ c: w, phrases: [phrase] });
   });
+  // One winner, several wins: "X has …. It also costs …" reads better than a chain of "and"s.
+  const sentences = groups.map(g => [{ t: g.c.e.name, b: 1 }, { t: " " }, ...g.phrases.flatMap((ph, i) => i === 0 ? [...ph, { t: ". " }] : [{ t: "It also " }, ...ph, { t: ". " }])]);
+  if (even.length) sentences.push([{ t: `${headToHead ? "They're" : "They're all"} about even on ${even.map(k => EVEN[k]).join(" and ")}. ` }]);
   if (checkNet || checkCash) {
-    const fits = cols.filter(c => fitsNet(c) && fitsCash(c));
-    sentences.push(fits.length === n ? [{ t: `All ${n} fit your budget. ` }]
-      : fits.length === 0 ? [{ t: "None fits your budget", c: "orange" }, { t: " as shown. " }]
+    const fits = talk.filter(c => fitsNet(c) && fitsCash(c));
+    sentences.push(fits.length === talk.length ? [{ t: headToHead ? "Both fit your budget. " : `All ${n} fit your budget. ` }]
+      : fits.length === 0 ? [{ t: headToHead ? "Neither fits your budget" : "None fits your budget", c: "orange" }, { t: " as shown. " }]
       : [{ t: "Only " }, { t: fits.map(c => c.e.name).join(" and "), b: 1 }, { t: ` ${fits.length === 1 ? "fits" : "fit"} your budget. ` }]);
   }
-  const rented = cols.find(c => (c.m.rent || 0) > 0);
+  const rented = talk.find(c => (c.m.rent || 0) > 0);
   if (rented) sentences.push([{ t: `If ${rented.e.name}'s rented unit sits empty, its payment is ` }, { t: `${money(rented.m.monthlyPayment)}/mo`, c: "orange" }, { t: "." }]);
+  const pairOptions = cols.flatMap((a, i) => cols.slice(i + 1).map(b => [`${a.e.name}\u0001${b.e.name}`, `${a.e.name} vs ${b.e.name}`]));
+
 
   const budgetBits = [checkNet && `${money(mine.net)}/mo net`, checkCash && `${money(mine.cash)} cash to close`].filter(Boolean);
   const checkSuffix = budgetBits.length ? ` Totals are checked against your budget of ${budgetBits.join(" and ")}.` : "";
@@ -758,17 +776,19 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const pickMine = () => setMine(m => ({ price: m.price ?? Math.round(bm.salesPrice), net: m.net ?? Math.round(netOf(bm)), cash: m.cash ?? Math.round(bm.cashToClose) }));
   const setTarget = v => { if (v === MINE) pickMine(); setLens(s => ({ ...s, target: v })); };
 
-  // ── Newsletter snapshot (same data, laid out for a 1200px image) ──
-  const snapshot = shot ? buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sameItems, PARTS, checkNet, checkCash, fitsNet, fitsCash, mine, tVal, money, short, pctTxt, rateTxt, letterOf, useMine }) : null;
+  // ── The payoff card (same data, laid out as a 1200px newsletter image) ──
+  const snapData = buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sameItems, PARTS, checkNet, checkCash, fitsNet, fitsCash, mine, tVal, money, short, pctTxt, rateTxt, letterOf, useMine });
 
   return (<div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
     {secBar("Compare", <>
       <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", opacity: 0.8, fontWeight: 600 }}>{all.length > MAX_COLS ? `${n} of ${all.length} options` : `${n} options`}</span>
       <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-        <button type="button" onClick={() => setShot(true)} style={barPill}>Screenshot</button>
+        <button type="button" onClick={() => setShot(true)} style={barPill}>Full screen</button>
         {onAddOption && <button type="button" onClick={onAddOption} style={barPill}>+ Add option</button>}
       </span>
     </>)}
+    {/* The payoff first: the newsletter card, inline. Details follow below. */}
+    <InlineSnapshot data={snapData} dark={T.bg === DARK.bg} />
     {all.length > MAX_COLS && (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
         <span>Pick up to {MAX_COLS}:</span>
@@ -823,8 +843,20 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
     {/* The short version */}
     {sentences.length > 0 && (
       <div style={{ ...glass, padding: isDesktop ? "14px 18px" : "14px 16px" }}>
-        <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT }}>The short version</div>
-        <p style={{ margin: "4px 0 0", fontSize: isDesktop ? 15 : 14, lineHeight: 1.5, fontWeight: 500, color: T.text, fontFamily: FONT, textWrap: "pretty" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT }}>The short version</div>
+          {n > 2 && (
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
+              Compare
+              <select value={headToHead ? pair : ""} onChange={e => setPair(e.target.value)} aria-label="Which options the short version compares"
+                style={{ font: `600 12px ${FONT}`, color: T.text, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "5px 10px", cursor: "pointer" }}>
+                <option value="">All {n} options</option>
+                {pairOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+        <p style={{ margin: "6px 0 0", fontSize: isDesktop ? 15 : 14, lineHeight: 1.5, fontWeight: 500, color: T.text, fontFamily: FONT, textWrap: "pretty" }}>
           {sentences.flat().map((p, i) => <span key={i} style={p.c ? { color: T[p.c], fontWeight: 700 } : p.b ? { fontWeight: 700 } : null}>{p.t}</span>)}
         </p>
       </div>
@@ -926,7 +958,8 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
       {refiCount > 0 && <span>{refiCount} refinance {refiCount === 1 ? "option isn't" : "options aren't"} shown here. Open one to compare refinances.</span>}
     </div>
     {showMore && <div style={{ marginTop: -14 }}><CostChart T={T} entries={entries} refiMode={false} colorOf={colorOf} fmt={fmt} privacy={privacy} isDesktop={isDesktop} S={{ card: { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow }, label: { fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT } }} /></div>}
-    {snapshot && <CompareSnapshot data={snapshot} onClose={() => setShot(false)} />}
+    {shot && <CompareSnapshot data={snapData} dark={T.bg === DARK.bg} onClose={() => setShot(false)}
+      pairControl={n > 2 ? { value: headToHead ? pair : "", allLabel: `All ${n} options`, options: pairOptions, onChange: setPair } : null} />}
   </div>);
 }
 
@@ -951,7 +984,7 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
     headline = [`${short(tVal.cash)} to close.`, `${word} ways to spend it.`];
     sub = `Down payments solved so each needs the same cash${terms}.`;
   } else if (samePrice) {
-    headline = [`Same ${short(cols[0].m.salesPrice)}.`, spread > 0.05 ? `${word} very different payments.` : `${word} ways to buy.`];
+    headline = [`Same ${short(cols[0].m.salesPrice)} purchase price.`, spread > 0.05 ? `${word} very different payments.` : `${word} ways to buy.`];
     sub = `${nameList} at the same price${cols.every(c => Math.abs(c.m.downPct - cols[0].m.downPct) < 0.05) ? `, ${pctTxt(cols[0].m.downPct)} down` : ""}${terms}.`;
   } else {
     headline = [`${word} options,`, "side by side."];
@@ -980,7 +1013,8 @@ function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sam
       letter: letterOf(c.e.name), name: c.e.name, sub: subLine(c.m, c.e.name),
       segs: PARTS.map(([, , col, get]) => ({ c: col, v: get(c) })),
       ringLabel: c.m.rent > 0.5 ? "Net / mo" : "Per month", ringValue: money(c.d.net), ringNote: c.m.rent > 0.5 ? "after rent" : "all in",
-      note: c.m.rent > 0.5 ? `${money(c.m.monthlyPayment)}/mo if the unit sits empty` : null,
+      // No "if the unit sits empty" line here: the Total payment row already says it.
+      note: null,
       flag: min && c.m.downPct < min.pct - 0.001 ? `Below the ${min.pct}% minimum for ${min.label}` : null,
       status, rows, win: winC === c ? (solving ? "Most home" : "Lowest payment") : null,
     };
