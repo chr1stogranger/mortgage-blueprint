@@ -402,10 +402,21 @@ const parseMonthly = (s) => {
 };
 const fmtMonthly = (n) => !n ? "" : n >= 1e4 ? `$${(n / 1e3).toFixed(n % 1e3 ? 1 : 0)}K` : `$${Math.round(n).toLocaleString("en-US")}`;
 
-const liveFilterMatch = (f, l, payCtx) => {
+// ── Sold filters (Christo 2026-10-29): the same panel as For Sale, priced on
+// the SOLD price (the sold pool's list price is mostly a placeholder), with
+// "Sold within" in place of the active/pending status + new-this-week. ──
+const SOLD_FILTERS_EMPTY = { priceMode: "list", priceMin: null, priceMax: null, payMin: null, payMax: null, payDown: 0.2, bedsMin: null, bedsMax: null, bathsMin: null, sqftMin: null, yearMin: null, soldWithin: null };
+
+// sold = true → price on soldPrice and honor soldWithin (months).
+const liveFilterMatch = (f, l, payCtx, sold = false) => {
   if (!f) return true;
-  if (f.hidePending && l.status === "pending") return false;
-  const lp = Number(l.listPrice) || 0;
+  if (!sold && f.hidePending && l.status === "pending") return false;
+  if (sold && f.soldWithin && l.soldDate) {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - f.soldWithin);
+    if (new Date(l.soldDate) < cutoff) return false;
+  }
+  const lp = Number(sold ? l.soldPrice : l.listPrice) || 0;
   if (f.priceMode === "monthly") {
     if (f.payMin || f.payMax) {
       const mp = monthlyPaymentFor(lp, f.payDown ?? 0.2, payCtx);
@@ -423,10 +434,22 @@ const liveFilterMatch = (f, l, payCtx) => {
   if (f.bathsMin && (Number(l.baths) || 0) < f.bathsMin) return false;
   if (f.sqftMin && (Number(l.sqft) || 0) < f.sqftMin) return false;
   if (f.yearMin && (Number(l.yearBuilt) || 0) < f.yearMin) return false;
-  if (f.newOnly && !(Number(l.daysOnMarket) >= 0 && Number(l.daysOnMarket) <= 7)) return false;
+  if (!sold && f.newOnly && !(Number(l.daysOnMarket) >= 0 && Number(l.daysOnMarket) <= 7)) return false;
   return true;
 };
-const liveFilterCount = (f) => !f ? 0 : [f.hidePending, f.priceMode === "monthly" ? (f.payMin || f.payMax) : (f.priceMin || f.priceMax), f.bedsMin != null, f.bathsMin, f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length;
+const liveFilterCount = (f) => !f ? 0 : [f.hidePending, f.priceMode === "monthly" ? (f.payMin || f.payMax) : (f.priceMin || f.priceMax), f.bedsMin != null, f.bathsMin, f.sqftMin, f.yearMin, f.newOnly, f.soldWithin].filter(Boolean).length;
+// Header-chip suffix: the price range when one is set, else "N filters".
+const filterSummary = (f) => {
+  const n = liveFilterCount(f);
+  if (!n) return "";
+  if (f.priceMode === "monthly" && (f.payMin || f.payMax)) {
+    return f.payMin && f.payMax ? `${fmtMonthly(f.payMin)}–${fmtMonthly(f.payMax)}/mo` : f.payMax ? `≤${fmtMonthly(f.payMax)}/mo` : `${fmtMonthly(f.payMin)}+/mo`;
+  }
+  if (f.priceMode !== "monthly" && (f.priceMin || f.priceMax)) {
+    return `${f.priceMin ? fmtShortMoney(f.priceMin) : "$0"}–${f.priceMax ? fmtShortMoney(f.priceMax) : "any"}`;
+  }
+  return `${n} filter${n > 1 ? "s" : ""}`;
+};
 // "1.5m" / "800k" / "1,250,000" → dollars
 const parseMoney = (s) => {
   const m = String(s || "").trim().toLowerCase().replace(/[$,\s]/g, "").match(/^(\d*\.?\d+)([km]?)$/);
@@ -811,6 +834,13 @@ const isRecentSale = (l) => {
 const kmBetween = (a, b) => {
   const x = (b.lng - a.lng) * Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
   return Math.sqrt(x * x + (b.lat - a.lat) ** 2) * 111.32;
+};
+// Nearest first from `origin`; homes without coordinates keep their order, last.
+const sortByDistance = (listings, origin) => {
+  const geo = listings.filter(l => l.latitude && l.longitude)
+    .map(l => ({ l, d: kmBetween(origin, { lat: l.latitude, lng: l.longitude }) }))
+    .sort((a, b) => a.d - b.d).map(x => x.l);
+  return [...geo, ...listings.filter(l => !(l.latitude && l.longitude))];
 };
 
 const orderByRecency = (listings) => {
@@ -1638,6 +1668,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpLoadingMore, setFpLoadingMore] = useState(false);
   const [fpHasMore, setFpHasMore] = useState(true); // assume more available until proven otherwise
   const fpZipRef = useRef(null); // ARRAY of selected zips (or null = all) for Load More
+  const [fpNear, setFpNear] = useState(null); // { origin, fromDevice } | null — Sold "Near you"
   // Multi-select filters (picker screen). Types persist; hoods are per-visit.
   const [fpHoodSel, setFpHoodSel] = useState([]); // hood names; [] = all
   const [fpTypeSel, setFpTypeSel] = useState(() => {
@@ -1677,6 +1708,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const payCtx = useMemo(() => payContextFor(market?.id, ppRates), [market?.id, ppRates]);
   const payCtxRef = useRef(payCtx);
   payCtxRef.current = payCtx;
+  // Sold keeps its OWN filters (same reason as the type chips above).
+  const [soldFilters, setSoldFiltersState] = useState(() => {
+    try { return { ...SOLD_FILTERS_EMPTY, ...(JSON.parse(localStorage.getItem("pp-fp-filters") || "{}") || {}) }; } catch { return { ...SOLD_FILTERS_EMPTY }; }
+  });
+  const soldFiltersRef = useRef(soldFilters);
+  const setSoldFilters = (next) => {
+    const v = typeof next === "function" ? next(soldFiltersRef.current) : next;
+    soldFiltersRef.current = v;
+    setSoldFiltersState(v);
+    try { localStorage.setItem("pp-fp-filters", JSON.stringify(v)); } catch { /* ignore */ }
+  };
+  const [soldPriceText, setSoldPriceText] = useState(() => (soldFilters.priceMode === "monthly"
+    ? { min: fmtMonthly(soldFilters.payMin), max: fmtMonthly(soldFilters.payMax) }
+    : { min: fmtShortMoney(soldFilters.priceMin), max: fmtShortMoney(soldFilters.priceMax) }));
+  const soldFilterOk = (l) => liveFilterMatch(soldFiltersRef.current, l, payCtxRef.current, true);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const toggleLiveType = (t) => setLiveTypeSel(prev => {
     const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t];
@@ -2081,7 +2127,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         const newListings = data.soldListings
           .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
           .filter(l => { if (seenNew.has(l.zpid)) return false; seenNew.add(l.zpid); return true; })
-          .filter(l => fpTypeMatch(fpTypeSel, l.propertyType))
+          .filter(l => fpTypeMatch(fpTypeSel, l.propertyType) && soldFilterOk(l))
           .map(l => ({ ...l, _source: l._source || "sold_comps" }));
         if (newListings.length > 0) {
           // Shuffle new listings and append after current position
@@ -3078,6 +3124,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const fpNextProperty = () => {
     setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
     if (fpSearchZpid) { setFpSearchZpid(null); setFpSearchAddr(""); }
+    // Near you: re-sort everything after this card from where you are now.
+    if (fpNear) {
+      const pos = (fpNear.fromDevice && nearPosRef.current) || fpNear.origin;
+      const at = fpIdx;
+      setFpListings(prev => [...prev.slice(0, at + 1), ...sortByDistance(prev.slice(at + 1), pos)]);
+    }
     setFpIdx(prev => {
       const nextIdx = prev + 1;
       // Auto-fetch more when 3 properties left
@@ -3244,7 +3296,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const enterFreePlay = (hoods) => { // hoods: array of {zip, name}; empty/null = all of the city
+  // hoods: array of {zip, name}; empty/null = all of the city.
+  // nearOrigin {lat,lng,fromDevice}: "Near you" — the whole city's sales,
+  // nearest first (hoods ignored); every Next re-sorts what's left from where
+  // you are NOW, so walking past a house surfaces its closest sales.
+  const enterFreePlay = (hoods, nearOrigin) => {
+    setFpNear(nearOrigin ? { origin: { lat: nearOrigin.lat, lng: nearOrigin.lng }, fromDevice: !!nearOrigin.fromDevice } : null);
+    if (nearOrigin) { hoods = []; nearPosRef.current = nearOrigin.fromDevice ? { lat: nearOrigin.lat, lng: nearOrigin.lng } : null; }
     // Step 1: Filter to trusted sold listings only, AND only listings whose
     // city matches the current market. The city guard is a defensive belt-and-
     // suspenders against any code path (cache hydration, race condition, stale
@@ -3296,8 +3354,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = pool.filter(l => zipGroup.has(l.zip));
     }
 
-    // Step 3b: Property-type filter (multi-select; empty = all types)
-    pool = pool.filter(l => fpTypeMatch(fpTypeSel, l.propertyType));
+    // Step 3b: Property-type filter (multi-select; empty = all types) + the
+    // price/beds/baths/sqft/year/sold-within filters.
+    pool = pool.filter(l => fpTypeMatch(fpTypeSel, l.propertyType) && soldFilterOk(l));
 
     // Step 4: If pool is too small after the daily-spoiler cull, relax the daily exclusion.
     // Runs for both the zip-filtered case AND the no-zip "All of <city>" case — without
@@ -3307,7 +3366,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = trueSold.filter(l => {
         if (zipGroup && !zipGroup.has(l.zip)) return false;
         if (l.zpid && guessedZpids.has(l.zpid)) return false;
-        if (!fpTypeMatch(fpTypeSel, l.propertyType)) return false;
+        if (!fpTypeMatch(fpTypeSel, l.propertyType) || !soldFilterOk(l)) return false;
         return true;
       });
     }
@@ -3322,10 +3381,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // NEVER fall back to SAMPLE_SOLD or other neighborhoods.
 
     // Recency-first: prime (0-3mo) leads, then fresh (3-6mo), older (6-12mo) last.
-    const shuffled = orderByRecency(pool);
+    // Near you: nearest first instead (homes without coordinates go last).
+    const shuffled = nearOrigin ? sortByDistance(pool, nearOrigin) : orderByRecency(pool);
     setFpListings(shuffled);
     setFpSelectedNeighborhood(
-      selHoods.length === 0 ? null
+      nearOrigin ? "Near you"
+        : selHoods.length === 0 ? null
         : selHoods.length === 1 ? selHoods[0].name
         : `${selHoods[0].name} +${selHoods.length - 1}`
     );
@@ -3334,7 +3395,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // A new pool drops any spliced search hit — clear the bar with it, or it
     // kept "2 6th Avenue…" + its (x) over an unrelated card (2026-10-07).
     setFpSearchZpid(null); setFpSearchAddr(""); setFpSearchError(null);
-    fpZipRef.current = selHoods.length > 0 ? selHoods.map(h => h.zip) : null;
+    // Near you: Load More / refresh pull the nearest home's zip.
+    const nearZip = nearOrigin ? (shuffled.find(l => l.latitude && l.longitude && l.zip)?.zip || null) : null;
+    fpZipRef.current = nearZip ? [nearZip] : selHoods.length > 0 ? selHoods.map(h => h.zip) : null;
     setFpHasMore(true); // reset — assume more available until proven otherwise
     setFpLoadingMore(false);
 
@@ -3345,7 +3408,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, 100);
 
     // Background: fetch zip-specific sold comps to top up the pool if we're light
-    const zip = selHoods.length > 0 ? selHoods[0].zip : null;
+    const zip = nearZip || (selHoods.length > 0 ? selHoods[0].zip : null);
     if (zip && pool.length < 15) {
       const cityName = market?.city || market?.label?.split(",")[0] || "San Francisco";
       const existingZpids = pool.map(l => l.zpid).filter(Boolean);
@@ -3355,12 +3418,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         .then(data => {
           if (data?.soldListings?.length > 0) {
             const existingSet = new Set(existingZpids);
-            const newOnes = orderByRecency(
-              data.soldListings
-                .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
-                .filter(l => fpTypeMatch(fpTypeSel, l.propertyType))
-                .map(l => ({ ...l, _source: l._source || "sold_comps" }))
-            );
+            const fresh = data.soldListings
+              .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
+              .filter(l => fpTypeMatch(fpTypeSel, l.propertyType) && soldFilterOk(l))
+              .map(l => ({ ...l, _source: l._source || "sold_comps" }));
+            const newOnes = nearOrigin ? sortByDistance(fresh, nearOrigin) : orderByRecency(fresh);
             if (newOnes.length > 0) {
               setFpListings(prev => [...prev, ...newOnes]);
               setSoldListings(prev => {
@@ -3419,13 +3481,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveNear(n => (n ? { ...n, radius, floor: radius } : n));
   };
   // Follow the device while you walk (only when the origin came from it).
+  const followDevice = (view === "live" && !!liveNear?.fromDevice) || (view === "freeplay" && !!fpNear?.fromDevice);
   useEffect(() => {
-    if (!liveNear?.fromDevice || view !== "live" || !navigator.geolocation) return;
+    if (!followDevice || !navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
       p => { nearPosRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; },
       () => {}, { maximumAge: 60 * 1000, timeout: 20000 });
     return () => navigator.geolocation.clearWatch(id);
-  }, [liveNear?.fromDevice, view]);
+  }, [followDevice]);
 
   // nearOrigin {lat,lng,fromDevice}: "near you" pool (see nearSlice) instead
   // of the shuffled city pool.
@@ -3787,7 +3850,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         const added = orderByRecency(rows
           .filter(l => l.zpid && l.soldPrice && !have.has(String(l.zpid)) && !done.has(l.zpid) && String(l.zpid) !== dailyZ)
           .filter(l => { if (seen.has(l.zpid)) return false; seen.add(l.zpid); return true; })
-          .filter(l => fpTypeMatch(fpTypeSel, l.propertyType))
+          .filter(l => fpTypeMatch(fpTypeSel, l.propertyType) && soldFilterOk(l))
           .map(l => ({ ...l, _source: l._source || "sold_comps" })));
         if (added.length > 0) {
           setFpListings(prev => {
@@ -3806,6 +3869,199 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     } catch { /* note stays */ }
     setSoldRefresh({ busy: false, note });
     setTimeout(() => setSoldRefresh(r => (r.note === note ? { ...r, note: null } : r)), 3500);
+  };
+  // ── Filter card (Redfin/Zillow-style), shared by the For Sale and Sold
+  // pickers: price histogram + min/max + quick ranges (list/sold price or
+  // est. monthly payment), status (For Sale) / sold within (Sold), beds
+  // (tap two numbers for a range), baths min, More (sqft, year built, new
+  // this week on For Sale). Counts are live against the loaded city pool. ──
+  const soldPickerBase = () => {
+    const cityLc = (market?.city || "").toLowerCase().trim();
+    return soldListings.filter(l => isTrueSold(l) && (!cityLc || !l.city || l.city.toLowerCase().trim() === cityLc) && fpTypeMatch(fpTypeSel, l.propertyType));
+  };
+  const renderFilterCard = (sold) => {
+    const f = sold ? soldFilters : liveFilters;
+    const setF = sold ? setSoldFilters : setLiveFilters;
+    const text = sold ? soldPriceText : priceText;
+    const setText = sold ? setSoldPriceText : setPriceText;
+    const EMPTY = sold ? SOLD_FILTERS_EMPTY : LIVE_FILTERS_EMPTY;
+    const accent = sold ? T.cyan : T.red;
+    const base = sold ? soldPickerBase() : activeListings.filter(isTrueActive).filter(l => fpTypeMatch(liveTypeSel, l.propertyType));
+    const matching = base.filter(l => liveFilterMatch(f, l, payCtx, sold));
+    // Price section works in either unit — list (sold) price or estimated
+    // monthly payment (Redfin's two tabs). Same histogram / inputs / quick
+    // ranges, swapped per mode.
+    const monthly = f.priceMode === "monthly";
+    const down = f.payDown ?? 0.2;
+    const priceOf = (l) => Number(sold ? l.soldPrice : l.listPrice);
+    const valOf = (l) => (monthly ? monthlyPaymentFor(priceOf(l), down, payCtx) : priceOf(l));
+    const prices = base.map(valOf).filter(p => p > 0).sort((a, b) => a - b);
+    const fmtV = monthly ? fmtMonthly : fmtShortMoney;
+    const parseV = monthly ? parseMonthly : parseMoney;
+    const curMin = monthly ? f.payMin : f.priceMin;
+    const curMax = monthly ? f.payMax : f.priceMax;
+    const lo = prices.length ? Math.log10(prices[Math.floor(prices.length * 0.02)]) : 5.7;
+    const hi = prices.length ? Math.log10(prices[Math.ceil(prices.length * 0.98) - 1]) : 6.9;
+    const BINS = 30;
+    const bins = Array.from({ length: BINS }, () => 0);
+    for (const p of prices) { const i = Math.min(BINS - 1, Math.max(0, Math.floor((Math.log10(p) - lo) / ((hi - lo) || 1) * BINS))); bins[i]++; }
+    const peak = Math.max(1, ...bins);
+    const binMid = (i) => Math.pow(10, lo + (i + 0.5) * (hi - lo) / BINS);
+    const inRange = (v) => (!curMin || v >= curMin) && (!curMax || v <= curMax);
+    const roundTo = monthly ? 250 : 5e4;
+    const setPrice = (min, max) => {
+      setF(x => (monthly ? { ...x, payMin: min, payMax: max } : { ...x, priceMin: min, priceMax: max }));
+      setText({ min: min ? fmtV(min) : "", max: max ? fmtV(max) : "" });
+    };
+    const setMode = (m) => {
+      if (m === f.priceMode) return;
+      // Exclusive like Redfin's tabs: switching clears the other unit.
+      setF(x => ({ ...x, priceMode: m, priceMin: null, priceMax: null, payMin: null, payMax: null }));
+      setText({ min: "", max: "" });
+    };
+    const QUICK = monthly
+      ? [["Under $5K/mo", null, 5000], ["$5–8K", 5000, 8000], ["$8–12K", 8000, 12000], ["$12K+", 12000, null]]
+      : [["Under $1M", null, 1e6], ["$1–2M", 1e6, 2e6], ["$2–3M", 2e6, 3e6], ["$3M+", 3e6, null]];
+    const seg = (on) => ({ flex: 1, minWidth: 0, padding: "10px 4px", border: "none", borderRadius: 9999, background: on ? accent : "transparent", color: on ? "#fff" : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap" });
+    const segWrap = { display: "flex", gap: 2, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: 3 };
+    const label = { fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 };
+    const tapBeds = (n) => setF(x => {
+      if (n == null) return { ...x, bedsMin: null, bedsMax: null };
+      // Redfin: first tap = exactly n; a second, different tap makes a range.
+      if (x.bedsMin == null || x.bedsMin !== x.bedsMax) return { ...x, bedsMin: n, bedsMax: n };
+      if (x.bedsMin === n) return { ...x, bedsMin: null, bedsMax: null };
+      return { ...x, bedsMin: Math.min(n, x.bedsMin), bedsMax: Math.max(n, x.bedsMax) };
+    });
+    const inp = { width: "100%", boxSizing: "border-box", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "10px 16px", fontSize: 14, color: T.text, fontFamily: FONT, outline: "none" };
+    const tab = (on) => ({ background: "none", border: "none", borderBottom: `2px solid ${on ? accent : "transparent"}`, padding: "4px 0 6px", marginRight: 18, color: on ? T.text : T.textTertiary, fontSize: 13, fontWeight: on ? 700 : 600, fontFamily: FONT, cursor: "pointer" });
+    const pctRate = (v) => `${Number(v).toFixed(2)}%`;
+    const moreCount = [f.sqftMin, f.yearMin, !sold && f.newOnly].filter(Boolean).length;
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: IS_MOBILE ? 14 : 18, marginBottom: IS_MOBILE ? 14 : 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ ...label, marginBottom: 0 }}>Price</div>
+          {liveFilterCount(f) > 0 && (
+            <button onClick={() => { setF({ ...EMPTY, priceMode: f.priceMode, payDown: down }); setText({ min: "", max: "" }); }} style={{ background: "none", border: "none", color: accent, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", padding: 0 }}>Reset all</button>
+          )}
+        </div>
+        <div role="tablist" aria-label="Price filter" style={{ display: "flex", marginBottom: 12, borderBottom: `1px solid ${T.cardBorder}` }}>
+          <button role="tab" aria-selected={!monthly} onClick={() => setMode("list")} style={tab(!monthly)}>{sold ? "Sold price" : "List price"}</button>
+          <button role="tab" aria-selected={monthly} onClick={() => setMode("monthly")} style={tab(monthly)}>Monthly payment</button>
+        </div>
+        {monthly && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, fontWeight: 600 }}>Down payment</span>
+              {[0.1, 0.2, 0.25, 0.3].map(d => (
+                <button key={d} onClick={() => setF(x => ({ ...x, payDown: d }))}
+                  style={{ padding: "5px 11px", borderRadius: 9999, border: `1px solid ${down === d ? accent : T.cardBorder}`, background: down === d ? `${accent}1f` : T.card, color: down === d ? accent : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>{Math.round(d * 100)}%</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.5 }}>
+              Est. {sold ? "on the sold price " : ""}at {payCtx.live ? "today's" : "typical"} {pctRate(payCtx.rate30)} 30-yr fixed ({pctRate(payCtx.rateJumbo)} jumbo over {fmtShortMoney(payCtx.limit)}) · {(payCtx.taxRate * 100).toFixed(2)}% property tax · insurance{down < 0.2 ? " · PMI" : ""}. HOA not included.
+            </div>
+          </div>
+        )}
+        {prices.length > 0 && (
+          <div aria-hidden style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 48, marginBottom: 4 }}>
+            {bins.map((c, i) => (
+              <div key={i} onClick={() => setPrice(Math.round(binMid(i) / 1.15 / roundTo) * roundTo, Math.round(binMid(i) * 1.15 / roundTo) * roundTo)} title={fmtV(binMid(i))}
+                style={{ flex: 1, height: `${Math.max(c ? 8 : 2, (c / peak) * 100)}%`, borderRadius: 3, background: inRange(binMid(i)) ? accent : T.cardBorder, opacity: c ? 1 : 0.4, cursor: "pointer", transition: "background 0.15s" }} />
+            ))}
+          </div>
+        )}
+        {prices.length > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginBottom: 10 }}>
+            <span>{fmtV(Math.pow(10, lo))}{monthly ? "/mo" : ""}</span><span>{fmtV(Math.pow(10, hi))}+{monthly ? "/mo" : ""}</span>
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <input aria-label={monthly ? "Minimum monthly payment" : "Minimum price"} placeholder={monthly ? "No min /mo" : "No min"} inputMode="decimal" value={text.min}
+            onChange={e => setText(t => ({ ...t, min: e.target.value }))}
+            onBlur={e => setPrice(parseV(e.target.value), curMax)}
+            onKeyDown={e => e.key === "Enter" && e.currentTarget.blur()} style={inp} />
+          <span style={{ color: T.textTertiary }}>–</span>
+          <input aria-label={monthly ? "Maximum monthly payment" : "Maximum price"} placeholder={monthly ? "No max /mo" : "No max"} inputMode="decimal" value={text.max}
+            onChange={e => setText(t => ({ ...t, max: e.target.value }))}
+            onBlur={e => setPrice(curMin, parseV(e.target.value))}
+            onKeyDown={e => e.key === "Enter" && e.currentTarget.blur()} style={inp} />
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+          {QUICK.map(([lbl, mn, mx]) => {
+            const on = (curMin || null) === mn && (curMax || null) === mx;
+            return (
+              <button key={lbl} onClick={() => (on ? setPrice(null, null) : setPrice(mn, mx))}
+                style={{ padding: "6px 12px", borderRadius: 9999, border: `1px solid ${on ? accent : T.cardBorder}`, background: on ? `${accent}1f` : T.card, color: on ? accent : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>{lbl}</button>
+            );
+          })}
+        </div>
+
+        {sold ? (<>
+          <div style={label}>Sold within</div>
+          <div style={{ ...segWrap, marginBottom: 14 }}>
+            {[[null, "Any"], [1, "1 mo"], [3, "3 mo"], [6, "6 mo"]].map(([v, t]) => (
+              <button key={t} aria-pressed={(f.soldWithin || null) === v} onClick={() => setF(x => ({ ...x, soldWithin: v }))} style={seg((f.soldWithin || null) === v)}>{t}</button>
+            ))}
+          </div>
+        </>) : (<>
+          <div style={label}>Status</div>
+          <div style={{ ...segWrap, marginBottom: 14 }}>
+            <button aria-pressed={!f.hidePending} onClick={() => setF(x => ({ ...x, hidePending: false }))} style={seg(!f.hidePending)}>Active + pending</button>
+            <button aria-pressed={!!f.hidePending} onClick={() => setF(x => ({ ...x, hidePending: true }))} style={seg(!!f.hidePending)}>Active only</button>
+          </div>
+        </>)}
+
+        <div style={label}>Beds <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>· tap two numbers for a range</span></div>
+        <div style={{ ...segWrap, marginBottom: 14 }}>
+          <button onClick={() => tapBeds(null)} style={seg(f.bedsMin == null)}>Any</button>
+          {[1, 2, 3, 4, 5].map(n => (
+            <button key={n} onClick={() => tapBeds(n)} style={seg(f.bedsMin != null && n >= f.bedsMin && n <= f.bedsMax)}>{n === 5 ? "5+" : n}</button>
+          ))}
+        </div>
+
+        <div style={label}>Baths</div>
+        <div style={{ ...segWrap, marginBottom: 14 }}>
+          {[[null, "Any"], [1, "1+"], [1.5, "1.5+"], [2, "2+"], [2.5, "2.5+"], [3, "3+"], [4, "4+"]].map(([v, t]) => (
+            <button key={t} onClick={() => setF(x => ({ ...x, bathsMin: v }))} style={seg((f.bathsMin || null) === v)}>{t}</button>
+          ))}
+        </div>
+
+        <button onClick={() => setMoreFiltersOpen(o => !o)} aria-expanded={moreFiltersOpen}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, color: T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", marginBottom: moreFiltersOpen ? 12 : 0 }}>
+          More filters{moreCount ? ` (${moreCount})` : ""}
+          <Icon name="chevron-down" size={13} style={{ transform: moreFiltersOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+        </button>
+        {moreFiltersOpen && (
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop && !sold ? "1fr 1fr 1fr" : "1fr 1fr", gap: 10, alignItems: "end" }}>
+            <label style={{ fontFamily: FONT }}>
+              <div style={label}>Min sqft</div>
+              <select value={f.sqftMin || ""} onChange={e => setF(x => ({ ...x, sqftMin: Number(e.target.value) || null }))} style={{ ...inp, appearance: "auto" }}>
+                <option value="">No min</option>
+                {[750, 1000, 1250, 1500, 2000, 2500, 3000, 4000].map(v => <option key={v} value={v}>{v.toLocaleString()}+ sqft</option>)}
+              </select>
+            </label>
+            <label style={{ fontFamily: FONT }}>
+              <div style={label}>Built after</div>
+              <select value={f.yearMin || ""} onChange={e => setF(x => ({ ...x, yearMin: Number(e.target.value) || null }))} style={{ ...inp, appearance: "auto" }}>
+                <option value="">Any year</option>
+                {[1940, 1960, 1980, 2000, 2010, 2020].map(v => <option key={v} value={v}>{v}+</option>)}
+              </select>
+            </label>
+            {!sold && (
+              <button onClick={() => setF(x => ({ ...x, newOnly: !x.newOnly }))}
+                style={{ gridColumn: isDesktop ? "auto" : "1 / -1", padding: "10px 14px", borderRadius: 9999, border: `1px solid ${f.newOnly ? accent : T.cardBorder}`, background: f.newOnly ? `${accent}1f` : T.card, color: f.newOnly ? accent : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
+                {f.newOnly ? "✓ " : ""}New this week
+              </button>
+            )}
+          </div>
+        )}
+        {base.length > 0 && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, color: matching.length ? T.text : T.red, fontFamily: FONT, textAlign: "center" }}>
+            {matching.length ? `${matching.length.toLocaleString("en-US")} of ${base.length.toLocaleString("en-US")} ${sold ? "sales" : "homes"} match · ${sold ? "pick areas below or tap Near me" : "pick an area below"}` : `No ${sold ? "sales" : "homes"} match these filters`}
+          </div>
+        )}
+      </div>
+    );
   };
   const renderRefreshButton = (state, onClick, label) => (
     <button onClick={onClick} disabled={state.busy} aria-label={label} title={label}
@@ -6039,10 +6295,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {/* Surfaces the active type filter — it persists across sessions,
                   so a shrunken pool needs a visible cause. Tap → picker. */}
               <div role="button" tabIndex={0} onClick={() => setView("livePicker")} onKeyDown={onKeyActivate(() => setView("livePicker"))} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveNear ? `Near you · ${liveNear.radius} km` : (liveHoodName || "All")}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}{liveFilterCount(liveFilters) > 0 ? ` · ${liveFilters.priceMode === "monthly" && (liveFilters.payMin || liveFilters.payMax)
-                  ? (liveFilters.payMin && liveFilters.payMax ? `${fmtMonthly(liveFilters.payMin)}–${fmtMonthly(liveFilters.payMax)}/mo` : liveFilters.payMax ? `≤${fmtMonthly(liveFilters.payMax)}/mo` : `${fmtMonthly(liveFilters.payMin)}+/mo`)
-                  : liveFilters.priceMode !== "monthly" && (liveFilters.priceMin || liveFilters.priceMax) ? `${liveFilters.priceMin ? fmtShortMoney(liveFilters.priceMin) : "$0"}–${liveFilters.priceMax ? fmtShortMoney(liveFilters.priceMax) : "any"}`
-                  : `${liveFilterCount(liveFilters)} filter${liveFilterCount(liveFilters) > 1 ? "s" : ""}`}` : ""}</span> <Icon name="chevron-right" size={12} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveNear ? `Near you · ${liveNear.radius} km` : (liveHoodName || "All")}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}{liveFilterCount(liveFilters) > 0 ? ` · ${filterSummary(liveFilters)}` : ""}</span> <Icon name="chevron-right" size={12} />
               </div>
               {/* Desktop: count + refresh ride next to the filter; the List|Map
                   toggle sits over the photo's top-right corner (2026-10-07). */}
@@ -6315,172 +6568,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               More (sqft, year built, new this week). Counts are live against
               the loaded city pool, so you see what a filter costs before
               you commit. ── */}
-          {(() => {
-            const f = liveFilters;
-            const base = activeListings.filter(isTrueActive).filter(l => fpTypeMatch(liveTypeSel, l.propertyType));
-            const matching = base.filter(l => liveFilterMatch(f, l, payCtx));
-            // Price section works in either unit — list price or estimated
-            // monthly payment (Redfin's two tabs). Same histogram / inputs /
-            // quick ranges, swapped per mode.
-            const monthly = f.priceMode === "monthly";
-            const down = f.payDown ?? 0.2;
-            const valOf = (l) => (monthly ? monthlyPaymentFor(Number(l.listPrice), down, payCtx) : Number(l.listPrice));
-            const prices = base.map(valOf).filter(p => p > 0).sort((a, b) => a - b);
-            const fmtV = monthly ? fmtMonthly : fmtShortMoney;
-            const parseV = monthly ? parseMonthly : parseMoney;
-            const curMin = monthly ? f.payMin : f.priceMin;
-            const curMax = monthly ? f.payMax : f.priceMax;
-            const lo = prices.length ? Math.log10(prices[Math.floor(prices.length * 0.02)]) : 5.7;
-            const hi = prices.length ? Math.log10(prices[Math.ceil(prices.length * 0.98) - 1]) : 6.9;
-            const BINS = 30;
-            const bins = Array.from({ length: BINS }, () => 0);
-            for (const p of prices) { const i = Math.min(BINS - 1, Math.max(0, Math.floor((Math.log10(p) - lo) / ((hi - lo) || 1) * BINS))); bins[i]++; }
-            const peak = Math.max(1, ...bins);
-            const binMid = (i) => Math.pow(10, lo + (i + 0.5) * (hi - lo) / BINS);
-            const inRange = (v) => (!curMin || v >= curMin) && (!curMax || v <= curMax);
-            const roundTo = monthly ? 250 : 5e4;
-            const setPrice = (min, max) => {
-              setLiveFilters(x => (monthly ? { ...x, payMin: min, payMax: max } : { ...x, priceMin: min, priceMax: max }));
-              setPriceText({ min: min ? fmtV(min) : "", max: max ? fmtV(max) : "" });
-            };
-            const setMode = (m) => {
-              if (m === f.priceMode) return;
-              // Exclusive like Redfin's tabs: switching clears the other unit.
-              setLiveFilters(x => ({ ...x, priceMode: m, priceMin: null, priceMax: null, payMin: null, payMax: null }));
-              setPriceText({ min: "", max: "" });
-            };
-            const QUICK = monthly
-              ? [["Under $5K/mo", null, 5000], ["$5–8K", 5000, 8000], ["$8–12K", 8000, 12000], ["$12K+", 12000, null]]
-              : [["Under $1M", null, 1e6], ["$1–2M", 1e6, 2e6], ["$2–3M", 2e6, 3e6], ["$3M+", 3e6, null]];
-            const seg = (on) => ({ flex: 1, minWidth: 0, padding: "10px 4px", border: "none", borderRadius: 9999, background: on ? T.red : "transparent", color: on ? "#fff" : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap" });
-            const segWrap = { display: "flex", gap: 2, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: 3 };
-            const label = { fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 };
-            const tapBeds = (n) => setLiveFilters(x => {
-              if (n == null) return { ...x, bedsMin: null, bedsMax: null };
-              // Redfin: first tap = exactly n; a second, different tap makes a range.
-              if (x.bedsMin == null || x.bedsMin !== x.bedsMax) return { ...x, bedsMin: n, bedsMax: n };
-              if (x.bedsMin === n) return { ...x, bedsMin: null, bedsMax: null };
-              return { ...x, bedsMin: Math.min(n, x.bedsMin), bedsMax: Math.max(n, x.bedsMax) };
-            });
-            const inp = { width: "100%", boxSizing: "border-box", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "10px 16px", fontSize: 14, color: T.text, fontFamily: FONT, outline: "none" };
-            const tab = (on) => ({ background: "none", border: "none", borderBottom: `2px solid ${on ? T.red : "transparent"}`, padding: "4px 0 6px", marginRight: 18, color: on ? T.text : T.textTertiary, fontSize: 13, fontWeight: on ? 700 : 600, fontFamily: FONT, cursor: "pointer" });
-            const pctRate = (v) => `${Number(v).toFixed(2)}%`;
-            return (
-              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: IS_MOBILE ? 14 : 18, marginBottom: IS_MOBILE ? 14 : 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <div style={{ ...label, marginBottom: 0 }}>Price</div>
-                  {liveFilterCount(f) > 0 && (
-                    <button onClick={() => { setLiveFilters({ ...LIVE_FILTERS_EMPTY, priceMode: f.priceMode, payDown: down }); setPriceText({ min: "", max: "" }); }} style={{ background: "none", border: "none", color: T.red, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", padding: 0 }}>Reset all</button>
-                  )}
-                </div>
-                <div role="tablist" aria-label="Price filter" style={{ display: "flex", marginBottom: 12, borderBottom: `1px solid ${T.cardBorder}` }}>
-                  <button role="tab" aria-selected={!monthly} onClick={() => setMode("list")} style={tab(!monthly)}>List price</button>
-                  <button role="tab" aria-selected={monthly} onClick={() => setMode("monthly")} style={tab(monthly)}>Monthly payment</button>
-                </div>
-                {monthly && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, fontWeight: 600 }}>Down payment</span>
-                      {[0.1, 0.2, 0.25, 0.3].map(d => (
-                        <button key={d} onClick={() => setLiveFilters(x => ({ ...x, payDown: d }))}
-                          style={{ padding: "5px 11px", borderRadius: 9999, border: `1px solid ${down === d ? T.red : T.cardBorder}`, background: down === d ? `${T.red}1f` : T.card, color: down === d ? T.red : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>{Math.round(d * 100)}%</button>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.5 }}>
-                      Est. at {payCtx.live ? "today's" : "typical"} {pctRate(payCtx.rate30)} 30-yr fixed ({pctRate(payCtx.rateJumbo)} jumbo over {fmtShortMoney(payCtx.limit)}) · {(payCtx.taxRate * 100).toFixed(2)}% property tax · insurance{down < 0.2 ? " · PMI" : ""}. HOA not included.
-                    </div>
-                  </div>
-                )}
-                {prices.length > 0 && (
-                  <div aria-hidden style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 48, marginBottom: 4 }}>
-                    {bins.map((c, i) => (
-                      <div key={i} onClick={() => setPrice(Math.round(binMid(i) / 1.15 / roundTo) * roundTo, Math.round(binMid(i) * 1.15 / roundTo) * roundTo)} title={fmtV(binMid(i))}
-                        style={{ flex: 1, height: `${Math.max(c ? 8 : 2, (c / peak) * 100)}%`, borderRadius: 3, background: inRange(binMid(i)) ? T.red : T.cardBorder, opacity: c ? 1 : 0.4, cursor: "pointer", transition: "background 0.15s" }} />
-                    ))}
-                  </div>
-                )}
-                {prices.length > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginBottom: 10 }}>
-                    <span>{fmtV(Math.pow(10, lo))}{monthly ? "/mo" : ""}</span><span>{fmtV(Math.pow(10, hi))}+{monthly ? "/mo" : ""}</span>
-                  </div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <input aria-label={monthly ? "Minimum monthly payment" : "Minimum price"} placeholder={monthly ? "No min /mo" : "No min"} inputMode="decimal" value={priceText.min}
-                    onChange={e => setPriceText(t => ({ ...t, min: e.target.value }))}
-                    onBlur={e => setPrice(parseV(e.target.value), curMax)}
-                    onKeyDown={e => e.key === "Enter" && e.currentTarget.blur()} style={inp} />
-                  <span style={{ color: T.textTertiary }}>–</span>
-                  <input aria-label={monthly ? "Maximum monthly payment" : "Maximum price"} placeholder={monthly ? "No max /mo" : "No max"} inputMode="decimal" value={priceText.max}
-                    onChange={e => setPriceText(t => ({ ...t, max: e.target.value }))}
-                    onBlur={e => setPrice(curMin, parseV(e.target.value))}
-                    onKeyDown={e => e.key === "Enter" && e.currentTarget.blur()} style={inp} />
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-                  {QUICK.map(([lbl, mn, mx]) => {
-                    const on = (curMin || null) === mn && (curMax || null) === mx;
-                    return (
-                      <button key={lbl} onClick={() => (on ? setPrice(null, null) : setPrice(mn, mx))}
-                        style={{ padding: "6px 12px", borderRadius: 9999, border: `1px solid ${on ? T.red : T.cardBorder}`, background: on ? `${T.red}1f` : T.card, color: on ? T.red : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>{lbl}</button>
-                    );
-                  })}
-                </div>
-
-                <div style={label}>Status</div>
-                <div style={{ ...segWrap, marginBottom: 14 }}>
-                  <button aria-pressed={!f.hidePending} onClick={() => setLiveFilters(x => ({ ...x, hidePending: false }))} style={seg(!f.hidePending)}>Active + pending</button>
-                  <button aria-pressed={!!f.hidePending} onClick={() => setLiveFilters(x => ({ ...x, hidePending: true }))} style={seg(!!f.hidePending)}>Active only</button>
-                </div>
-
-                <div style={label}>Beds <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>· tap two numbers for a range</span></div>
-                <div style={{ ...segWrap, marginBottom: 14 }}>
-                  <button onClick={() => tapBeds(null)} style={seg(f.bedsMin == null)}>Any</button>
-                  {[1, 2, 3, 4, 5].map(n => (
-                    <button key={n} onClick={() => tapBeds(n)} style={seg(f.bedsMin != null && n >= f.bedsMin && n <= f.bedsMax)}>{n === 5 ? "5+" : n}</button>
-                  ))}
-                </div>
-
-                <div style={label}>Baths</div>
-                <div style={{ ...segWrap, marginBottom: 14 }}>
-                  {[[null, "Any"], [1, "1+"], [1.5, "1.5+"], [2, "2+"], [2.5, "2.5+"], [3, "3+"], [4, "4+"]].map(([v, t]) => (
-                    <button key={t} onClick={() => setLiveFilters(x => ({ ...x, bathsMin: v }))} style={seg((f.bathsMin || null) === v)}>{t}</button>
-                  ))}
-                </div>
-
-                <button onClick={() => setMoreFiltersOpen(o => !o)} aria-expanded={moreFiltersOpen}
-                  style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, color: T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", marginBottom: moreFiltersOpen ? 12 : 0 }}>
-                  More filters{[f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length ? ` (${[f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length})` : ""}
-                  <Icon name="chevron-down" size={13} style={{ transform: moreFiltersOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
-                </button>
-                {moreFiltersOpen && (
-                  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr", gap: 10, alignItems: "end" }}>
-                    <label style={{ fontFamily: FONT }}>
-                      <div style={label}>Min sqft</div>
-                      <select value={f.sqftMin || ""} onChange={e => setLiveFilters(x => ({ ...x, sqftMin: Number(e.target.value) || null }))} style={{ ...inp, appearance: "auto" }}>
-                        <option value="">No min</option>
-                        {[750, 1000, 1250, 1500, 2000, 2500, 3000, 4000].map(v => <option key={v} value={v}>{v.toLocaleString()}+ sqft</option>)}
-                      </select>
-                    </label>
-                    <label style={{ fontFamily: FONT }}>
-                      <div style={label}>Built after</div>
-                      <select value={f.yearMin || ""} onChange={e => setLiveFilters(x => ({ ...x, yearMin: Number(e.target.value) || null }))} style={{ ...inp, appearance: "auto" }}>
-                        <option value="">Any year</option>
-                        {[1940, 1960, 1980, 2000, 2010, 2020].map(v => <option key={v} value={v}>{v}+</option>)}
-                      </select>
-                    </label>
-                    <button onClick={() => setLiveFilters(x => ({ ...x, newOnly: !x.newOnly }))}
-                      style={{ gridColumn: isDesktop ? "auto" : "1 / -1", padding: "10px 14px", borderRadius: 9999, border: `1px solid ${f.newOnly ? T.red : T.cardBorder}`, background: f.newOnly ? `${T.red}1f` : T.card, color: f.newOnly ? T.red : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
-                      {f.newOnly ? "✓ " : ""}New this week
-                    </button>
-                  </div>
-                )}
-                {base.length > 0 && (
-                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, color: matching.length ? T.text : T.red, fontFamily: FONT, textAlign: "center" }}>
-                    {matching.length ? `${matching.length} of ${base.length} homes match · pick an area below` : "No homes match these filters"}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          {renderFilterCard(false)}
 
           {/* Near me — the same "Near you" pool the home screen opens on
               (device location, else the Blueprint zip). Fails loud when
@@ -6747,7 +6835,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       )}
 
       {/* ═══ FREE PLAY NEIGHBORHOOD PICKER ═══ */}
-      {view === "fpPicker" && (
+      {view === "fpPicker" && (() => { const soldBaseForCounts = soldPickerBase(); return (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
           {/* Market switcher pill */}
           <div style={{ marginBottom: 16 }}>
@@ -6777,6 +6865,26 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           </div>
 
+          {/* Same filters as For Sale, priced on the sold price. */}
+          {renderFilterCard(true)}
+
+          {/* Near me \u2014 every sale in the city, nearest first; each Next
+              re-sorts from where you are now (walk past a house, see what the
+              closest ones sold for). Same origin rules as For Sale. */}
+          <button onClick={async () => {
+              if (nearMeBusy) return;
+              setNearMeBusy(true); setNearMeError(null);
+              const origin = await nearbyOrigin([...soldListings.filter(isTrueSold), ...activeListings]);
+              setNearMeBusy(false);
+              if (!origin) { setNearMeError("Couldn't find your location. Allow location access, or pick a neighborhood."); return; }
+              setFpHoodSel([]);
+              enterFreePlay([], origin);
+            }}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px", minHeight: 56, borderRadius: 12, border: `1px solid ${T.cyan}`, background: `${T.cyan}14`, color: T.cyan, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: nearMeBusy ? "default" : "pointer", marginBottom: nearMeError ? 8 : 20 }}>
+            <Icon name="map-pin" size={16} /> {nearMeBusy ? "Finding sales near you\u2026" : "Near me"}
+          </button>
+          {nearMeError && <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginBottom: 20, textAlign: "center" }}>{nearMeError}</div>}
+
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Neighborhoods</div>
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: IS_MOBILE ? 8 : 12 }}>
             {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => {
@@ -6795,6 +6903,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   onClick={() => setFpHoodSel(prev => on ? prev.filter(n => n !== hood.name) : [...prev, hood.name])}
                   style={{ padding: IS_MOBILE ? "12px" : "16px", borderRadius: 12, border: `1px solid ${on ? T.cyan : T.cardBorder}`, background: on ? "rgba(6,182,212,0.12)" : T.card, fontSize: 14, fontWeight: 600, color: on ? T.cyan : T.text, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: IS_MOBILE ? 46 : 56 }}>
                   {on ? "\u2713 " : ""}{hood.name}
+                  {(() => {
+                    // How many sales this area has under the current type + filters.
+                    const grp = HOOD_ZIP_GROUPS[(hood.name || "").toLowerCase()] || new Set([hood.zip]);
+                    const n = soldBaseForCounts.filter(l => grp.has(l.zip) && liveFilterMatch(soldFilters, l, payCtx, true)).length;
+                    return soldBaseForCounts.length > 0 ? <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: n ? T.textTertiary : T.red }}>· {n}</span> : null;
+                  })()}
                 </button>
               );
             })}
@@ -6819,7 +6933,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </button>
           </div>
         </div>
-      )}
+      ); })()}
 
       {/* ═══ FREE PLAY ═══ */}
       {view === "freeplay" && (
@@ -6832,7 +6946,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
               <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
               <span style={{ color: T.textTertiary }}>·</span>
-              <div role="button" tabIndex={0} onClick={() => setView("fpPicker")} onKeyDown={onKeyActivate(() => setView("fpPicker"))} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}</span> <Icon name="chevron-right" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setView("fpPicker")} onKeyDown={onKeyActivate(() => setView("fpPicker"))} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}{fpTypeSel.length > 0 ? ` · ${fpTypeSel.length === 1 ? typeChipLabel(fpTypeSel[0]) : `${fpTypeSel.length} types`}` : ""}{liveFilterCount(soldFilters) > 0 ? ` · ${filterSummary(soldFilters)}` : ""}</span> <Icon name="chevron-right" size={12} /></div>
               {isDesktop && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: soldRefresh.note ? T.textSecondary : T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{soldRefresh.note || `${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""} left`}</span>
               {renderRefreshButton(soldRefresh, refreshSoldListings, "Check for new sales")}
@@ -6936,11 +7050,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.green}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.green}20` }}>
                     <Icon name="check" size={24} style={{ color: T.green }} />
                   </div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
-                  <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
-                    You've guessed all {fpListings.length} available properties{fpSelectedNeighborhood ? ` in ${fpSelectedNeighborhood}` : ""}.
-                  </div>
-                  <PillButton onClick={() => setView("fpPicker")} accent>Try Another Neighborhood</PillButton>
+                  {fpListings.length === 0 && (liveFilterCount(soldFilters) > 0 || fpTypeSel.length > 0) ? (<>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>No sales match</div>
+                    <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
+                      Nothing{fpSelectedNeighborhood ? ` ${fpSelectedNeighborhood === "Near you" ? "near you" : `in ${fpSelectedNeighborhood}`}` : ""} fits your filters. Loosen them and try again.
+                    </div>
+                  </>) : (<>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
+                    <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
+                      You've guessed all {fpListings.length} available properties{fpSelectedNeighborhood ? ` in ${fpSelectedNeighborhood}` : ""}.
+                    </div>
+                  </>)}
+                  <PillButton onClick={() => setView("fpPicker")} accent>{fpListings.length === 0 && liveFilterCount(soldFilters) > 0 ? "Change Filters" : "Try Another Neighborhood"}</PillButton>
                   <div style={{ marginTop: 12 }}>
                     <button onClick={() => setView("postDaily")} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT, padding: "8px 16px" }}>
                       Back to Home
