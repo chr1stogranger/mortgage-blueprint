@@ -8,6 +8,7 @@ import { DARK } from './lib/theme.js';
 import { getCountyLimits } from './data/loanLimits.js';
 import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
+import { getDevicePosition, watchDevicePosition } from './lib/deviceLocation';
 import {
   getOrCreatePlayer, getDeviceId,
   submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer, fetchMyPredictions, fetchSoldField, fetchMySoldGuesses, fetchMyWins,
@@ -3483,11 +3484,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // Follow the device while you walk (only when the origin came from it).
   const followDevice = (view === "live" && !!liveNear?.fromDevice) || (view === "freeplay" && !!fpNear?.fromDevice);
   useEffect(() => {
-    if (!followDevice || !navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition(
-      p => { nearPosRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; },
-      () => {}, { maximumAge: 60 * 1000, timeout: 20000 });
-    return () => navigator.geolocation.clearWatch(id);
+    if (!followDevice) return;
+    return watchDevicePosition(p => { nearPosRef.current = p; });
   }, [followDevice]);
 
   // nearOrigin {lat,lng,fromDevice}: "near you" pool (see nearSlice) instead
@@ -4267,24 +4265,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const pts = pool.filter(l => l.latitude && l.longitude);
     // No homes cached yet (first visit): skip the in-market sanity check.
     const c = pts.length ? { lat: pts.reduce((a, l) => a + l.latitude, 0) / pts.length, lng: pts.reduce((a, l) => a + l.longitude, 0) / pts.length } : null;
-    // Native shell: Info.plist declares no location permission, so WKWebView's
-    // getCurrentPosition never calls back (its own timeout only starts after a
-    // grant) and For Sale sat on "Finding active listings…" forever (found
-    // 2026-10-18 before iOS 1.5). Go straight to the zip there; on the web,
-    // cap the wait ourselves so an unanswered prompt can't hang it either.
-    if (navigator.geolocation && !Capacitor.isNativePlatform()) {
-      try {
-        const perm = navigator.permissions?.query ? await navigator.permissions.query({ name: "geolocation" }).catch(() => null) : null;
-        if (perm?.state !== "denied") {
-          const pos = await Promise.race([
-            new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000, maximumAge: 30 * 60 * 1000 })),
-            new Promise((_, rej) => setTimeout(() => rej(new Error("geolocation timeout")), 8000)),
-          ]);
-          const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          if (!c || kmBetween(here, c) < 60) return { ...here, fromDevice: true }; // outside this market → ignore
-        }
-      } catch { /* denied / timed out → zip */ }
-    }
+    // Web and the native app (OS permission sheet via @capacitor/geolocation,
+    // 2026-10-29); capped so an unanswered prompt can't hang "Finding…".
+    // null (denied / timed out) → zip.
+    const here = await getDevicePosition();
+    if (here && (!c || kmBetween(here, c) < 60)) return { ...here, fromDevice: true }; // outside this market → ignore
     const z = String(homeZip || "").trim();
     if (/^\d{5}$/.test(z)) {
       const inZip = pts.filter(l => String(l.zip) === z);
