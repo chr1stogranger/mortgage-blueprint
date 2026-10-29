@@ -5,6 +5,7 @@ import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
 import { repayPillar } from "./lib/nonQm.js";
 import useEscape from "./hooks/useEscape.js";
+import useDeployVersion from "./hooks/useDeployVersion.js";
 
 
 /**
@@ -68,6 +69,8 @@ export default function UnifiedHeader({
   scenarioActions = null,
   canEditScenarios = false,
 }) {
+  // A newer deploy than this tab is running → blue Update pill (as in Ops).
+  const updateReady = useDeployVersion();
   // ── Format helpers ──
   const fmt = (v) => {
     if (v == null || !isFinite(v) || isNaN(v)) return "$0";
@@ -571,6 +574,26 @@ export default function UnifiedHeader({
             MortgageBlueprint in case we re-surface it via a settings
             menu later. */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* New-deploy pill, left of the account controls (Christo 2026-10-28,
+              same as RealStack Ops): this tab is running an older bundle than
+              production. Cache-busting replace per CLAUDE.md's stale-bundle
+              playbook. */}
+          {updateReady && (
+            <button
+              onClick={() => location.replace("?_cb=" + Date.now() + location.hash)}
+              title="A new version of Blueprint is out. Click to reload this window"
+              aria-label="Update to the latest version"
+              style={{
+                background: "#3B6BF5", border: "1px solid #3B6BF5", borderRadius: 9999,
+                padding: isDesktop ? "4px 12px" : "4px 9px", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 5, color: "#fff",
+                fontSize: 11, fontWeight: 700, fontFamily: FONT, flexShrink: 0,
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+              Update
+            </button>
+          )}
           {/* ── Borrower account: sign-in pill (anonymous) / avatar (signed in).
               Hidden in LO mode and share-link borrower mode. ── */}
           {showAccountButton && (
