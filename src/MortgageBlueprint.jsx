@@ -4640,6 +4640,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const rent = (qLP === "Purchase Investment" || (qLP === "Purchase Primary" && getRentalUnits(qPropType, s.occupiedUnits) > 0)) ? (Number(s.subjectRentalIncome) || 0) : 0;
   return { isRefi: false, salesPrice: sp, downPct: s.downPct || 20, downAmt: dp, rate: s.rate || 6.5, term: s.term || 30, loanType: s.loanType || "Conventional", loan, pi, monthlyPayment, cashToClose, closingCosts, dti: dtiFor(monthlyPayment), totalInt, monthlyInc: qualInc, monthlyTax, ins, mi, miMode, hoaM, ltv,
    rent, loanPurpose: qLP, propType: qPropType, units: UNIT_COUNT[qPropType] || 1,
+   // Estimated APR on the same finance-charge basis as the live engine
+   // (lender fees + points + financed upfront MI), for the screenshot disclosure.
+   apr: calcAPR(loan, s.rate || 6.5, s.term || 30, ["underwritingFee", "adminFee", "lenderWireFee", "processingFee"].reduce((a, k) => a + (Number(s[k] ?? { underwritingFee, adminFee, lenderWireFee, processingFee }[k]) || 0), 0) + loan * (Number(s.discountPts) || 0) / 100 + fhaUp + vaFF),
    costSeries: borrowCostSeries({ loan, rate: s.rate || 6.5, termYears: s.term || 30, miMonthly: mi, miMode, value: sp, closingCosts }) };
  };
  // Load all scenarios for compare view
@@ -4677,7 +4680,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     monthlyPayment: calc.housingPayment, cashToClose: calc.cashToClose, closingCosts: calc.totalClosingCosts,
     dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome,
     monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, miMode: liveMiMode, hoaM: hoa, ltv: calc.ltv,
-    rent: calc.ladderRentCredit || 0, loanPurpose, propType, units: UNIT_COUNT[propType] || 1,
+    rent: calc.ladderRentCredit || 0, loanPurpose, propType, units: UNIT_COUNT[propType] || 1, apr: calc.apr,
     costSeries: borrowCostSeries({ loan: calc.loan, rate, termYears: term, miMonthly: calc.monthlyMI, miMode: liveMiMode, value: salesPrice, closingCosts: calc.totalClosingCosts }),
    };
    // Build STRICTLY from the current scenario list so a just-deleted scenario

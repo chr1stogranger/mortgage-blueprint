@@ -11,10 +11,10 @@
 
 export const LENS_MODES = [
   ["off", "As entered"],
+  ["price", "Same price"],
   ["payment", "Same payment"],
   ["cash", "Same cash to close"],
   ["both", "Same payment + cash"],
-  ["price", "Same price"],
 ];
 
 // What each mode holds equal, so the UI can mark it instead of crowning a

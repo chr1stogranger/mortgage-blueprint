@@ -2,6 +2,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import React, { useMemo, useRef, useState } from "react";
 import { winnerBy, firstLeaderChange } from "../lib/compareMetrics.js";
 import { LENS_MODES, LENS_HELD, netOf, solveLens, minDownFor } from "../lib/compareLens.js";
+import CompareSnapshot from "../components/CompareSnapshot.jsx";
 
 /* ═══════════════════════════════════════════════════════════════
    CompareContent — the Compare tab (rebuilt 2026-09-23, Christo).
@@ -466,12 +467,18 @@ function CostChart({ T, entries, refiMode, colorOf, fmt, privacy, isDesktop, S }
 
 /* ─── Purchase compare: mini Blueprints on a breakdown (2026-10-28) ───
    Each column opens like a small Overview (name, purchase price + down,
-   loan, payment ring); below, every line runs straight across one grid
-   so the numbers line up, grouped like Overview's Payment Breakdown and
-   Cash to Close cards, each ending in a blue total band with the winner.
-   "Line them up by" re-quotes the other options with one number held
-   equal (lib/compareLens.js); it's a what-if, saved options don't change. */
+   loan, payment ring); below, every line runs across one grid, grouped
+   like Overview's Payment Breakdown and Cash to Close cards, each ending
+   in a blue total band with the winner. Rows that match across every
+   option fold into one "Same for all" strip so the differences carry the
+   screen. "Line them up by" re-quotes options with one number held equal
+   to another option or to the borrower's own numbers (lib/compareLens.js),
+   and those numbers double as a budget the totals are checked against.
+   It's a what-if: saved options never change. "Screenshot" renders the
+   same comparison as a 1200px newsletter card (components/CompareSnapshot). */
 const LETTERS = "ABCDEFGH";
+const MINE = "\u0000mine"; // "Match to: My numbers" — can't collide with a scenario name
+const COUNT_WORDS = ["Zero", "One", "Two", "Three", "Four", "Five"];
 
 function compareDetail(m) {
   const r = (Number(m.rate) || 0) / 1200, loan = Number(m.loan) || 0, pi = Number(m.pi) || 0;
@@ -491,10 +498,31 @@ function compareDetail(m) {
   };
 }
 
+// Dollar box for "My numbers": digits only, shown with thousands commas.
+function MoneyBox({ T, label, value, onChange, suffix, strong }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONT }}>
+      <span style={{ fontSize: 11.5, color: strong ? T.blue : T.textTertiary, fontWeight: 600 }}>{label}</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 3, background: T.inputBg, border: `1px solid ${strong ? T.blue + "66" : T.inputBorder}`, borderRadius: 10, padding: "0 10px" }}>
+        <span style={{ color: T.textTertiary, fontWeight: 600, fontSize: 14 }}>$</span>
+        <input inputMode="numeric" aria-label={label} value={value == null ? "" : Math.round(value).toLocaleString("en-US")}
+          onChange={e => { const n = Number(e.target.value.replace(/[^0-9]/g, "")); onChange(n > 0 ? n : null); }}
+          style={{ width: 104, border: "none", background: "transparent", color: T.text, font: `600 14px ${FONT}`, padding: "7px 0", outline: "none" }} />
+        {suffix && <span style={{ color: T.textTertiary, fontSize: 12, fontWeight: 500 }}>{suffix}</span>}
+      </span>
+    </label>
+  );
+}
+
 function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scenarioName, switchScenario, onAddOption, privacy, requote }) {
   const [picked, setPicked] = useState(null);
   const [lens, setLens] = useState({ mode: "off", target: null });
+  const [mine, setMine] = useState({ price: null, net: null, cash: null });
   const [showMore, setShowMore] = useState(false);
+  const [unfold, setUnfold] = useState(false);
+  const [shot, setShot] = useState(false);
+  // Typing in My numbers re-solves every option; let React keep the input snappy.
+  const mineD = React.useDeferredValue(mine);
   const requoteRef = useRef(requote);
   requoteRef.current = requote;
 
@@ -512,23 +540,30 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const PALETTE = [T.blue, T.orange, T.purple, T.cyan];
   const colorOf = name => PALETTE[Math.max(0, all.findIndex(e => e.name === name)) % PALETTE.length];
 
-  const targetE = entries.find(e => e.name === lens.target) || entries.find(e => e.isCurrent) || entries[0];
+  const current = entries.find(e => e.isCurrent) || entries[0];
+  const useMine = lens.target === MINE;
+  const targetE = useMine ? null : (entries.find(e => e.name === lens.target) || current);
   const entryKey = entries.map(e => e.name).join("|");
+  const mineKey = useMine ? `${mineD.price}|${mineD.net}|${mineD.cash}` : "";
   // Solving re-quotes each option a few thousand times in "Same payment + cash";
   // keyed on the data and the lens only, not on every parent render.
   const cols = useMemo(() => {
-    const tm = targetE && targetE.metrics;
-    const t = tm ? { price: tm.salesPrice, net: netOf(tm), cash: tm.cashToClose } : null;
+    const bm = current && current.metrics;
+    if (!bm) return [];
+    const tm = targetE ? targetE.metrics : bm;
+    const t = useMine
+      ? { price: mineD.price || bm.salesPrice, net: mineD.net || netOf(bm), cash: mineD.cash || bm.cashToClose }
+      : { price: tm.salesPrice, net: netOf(tm), cash: tm.cashToClose };
     return entries.map(e => {
       let m = e.metrics, adj = false;
-      if (lens.mode !== "off" && t && e !== targetE && e.state && requoteRef.current) {
+      if (lens.mode !== "off" && (useMine || e !== targetE) && e.state && requoteRef.current) {
         const quote = (price, downPct) => requoteRef.current(e.state, { salesPrice: price, downPct });
         const solved = solveLens(lens.mode, t, quote, { price: e.metrics.salesPrice, downPct: e.metrics.downPct });
         if (solved) { m = solved; adj = true; }
       }
       return { e, m, adj, d: compareDetail(m) };
     });
-  }, [compareData, entryKey, lens.mode, targetE && targetE.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [compareData, entryKey, lens.mode, lens.target, mineKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (compareLoading && all.length === 0) {
     return <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginTop: 20, padding: 24, textAlign: "center", color: T.textSecondary }}>Loading comparison…</div>;
@@ -537,7 +572,13 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
 
   const n = cols.length, tight = !isDesktop && n > 3;
   const held = LENS_HELD[lens.mode] || [];
-  const tName = targetE.name, tm = targetE.metrics;
+  const bm = current.metrics;
+  const whose = useMine ? "your" : `${targetE.name}'s`;
+  const tVal = {
+    price: useMine ? (mine.price || bm.salesPrice) : targetE.metrics.salesPrice,
+    net: useMine ? (mine.net || netOf(bm)) : netOf(targetE.metrics),
+    cash: useMine ? (mine.cash || bm.cashToClose) : targetE.metrics.cashToClose,
+  };
 
   // ── Formatting ──
   const money = v => (v == null || !isFinite(v)) ? "—" : fmt(v);
@@ -550,15 +591,26 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   const moneyFit = v => isDesktop ? money(v) : short(v);
   const pctTxt = v => privacy ? "••%" : `${Number(v).toFixed(Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1)}%`;
   const rateTxt = v => privacy ? "•.••%" : `${Number(v).toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}%`;
-  const mo = v => <>{money(v)}<span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>/mo</span></>;
+  const mo = v => <span>{money(v)}<span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>/mo</span></span>;
   const dash = <span style={{ color: T.textTertiary, fontWeight: 500 }}>—</span>;
-  const small = (t, color) => <span style={{ display: "block", fontSize: 11, color: color || T.textTertiary, fontWeight: 500, letterSpacing: 0 }}>{t}</span>;
+  const small = (t, color, weight = 500) => <span style={{ display: "block", fontSize: 11, color: color || T.textTertiary, fontWeight: weight, letterSpacing: 0 }}>{t}</span>;
   const CHECK = <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3L12.5 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
   const winPill = t => <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 11px ${FONT}`, color: T.green, background: `${T.green}1c`, borderRadius: 9999, padding: "4px 10px", whiteSpace: "nowrap", letterSpacing: 0 }}>{CHECK}{t}</span>;
   const heldTag = key => held.includes(key) ? <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, color: T.blue, background: `${T.blue}18`, border: `1px solid ${T.blue}38`, borderRadius: 9999, padding: "2px 8px" }}>Held equal</span> : null;
   const badge = name => <span style={{ width: 22, height: 22, borderRadius: 7, background: `${T.blue}1c`, color: T.blue, font: `700 12px ${FONT}`, display: "inline-grid", placeItems: "center", flexShrink: 0 }}>{letterOf(name)}</span>;
   const est = <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "0 5px", marginRight: 4 }}>Est.</span>;
   const overline = { fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, fontWeight: 600 };
+
+  // ── Budget: My numbers double as caps the totals are checked against ──
+  const checkNet = useMine && mine.net > 0 && !held.includes("net");
+  const checkCash = useMine && mine.cash > 0 && !held.includes("cash");
+  const fitsNet = c => !checkNet || Math.round(c.d.net) <= mine.net;
+  const fitsCash = c => !checkCash || Math.round(c.m.cashToClose) <= mine.cash;
+  const budgetTag = (key, c) => {
+    if (key === "net" && checkNet) return fitsNet(c) ? small("Fits budget", T.green, 600) : small(`${money(c.d.net - mine.net)}/mo over`, T.orange, 600);
+    if (key === "cash" && checkCash) return fitsCash(c) ? small("Fits budget", T.green, 600) : small(`${money(c.m.cashToClose - mine.cash)} over`, T.orange, 600);
+    return null;
+  };
 
   // ── Winners: best per row, skipping whatever the lens holds equal ──
   const GET = { net: c => c.d.net, cash: c => c.m.cashToClose, cost5: c => c.d.cost5, price: c => c.m.salesPrice };
@@ -569,42 +621,82 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
     const gap = Math.abs(GET[key](ranked[0]) - GET[key](ranked[1]));
     return gap < tol ? null : { c: ranked[0], runner: ranked[1], gap };
   };
+  const solving = lens.mode === "payment" || lens.mode === "both";
   const W = { net: top("net", "min", 3), cash: top("cash", "min", 300), cost5: top("cost5", "min", 300),
     price: ["payment", "cash", "both"].includes(lens.mode) ? top("price", "max", 300) : null };
 
-  // ── The short version ──
+  // ── The short version: one sentence per winning option ──
   const PH = { net: "has the lowest net payment", cash: "needs the least cash to close", cost5: "costs the least to borrow over 5 years",
     price: `buys the most home for the same ${lens.mode === "payment" ? "payment" : lens.mode === "cash" ? "cash" : "payment and cash"}` };
   const keys = lens.mode === "both" ? ["price", "cost5"] : lens.mode === "payment" ? ["price", "cash", "cost5"] : lens.mode === "cash" ? ["net", "cost5", "price"] : ["net", "cash", "cost5"];
   const groups = [];
   keys.filter(k => W[k]).forEach(k => { const g = groups.find(x => x.c === W[k].c); if (g) g.keys.push(k); else groups.push({ c: W[k].c, keys: [k] }); });
-  const verdict = [];
-  groups.forEach(g => {
-    verdict.push({ t: g.c.e.name, b: 1 }, { t: " " });
+  const sentences = groups.map(g => {
+    const s = [{ t: g.c.e.name, b: 1 }, { t: " " }];
     g.keys.forEach((k, i) => {
-      verdict.push({ t: `${PH[k]}, ` }, { t: `${money(W[k].gap)}${k === "net" ? "/mo" : ""} ${k === "price" ? "more" : "less"}`, c: "green" }, { t: ` than ${W[k].runner.e.name}` });
-      verdict.push({ t: i < g.keys.length - 1 ? ", and " : ". " });
+      s.push({ t: `${PH[k]}, ` }, { t: `${money(W[k].gap)}${k === "net" ? "/mo" : ""} ${k === "price" ? "more" : "less"}`, c: "green" }, { t: ` than ${W[k].runner.e.name}` });
+      s.push({ t: i < g.keys.length - 1 ? ", and " : ". " });
     });
+    return s;
   });
+  if (checkNet || checkCash) {
+    const fits = cols.filter(c => fitsNet(c) && fitsCash(c));
+    sentences.push(fits.length === n ? [{ t: `All ${n} fit your budget. ` }]
+      : fits.length === 0 ? [{ t: "None fits your budget", c: "orange" }, { t: " as shown. " }]
+      : [{ t: "Only " }, { t: fits.map(c => c.e.name).join(" and "), b: 1 }, { t: ` ${fits.length === 1 ? "fits" : "fit"} your budget. ` }]);
+  }
   const rented = cols.find(c => (c.m.rent || 0) > 0);
-  if (rented) verdict.push({ t: `If ${rented.e.name}'s rented unit sits empty, its payment is ` }, { t: `${money(rented.m.monthlyPayment)}/mo`, c: "orange" }, { t: "." });
+  if (rented) sentences.push([{ t: `If ${rented.e.name}'s rented unit sits empty, its payment is ` }, { t: `${money(rented.m.monthlyPayment)}/mo`, c: "orange" }, { t: "." }]);
 
-  const lensNote = {
-    off: "Each option as entered. Hold one number equal to see how the others change.",
-    payment: `Each price is solved so the net payment matches ${tName}'s ${money(netOf(tm))}/mo. Down %, rate and rent stay as entered.`,
-    cash: `Each down payment is solved so cash to close matches ${tName}'s ${money(tm.cashToClose)}. Prices and rates stay as entered.`,
-    both: `Price and down payment are solved together to match ${tName}'s ${money(netOf(tm))}/mo net payment and ${money(tm.cashToClose)} cash to close. Rate and rent stay as entered.`,
-    price: `Every option priced at ${tName}'s ${money(tm.salesPrice)}. Down %, rate and rent stay as entered.`,
-  }[lens.mode] + (lens.mode === "off" ? "" : " A what-if estimate: saved options don't change.");
+  const budgetBits = [checkNet && `${money(mine.net)}/mo net`, checkCash && `${money(mine.cash)} cash to close`].filter(Boolean);
+  const checkSuffix = budgetBits.length ? ` Totals are checked against your budget of ${budgetBits.join(" and ")}.` : "";
+  const lensNote = ({
+    off: useMine ? (budgetBits.length ? `Each option as entered, checked against your budget of ${budgetBits.join(" and ")}.` : "Enter a max net payment or cash to close to check each option against it.")
+      : "Each option as entered. Hold one number equal to see how the others change.",
+    price: `Every option priced at ${whose} ${money(tVal.price)}. Down %, rate and rent stay as entered.`,
+    payment: `Each price is solved so the net payment matches ${whose} ${money(tVal.net)}/mo. Down %, rate and rent stay as entered.`,
+    cash: `Each down payment is solved so cash to close matches ${whose} ${money(tVal.cash)}. Prices and rates stay as entered.`,
+    both: `Price and down payment are solved together to match ${whose} ${money(tVal.net)}/mo net payment and ${money(tVal.cash)} cash to close. Rate and rent stay as entered.`,
+  })[lens.mode] + (lens.mode === "off" ? "" : checkSuffix + " A what-if estimate: saved options don't change.");
+
+  // ── Fold rows that match across every option into one strip ──
+  const eqv = (get, tol = 0.5) => { const v = cols.map(get); return v.every(x => x != null && Math.abs(x - v[0]) < tol) ? v[0] : undefined; };
+  const folded = new Set(), sameItems = [];
+  const fold = (keysToHide, label, value) => { keysToHide.forEach(k => folded.add(k)); if (label) sameItems.push([label, value]); };
+  if (!unfold && n > 1) {
+    const price = eqv(c => c.m.salesPrice), down = eqv(c => c.m.downAmt);
+    if (price !== undefined && down !== undefined) fold(["price", "down"], "Price", money(price));
+    if (down !== undefined) fold(["down"], "Down", `${short(down)} · ${pctTxt(cols[0].m.downPct)}`);
+    const loan = eqv(c => c.m.loan);
+    if (loan !== undefined) fold(["loan"], "Loan", money(loan));
+    if (eqv(c => c.m.rate, 0.0001) !== undefined && eqv(c => c.m.term) !== undefined && cols.every(c => c.m.loanType === cols[0].m.loanType)) fold(["rate", "term", "type"], "Rate", `${rateTxt(cols[0].m.rate)} · ${cols[0].m.term}-yr ${cols[0].m.loanType}`);
+    const p = eqv(c => c.d.principal), i = eqv(c => c.d.interest);
+    if (p !== undefined && i !== undefined) fold(["principal", "interest"], "Principal & interest", `${money(p + i)}/mo`);
+    [["tax", "Tax", c => c.m.monthlyTax || 0], ["ins", "Insurance", c => c.m.ins || 0], ["mi", "Mortgage ins.", c => c.m.mi || 0], ["other", "HELOC & other", c => c.d.other], ["hoa", "HOA", c => c.m.hoaM || 0], ["rent", "Unit rents", c => c.m.rent || 0]]
+      .forEach(([k, l, get]) => { const v = eqv(get); if (v !== undefined) fold([k], v > 0.5 ? l : null, `${k === "rent" ? "−" : ""}${money(v)}/mo`); });
+    const cc = eqv(c => c.m.closingCosts);
+    if (cc !== undefined) fold(["closing", "closing5"], "Closing costs", money(cc));
+    const pre = eqv(c => c.d.prepaids);
+    if (pre !== undefined) fold(["prepaids"], "Prepaids", money(pre));
+    const i5 = eqv(c => c.d.int5);
+    if (i5 !== undefined) fold(["int5"], "Interest, 5 yrs", money(i5));
+    const m5 = eqv(c => c.d.mi5);
+    if (m5 !== undefined) fold(["mi5"], m5 > 0.5 ? "MI, 5 yrs" : null, money(m5));
+    const eq5 = eqv(c => c.d.equity5);
+    if (eq5 !== undefined) fold(["equity5"], "Equity, 5 yrs", money(eq5));
+  }
+  const shown = k => !folded.has(k);
 
   // ── Grid ──
-  const grid = isDesktop ? `minmax(150px, 1.2fr) repeat(${n}, minmax(0, 1fr))` : `repeat(${n}, minmax(0, 1fr))`;
+  const grid = isDesktop ? `minmax(150px, 200px) repeat(${n}, minmax(0, 1fr))` : `repeat(${n}, minmax(0, 1fr))`;
   const padX = isDesktop ? 16 : tight ? 8 : 12;
+  const align = isDesktop ? "center" : "flex-start";
   const tint = c => c.e.isCurrent ? `${T.blue}0b` : "transparent";
   const card = { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: T.cardShadow, overflow: "hidden" };
   const glass = { background: T.glass, WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", border: `1px solid ${T.glassBorder}`, borderRadius: 14, boxShadow: T.glassShadow };
 
   const row = (key, { label, sub, dot, tag, kind = "row" }, render) => {
+    if (!shown(key)) return null;
     const band = kind === "band", over = kind === "price" || kind === "loan" || kind === "ring";
     return (
       <div key={key} style={{ display: "grid", gridTemplateColumns: grid, borderTop: band ? `1.5px solid ${T.blue}40` : `1px solid ${T.separator}`, background: band ? `${T.blue}0e` : "transparent", alignItems: band || over ? "stretch" : "start" }}>
@@ -617,10 +709,10 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
           {tag}
         </div>
         {cols.map((c, i) => (
-          <div key={i} style={{ background: tint(c), minWidth: 0, fontFamily: FONT, textAlign: isDesktop ? "right" : "left",
-            padding: isDesktop ? (band ? "14px 16px" : over ? "14px 16px" : kind === "adv" ? "9px 16px" : "10px 16px") : `${over || band ? 4 : 3}px ${padX}px ${band || over ? 12 : 9}px`,
-            ...(band ? { fontSize: isDesktop ? 19 : 16, fontWeight: 800, color: T.blue, letterSpacing: "-0.02em", display: "flex", flexDirection: "column", alignItems: isDesktop ? "flex-end" : "flex-start", gap: 4 }
-              : kind === "price" ? { display: "flex", flexDirection: "column", alignItems: isDesktop ? "flex-end" : "flex-start", gap: 3 }
+          <div key={i} style={{ background: tint(c), minWidth: 0, fontFamily: FONT, textAlign: isDesktop ? "center" : "left",
+            padding: isDesktop ? (band || over ? "14px 16px" : kind === "adv" ? "9px 16px" : "10px 16px") : `${over || band ? 4 : 3}px ${padX}px ${band || over ? 12 : 9}px`,
+            ...(band ? { fontSize: isDesktop ? 19 : 16, fontWeight: 800, color: T.blue, letterSpacing: "-0.02em", display: "flex", flexDirection: "column", alignItems: align, gap: 4 }
+              : kind === "price" ? { display: "flex", flexDirection: "column", alignItems: align, gap: 3 }
               : kind === "ring" ? { display: "flex", justifyContent: "center", padding: isDesktop ? "14px 10px" : "6px 2px 12px" }
               : kind === "loan" ? { fontSize: isDesktop ? 17 : 14, fontWeight: 700, color: T.text }
               : { fontSize: isDesktop ? 14 : 13, fontWeight: kind === "sub" ? 700 : kind === "adv" ? 500 : 600, color: kind === "adv" ? T.textTertiary : T.text }) }}>
@@ -630,12 +722,16 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
       </div>
     );
   };
-  const band = (key, label, f, win) => row(key, { label, kind: "band", tag: heldTag(key) }, c => <>{f(c)}{W[key] && W[key].c === c && winPill(win)}</>);
+  const band = (key, label, f, win) => row(key, { label, kind: "band", tag: heldTag(key) }, c => <>
+    <span>{f(c)}</span>
+    {W[key] && W[key].c === c && winPill(win)}
+    {budgetTag(key, c)}
+  </>);
   const slimHead = (
     <div style={{ display: "grid", gridTemplateColumns: grid, background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`, borderBottom: `1px solid ${T.blue}38` }}>
       {isDesktop && <div style={{ padding: "9px 16px", alignSelf: "center", fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.blue, fontWeight: 600 }}>Option</div>}
       {cols.map((c, i) => (
-        <div key={i} style={{ background: tint(c), padding: `${isDesktop ? 9 : 8}px ${padX}px`, display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+        <div key={i} style={{ background: tint(c), padding: `${isDesktop ? 9 : 8}px ${padX}px`, display: "flex", alignItems: "center", justifyContent: isDesktop ? "center" : "flex-start", gap: 7, minWidth: 0 }}>
           {badge(c.e.name)}<b style={{ fontSize: 13, fontFamily: FONT, color: T.text, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: tight ? "nowrap" : "normal" }}>{c.e.name}</b>
         </div>
       ))}
@@ -646,6 +742,7 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
       <span style={{ width: 5, height: 5, borderRadius: 9, background: "currentColor", opacity: 0.75 }} />{title}{extra}
     </div>
   );
+  const barPill = { font: `600 12px ${FONT}`, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.38)", borderRadius: 9999, padding: "5px 12px", cursor: "pointer", whiteSpace: "nowrap" };
   const PARTS = [
     ["principal", "Principal", T.cyan, c => c.d.principal],
     ["interest", "Interest", T.blue, c => c.d.interest],
@@ -657,11 +754,20 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
   ].filter(([k, , , get]) => k !== "other" || cols.some(c => get(c) > 0));
   const miNote = m => !(m.mi > 0) ? null : m.miMode === "conv" ? "PMI · drops at 78% LTV" : m.miMode === "fha-11" ? "MIP · 11 years" : m.miMode === "fha-life" ? "MIP · life of loan" : null;
   const ringSize = isDesktop ? 124 : n > 3 ? 70 : 92;
+  const anyRent = cols.some(c => (c.m.rent || 0) > 0);
+  const pickMine = () => setMine(m => ({ price: m.price ?? Math.round(bm.salesPrice), net: m.net ?? Math.round(netOf(bm)), cash: m.cash ?? Math.round(bm.cashToClose) }));
+  const setTarget = v => { if (v === MINE) pickMine(); setLens(s => ({ ...s, target: v })); };
+
+  // ── Newsletter snapshot (same data, laid out for a 1200px image) ──
+  const snapshot = shot ? buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sameItems, PARTS, checkNet, checkCash, fitsNet, fitsCash, mine, tVal, money, short, pctTxt, rateTxt, letterOf, useMine }) : null;
 
   return (<div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
     {secBar("Compare", <>
       <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", opacity: 0.8, fontWeight: 600 }}>{all.length > MAX_COLS ? `${n} of ${all.length} options` : `${n} options`}</span>
-      {onAddOption && <button onClick={onAddOption} style={{ marginLeft: "auto", font: `600 12px ${FONT}`, color: "#fff", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.38)", borderRadius: 9999, padding: "5px 12px", cursor: "pointer", whiteSpace: "nowrap" }}>+ Add option</button>}
+      <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <button type="button" onClick={() => setShot(true)} style={barPill}>Screenshot</button>
+        {onAddOption && <button type="button" onClick={onAddOption} style={barPill}>+ Add option</button>}
+      </span>
     </>)}
     {all.length > MAX_COLS && (
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
@@ -686,14 +792,27 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
               style={{ gridColumn: !isDesktop && i === 0 ? "1 / -1" : undefined, border: "none", background: on ? T.card : "transparent", color: on ? T.blue : T.textSecondary, boxShadow: on ? T.cardShadow : "none", font: `600 12px ${FONT}`, padding: "6px 12px", borderRadius: isDesktop ? 9999 : 12, cursor: "pointer", whiteSpace: "nowrap" }}>{l}</button>;
           })}
         </span>
-        {lens.mode !== "off" && (
+        {lens.mode !== "off" ? (
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
             Match to
-            <select value={tName} onChange={e => setLens(s => ({ ...s, target: e.target.value }))}
+            <select value={useMine ? MINE : targetE.name} onChange={e => setTarget(e.target.value)}
               style={{ font: `600 12px ${FONT}`, color: T.text, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: "5px 10px", cursor: "pointer" }}>
               {entries.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
+              <option value={MINE}>My numbers</option>
             </select>
           </label>
+        ) : (
+          <button type="button" aria-pressed={useMine} onClick={() => setTarget(useMine ? null : MINE)}
+            style={{ font: `600 12px ${FONT}`, borderRadius: 9999, padding: "6px 12px", cursor: "pointer", whiteSpace: "nowrap", color: useMine ? T.blue : T.textSecondary, background: useMine ? `${T.blue}14` : "none", border: `1px solid ${useMine ? T.blue + "55" : T.separator}` }}>
+            {useMine ? "Checking against my budget" : "Check against my budget"}
+          </button>
+        )}
+        {useMine && (
+          <div style={{ flexBasis: "100%", display: "flex", flexWrap: "wrap", gap: "10px 14px" }}>
+            {lens.mode === "price" && <MoneyBox T={T} label="Purchase price" value={mine.price} strong onChange={v => setMine(m => ({ ...m, price: v }))} />}
+            <MoneyBox T={T} label={lens.mode === "payment" || lens.mode === "both" ? "Net payment" : "Max net payment"} suffix="/mo" value={mine.net} strong={lens.mode === "payment" || lens.mode === "both"} onChange={v => setMine(m => ({ ...m, net: v }))} />
+            <MoneyBox T={T} label={lens.mode === "cash" || lens.mode === "both" ? "Cash to close" : "Max cash to close"} value={mine.cash} strong={lens.mode === "cash" || lens.mode === "both"} onChange={v => setMine(m => ({ ...m, cash: v }))} />
+          </div>
         )}
         <div style={{ flexBasis: "100%", fontSize: 12.5, color: T.textSecondary, display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.45, fontFamily: FONT }}>
           <span style={{ width: 6, height: 6, borderRadius: 9, background: T.blue, marginTop: 6, flexShrink: 0 }} />{lensNote}
@@ -702,12 +821,26 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
     )}
 
     {/* The short version */}
-    {verdict.length > 0 && (
+    {sentences.length > 0 && (
       <div style={{ ...glass, padding: isDesktop ? "14px 18px" : "14px 16px" }}>
         <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT }}>The short version</div>
-        <p style={{ margin: "4px 0 0", fontSize: isDesktop ? 15 : 14, lineHeight: 1.5, fontWeight: 500, color: T.text, fontFamily: FONT, maxWidth: "80ch", textWrap: "pretty" }}>
-          {verdict.map((p, i) => <span key={i} style={p.c ? { color: T[p.c], fontWeight: 700 } : p.b ? { fontWeight: 700 } : null}>{p.t}</span>)}
+        <p style={{ margin: "4px 0 0", fontSize: isDesktop ? 15 : 14, lineHeight: 1.5, fontWeight: 500, color: T.text, fontFamily: FONT, textWrap: "pretty" }}>
+          {sentences.flat().map((p, i) => <span key={i} style={p.c ? { color: T[p.c], fontWeight: 700 } : p.b ? { fontWeight: 700 } : null}>{p.t}</span>)}
         </p>
+      </div>
+    )}
+
+    {/* Same for all — the rows that match everywhere, folded */}
+    {(sameItems.length > 0 || unfold) && (
+      <div style={{ ...glass, padding: isDesktop ? "12px 18px" : "12px 14px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px 22px", fontFamily: FONT }}>
+        <span style={{ ...overline, color: T.blue }}>{unfold ? "Every row shown" : `Same for all ${n}`}</span>
+        {sameItems.map(([l, v]) => (
+          <span key={l} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 11, color: T.textTertiary }}>{l}</span>
+            <b style={{ fontSize: 14, color: T.text, fontWeight: 700 }}>{v}</b>
+          </span>
+        ))}
+        <button type="button" onClick={() => setUnfold(u => !u)} style={{ marginLeft: "auto", font: `600 12px ${FONT}`, color: T.blue, background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}>{unfold ? "Fold matching rows" : "Show as rows"}</button>
       </div>
     )}
 
@@ -716,14 +849,14 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
       <div style={{ display: "grid", gridTemplateColumns: grid, background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`, borderBottom: `1px solid ${T.blue}38` }}>
         {isDesktop && <div style={{ padding: "12px 16px", alignSelf: "center", fontFamily: MONO, fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: T.blue, fontWeight: 600 }}>{n} options</div>}
         {cols.map((c, i) => (
-          <div key={i} style={{ background: tint(c), padding: `${isDesktop ? 12 : 10}px ${isDesktop ? 14 : padX}px`, display: "flex", flexDirection: isDesktop ? "row" : "column", alignItems: isDesktop ? "center" : "flex-start", gap: isDesktop ? 9 : 6, minWidth: 0 }}>
+          // Same stack in every column (badge, name, spec, button) so names
+          // line up whether or not the spec line carries an Est. tag.
+          <div key={i} style={{ background: tint(c), padding: `${isDesktop ? 14 : 10}px ${isDesktop ? 14 : padX}px`, display: "flex", flexDirection: "column", alignItems: align, gap: 6, minWidth: 0, textAlign: isDesktop ? "center" : "left", fontFamily: FONT }}>
             {badge(c.e.name)}
-            <div style={{ minWidth: 0, flex: 1, fontFamily: FONT }}>
-              <b style={{ display: "block", fontSize: isDesktop ? 15 : 13, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: tight ? "nowrap" : "normal" }}>{c.e.name}</b>
-              {isDesktop && <span style={{ display: "block", fontSize: 11, color: T.textTertiary, lineHeight: 1.4, marginTop: 1 }}>{(!c.e.isCurrent || c.adj) && est}{c.m.loanType} · {c.m.term}-yr · {rateTxt(c.m.rate)}</span>}
-            </div>
+            <b style={{ fontSize: isDesktop ? 15 : 13, color: T.text, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: tight ? "nowrap" : "normal" }}>{c.e.name}</b>
+            {isDesktop && <span style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.4 }}>{(!c.e.isCurrent || c.adj) && est}{c.m.loanType} · {c.m.term}-yr · {rateTxt(c.m.rate)}</span>}
             <button type="button" onClick={() => !c.e.isCurrent && switchScenario(c.e.name)} disabled={c.e.isCurrent}
-              style={{ font: `600 11px ${FONT}`, borderRadius: 9999, padding: "3px 10px", whiteSpace: "nowrap", background: "none", color: c.e.isCurrent ? T.textTertiary : T.blue, border: `1px solid ${c.e.isCurrent ? T.separator : T.blue + "4d"}`, cursor: c.e.isCurrent ? "default" : "pointer" }}>{c.e.isCurrent ? "Viewing" : "Open"}</button>
+              style={{ marginTop: "auto", font: `600 11px ${FONT}`, borderRadius: 9999, padding: "3px 10px", whiteSpace: "nowrap", background: "none", color: c.e.isCurrent ? T.textTertiary : T.blue, border: `1px solid ${c.e.isCurrent ? T.separator : T.blue + "4d"}`, cursor: c.e.isCurrent ? "default" : "pointer" }}>{c.e.isCurrent ? "Viewing" : "Open"}</button>
           </div>
         ))}
       </div>
@@ -752,10 +885,10 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
       {slimHead}
       {PARTS.map(([k, l, col, get]) => row(k, { label: l, dot: col }, c => get(c) > 0.5 ? <>{mo(get(c))}{k === "mi" && isDesktop && miNote(c.m) && small(miNote(c.m))}</> : dash))}
       {/* With no rent anywhere the band already is the total. */}
-      {cols.some(c => (c.m.rent || 0) > 0) && row("total", { label: "Total payment", kind: "sub" }, c => mo(c.m.monthlyPayment))}
-      {cols.some(c => (c.m.rent || 0) > 0) && row("rent", { label: "Unit rents", sub: "You collect the full rent" }, c => (c.m.rent || 0) > 0
-        ? <><span style={{ color: T.green }}>−{money(c.m.rent)}</span><span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>/mo</span>{isDesktop && small("Lenders count 75%")}</> : dash)}
-      {band("net", cols.some(c => (c.m.rent || 0) > 0) ? "Net payment" : "Total payment", c => mo(c.d.net), "Lowest")}
+      {anyRent && row("total", { label: "Total payment", kind: "sub" }, c => mo(c.m.monthlyPayment))}
+      {anyRent && row("rent", { label: "Unit rents", sub: "You collect the full rent" }, c => (c.m.rent || 0) > 0
+        ? <><span><span style={{ color: T.green }}>−{money(c.m.rent)}</span><span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>/mo</span></span>{isDesktop && small("Lenders count 75%")}</> : dash)}
+      {band("net", anyRent ? "Net payment" : "Total payment", c => mo(c.d.net), "Lowest")}
     </div>
 
     {secBar("Cash to Close")}
@@ -779,11 +912,12 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
         {row("rate", { label: "Rate" }, c => rateTxt(c.m.rate))}
         {row("term", { label: "Term" }, c => `${c.m.term} yr`)}
         {row("type", { label: "Loan type" }, c => c.m.loanType)}
+        {row("apr", { label: "APR", sub: "Estimated" }, c => c.m.apr > 0 ? rateTxt(c.m.apr) : dash)}
         {row("dti", { label: "DTI" }, c => c.m.dti == null ? dash : pctTxt(c.m.dti * 100))}
         {row("int", { label: "Total interest", sub: "Full term" }, c => short(c.m.totalInt))}
       </>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 16px", borderTop: `1px solid ${T.separator}`, fontSize: 12, color: T.textTertiary, background: T.inputBg, fontFamily: FONT }}>
-        <span>{showMore ? "Rate, term, loan type, DTI and total interest" : "Rate, DTI, total interest and the cost chart"}</span>
+        <span>{showMore ? "Rate, term, loan type, APR, DTI and total interest" : "Rate, APR, DTI, total interest and the cost chart"}</span>
         <button type="button" onClick={() => setShowMore(v => !v)} style={{ font: `600 12px ${FONT}`, color: T.blue, background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}>{showMore ? "Show fewer" : "See every number"}</button>
       </div>
     </div>
@@ -792,7 +926,80 @@ function BlueprintCompare({ T, isDesktop, fmt, compareData, compareLoading, scen
       {refiCount > 0 && <span>{refiCount} refinance {refiCount === 1 ? "option isn't" : "options aren't"} shown here. Open one to compare refinances.</span>}
     </div>
     {showMore && <div style={{ marginTop: -14 }}><CostChart T={T} entries={entries} refiMode={false} colorOf={colorOf} fmt={fmt} privacy={privacy} isDesktop={isDesktop} S={{ card: { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow }, label: { fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT } }} /></div>}
+    {snapshot && <CompareSnapshot data={snapshot} onClose={() => setShot(false)} />}
   </div>);
+}
+
+// Turns the on-screen comparison into the newsletter card's content:
+// headline, one card per option (only the rows that differ), the shared
+// strip, a one-line takeaway and the ad disclosure.
+function buildSnapshot({ cols, n, lens, held, W, solving, sentences, rented, sameItems, PARTS, checkNet, checkCash, fitsNet, fitsCash, mine, tVal, money, short, pctTxt, rateTxt, letterOf, useMine }) {
+  const word = COUNT_WORDS[n] || String(n);
+  const allEq = get => cols.every(c => Math.abs(get(c) - get(cols[0])) < 0.5);
+  const samePrice = allEq(c => c.m.salesPrice), sameRate = cols.every(c => Math.abs(c.m.rate - cols[0].m.rate) < 0.0001 && c.m.term === cols[0].m.term);
+  const nets = cols.map(c => c.d.net), spread = (Math.max(...nets) - Math.min(...nets)) / Math.max(1, Math.max(...nets));
+  const names = cols.map(c => c.e.name);
+  const nameList = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+  const terms = sameRate ? ` at ${rateTxt(cols[0].m.rate)} on a ${cols[0].m.term}-year loan` : "";
+
+  let headline, sub, stamp = "Side by side";
+  if (solving) {
+    headline = [`${money(tVal.net)}/mo${lens.mode === "both" ? ` and ${short(tVal.cash)} cash` : ""}.`, "How much home does each buy?"];
+    sub = `Prices solved so each lands on the same ${lens.mode === "both" ? "payment and cash to close" : "net payment"}${terms}.`;
+    stamp = "Built to a budget";
+  } else if (lens.mode === "cash") {
+    headline = [`${short(tVal.cash)} to close.`, `${word} ways to spend it.`];
+    sub = `Down payments solved so each needs the same cash${terms}.`;
+  } else if (samePrice) {
+    headline = [`Same ${short(cols[0].m.salesPrice)}.`, spread > 0.05 ? `${word} very different payments.` : `${word} ways to buy.`];
+    sub = `${nameList} at the same price${cols.every(c => Math.abs(c.m.downPct - cols[0].m.downPct) < 0.05) ? `, ${pctTxt(cols[0].m.downPct)} down` : ""}${terms}.`;
+  } else {
+    headline = [`${word} options,`, "side by side."];
+    sub = `${nameList}${terms}.`;
+  }
+
+  const ribbonKey = solving ? "price" : "net";
+  const winC = W[ribbonKey] ? W[ribbonKey].c : null;
+  const differs = get => !allEq(get);
+  // Property type only when the option's name doesn't already say it.
+  const subLine = (m, name) => [!String(name).toLowerCase().includes(String(m.propType || "").toLowerCase()) && m.propType, m.hoaM > 0.5 && `HOA ${money(m.hoaM)}/mo`, m.rent > 0.5 && `rents ${money(m.rent)}/mo`].filter(Boolean).join(" · ");
+  const cards = cols.map(c => {
+    const rows = [];
+    if (differs(x => x.m.salesPrice)) rows.push({ label: "Home price", value: money(c.m.salesPrice), tone: Math.abs(c.m.salesPrice - c.e.metrics.salesPrice) > 1 ? "blue" : null });
+    if (differs(x => x.m.downAmt)) rows.push({ label: "Down payment", value: `${short(c.m.downAmt)} · ${pctTxt(c.m.downPct)}` });
+    if (cols.some(x => (x.m.rent || 0) > 0)) rows.push({ label: "Total payment", value: money(c.m.monthlyPayment) });
+    [["Insurance", x => x.m.ins || 0], ["HOA", x => x.m.hoaM || 0], ["Mortgage ins.", x => x.m.mi || 0]]
+      .forEach(([l, get]) => { if (differs(get)) rows.push({ label: l, value: get(c) > 0.5 ? money(get(c)) : "—", tone: get(c) > 0.5 ? null : "muted" }); });
+    if (differs(x => x.m.rent || 0)) rows.push({ label: "Rent collected", value: c.m.rent > 0.5 ? `−${money(c.m.rent)}` : "—", tone: c.m.rent > 0.5 ? "green" : "muted" });
+    rows.push({ label: "Cash to close", value: money(c.m.cashToClose), tone: "strong" });
+    const status = [];
+    if (checkNet) status.push(fitsNet(c) ? { ok: true, text: "Payment fits" } : { ok: false, text: `${money(c.d.net - mine.net)}/mo over` });
+    if (checkCash) status.push(fitsCash(c) ? { ok: true, text: "Cash fits" } : { ok: false, text: `Cash ${money(c.m.cashToClose - mine.cash)} over` });
+    const min = minDownFor(c.m);
+    return {
+      letter: letterOf(c.e.name), name: c.e.name, sub: subLine(c.m, c.e.name),
+      segs: PARTS.map(([, , col, get]) => ({ c: col, v: get(c) })),
+      ringLabel: c.m.rent > 0.5 ? "Net / mo" : "Per month", ringValue: money(c.d.net), ringNote: c.m.rent > 0.5 ? "after rent" : "all in",
+      note: c.m.rent > 0.5 ? `${money(c.m.monthlyPayment)}/mo if the unit sits empty` : null,
+      flag: min && c.m.downPct < min.pct - 0.001 ? `Below the ${min.pct}% minimum for ${min.label}` : null,
+      status, rows, win: winC === c ? (solving ? "Most home" : "Lowest payment") : null,
+    };
+  });
+  const legend = PARTS.filter(([, , , get]) => cols.some(c => get(c) > 0.5)).map(([, l, col]) => ({ l: l === "Mortgage insurance" ? "Mortgage ins." : l, c: col }));
+  // "My numbers" shown on the card when they're the budget or the target.
+  const budget = useMine ? [
+    (checkNet || held.includes("net")) && { v: `${money(tVal.net)}/mo`, l: "net" },
+    (checkCash || held.includes("cash")) && { v: money(tVal.cash), l: "cash to close" },
+  ].filter(Boolean) : null;
+  const termOf = c => `${money(c.m.salesPrice)}, ${pctTxt(c.m.downPct)} down, ${money(c.m.loan)} ${c.m.term}-year ${c.m.loanType} at ${rateTxt(c.m.rate)}${c.m.apr > 0 ? ` (APR ${rateTxt(c.m.apr)})` : ""}`;
+  const terms2 = cols.every(c => termOf(c) === termOf(cols[0])) ? [`All ${word.toLowerCase()}: ${termOf(cols[0])}`] : cols.map(c => `${c.e.name}: ${termOf(c)}`);
+  return {
+    headline, sub, stamp, budget, cards, legend,
+    // Five fit across the 1200px card; the rate drops the loan type to stay on one line.
+    same: sameItems.slice(0, 5).map(([l, v]) => ({ l, v: l === "Rate" ? v.replace(/(-yr).*$/, "$1") : v })),
+    take: sentences[0] || null,
+    disclosure: `Example only, not a loan offer or commitment. ${terms2.join("; ")}. Payments include principal, interest, estimated property tax and homeowners insurance, plus HOA and mortgage insurance where shown${rented ? "; net payments subtract the rent shown" : ""}. Rates, APRs and payments are estimates and vary by borrower and market.`,
+  };
 }
 
 // Payment ring with the net payment in the middle — Overview's PayRing
