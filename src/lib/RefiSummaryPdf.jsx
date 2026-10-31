@@ -290,7 +290,9 @@ export function RefiSummaryDoc(p) {
         </View>
         <View style={[s.line, { borderBottomWidth: 0 }]}>
           <Text style={[s.lineLabel, s.bold, { color: INK }]}>Months to Break Even</Text>
-          <Text style={[s.lineValue, s.bold]}>{piMiSavings > 0 && c.totalClosingCosts > 0 ? (c.totalClosingCosts / piMiSavings).toFixed(1) : "—"}</Text>
+          {/* Whole months, rounded up: the same figure the app and the 3-Point
+              Test show. The PDF used to print the raw ratio (3.0 vs 4 on screen). */}
+          <Text style={[s.lineValue, s.bold]}>{c.refiBreakevenMonths > 0 ? String(c.refiBreakevenMonths) : piMiSavings > 0 && c.totalClosingCosts > 0 ? String(Math.ceil(c.totalClosingCosts / piMiSavings)) : "—"}</Text>
         </View>
 
         {/* ── Option 2: Long Term Difference ── */}
@@ -328,6 +330,7 @@ export function RefiSummaryDoc(p) {
               ["Closing Costs", "−", c.refiNetClosingCosts],
               ["Prepaid Expenses", "−", c.refiNetPrepaids],
               ["Loans / Debts to Payoff", "−", c.refiNetPayoff],
+              ...((c.refiNetCredits || 0) >= 0.5 ? [["Credits to Borrower", "+", c.refiNetCredits]] : []),
             ].map(([l, sign, v], i) => (
               <View key={i} style={s.line}>
                 <Text style={s.lineLabel}>{l}</Text>

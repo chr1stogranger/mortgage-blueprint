@@ -590,6 +590,22 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
   })()}
  </div>);
 }
+// Pinned statement figure (Monthly Payment table lock). Thousands separators
+// at rest; the plain number while focused so a typed "." isn't eaten by the
+// re-parse on every keystroke.
+function LockedMoneyInput({ value, onChange, style }) {
+ const [draft, setDraft] = useState(null);
+ const n = Number(value) || 0;
+ const shown = draft ?? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+ return (
+  <input
+   type="text" inputMode="decimal" value={shown} style={style}
+   onFocus={() => setDraft(String(n))}
+   onChange={(e) => { setDraft(e.target.value); const v = parseFloat(String(e.target.value).replace(/[^0-9.]/g, "")); onChange(Number.isFinite(v) ? v : 0); }}
+   onBlur={() => setDraft(null)}
+  />
+ );
+}
 function RefiTestLight({ passed, label, detail }) {
  const color = passed === true ? T.green : passed === false ? T.red : T.textTertiary;
  return (<div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderBottom: `1px solid ${T.separator}` }}>
@@ -4787,6 +4803,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ln("  Closing Costs", "-" + fmt(c.refiNetClosingCosts));
    ln("  Prepaids & Escrow", "-" + fmt(c.refiNetPrepaids));
    ln((c.refiSecondPayoffAmt > 0 || c.refiThirdPayoffAmt > 0 || c.refiDebtPayoffTotal > 0) ? `  Payoffs (${c.refiLienLabel})` : "  Current Loan Payoff", "-" + fmt(c.refiNetPayoff));
+   if (c.refiNetCredits >= 0.5) ln("  Credits to Borrower", fmt(c.refiNetCredits));
    ln("  Estimated Cash Out", fmt(c.refiEstCashOut));
    if (c.refiSkipPmtAmt > 0) ln("  Skip " + refiSkipMonths + " Payment(s)", "+" + fmt(c.refiSkipPmtAmt));
    if (c.refiEscrowRefund > 0) ln("  Escrow Balance Refund", "+" + fmt(c.refiEscrowRefund));
@@ -7168,7 +7185,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiNetClosingCosts = totalClosingCosts;
   const refiNetPrepaids = totalPrepaidExp;
   const refiNetPayoff = refiPayoffAmount + refiSecondPayoffAmt + refiThirdPayoffAmt + refiDebtPayoffTotal;
-  const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff;
+  // Credits (lender credit + custom CR lines) belong in here too. Leaving them
+  // out made this disagree with the Cash to Close Summary card, which nets
+  // totalCredits, by exactly the credit (CMG test file: $30,712 vs $43,189).
+  const refiNetCredits = totalCredits;
+  const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff + refiNetCredits;
   // The skipped months skip the WHOLE outlay: when the second (or a
   // consolidated consumer debt) is being paid off at closing, its carry
   // stops too (Christo 2026-08-05).
@@ -7389,7 +7410,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiNewIntThisMonth, refiNewPrinThisMonth, refiNewTotalInt, refiNewTotalCost, refiNewLTV,
    refiMonthlySavings, refiPiMiSavings, refiMonthlyTotalSavings, refiIntSavings,
    refiBreakevenMonths, refiLifetimeSavings, refiAmortCompare, refiLastPaymentEff,
-   refiEstCashOut, refiSkipPmtAmt, refiEscrowRefund, refiNetCashInHand,
+   refiEstCashOut, refiNetCredits, refiSkipPmtAmt, refiEscrowRefund, refiNetCashInHand,
    refiNetClosingCosts, refiNetPrepaids, refiNetPayoff, refiNetNewLoan,
    refiCostOfWaiting,
 
@@ -8112,11 +8133,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <Icon name={manual ? "lock" : "unlock"} size={11} style={{ color: manual ? T.blue : T.textTertiary }} />
          </button>
          {manual ? (
-          <input
-           type="text" inputMode="decimal"
+          <LockedMoneyInput
            value={r.edit.override}
-           onChange={(e) => { const v = parseFloat(String(e.target.value).replace(/[^0-9.]/g, "")); r.edit.set(Number.isFinite(v) ? v : 0); }}
-           style={{ width: 76, textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text, background: T.inputBg, border: `1px solid ${T.blue}55`, borderRadius: 8, padding: "3px 6px", outline: "none" }}
+           onChange={r.edit.set}
+           style={{ width: 84, textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text, background: T.inputBg, border: `1px solid ${T.blue}55`, borderRadius: 8, padding: "3px 6px", outline: "none" }}
           />
          ) : (
           <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
@@ -8227,6 +8247,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <MRow label="− Closing Costs" value={`-${fmt(calc.refiNetClosingCosts)}`} />
    <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
    <MRow label={(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? `− Payoffs (${calc.refiLienLabel})` : "− Current Loan Payoff"} value={`-${fmt(calc.refiNetPayoff)}`} sub={(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? [`${fmt(calc.refiPayoffAmount)} first`, calc.refiSecondPayoffAmt > 0 && `${fmt(calc.refiSecondPayoffAmt)} second`, calc.refiThirdPayoffAmt > 0 && `${fmt(calc.refiThirdPayoffAmt)} third`, calc.refiDebtPayoffTotal > 0 && `${fmt(calc.refiDebtPayoffTotal)} debts`].filter(Boolean).join(" + ") : undefined} />
+   {calc.refiNetCredits >= 0.5 && <MRow label="+ Credits to Borrower" value={`+${fmt(calc.refiNetCredits)}`} color={T.green} />}
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label={calc.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close"} value={calc.refiEstCashOut >= 0 ? fmt(calc.refiEstCashOut) : fmt(Math.abs(calc.refiEstCashOut))} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
    </div>

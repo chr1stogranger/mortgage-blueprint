@@ -352,6 +352,7 @@ export function FeesWorksheetPage(p) {
                 <Row label="Closing Costs" value={-(c.refiNetClosingCosts || 0)} />
                 <Row label="Prepaids & Escrow" value={-(c.refiNetPrepaids || 0)} />
                 <Row label={((c.refiSecondPayoffAmt || 0) >= 0.5 || (c.refiThirdPayoffAmt || 0) >= 0.5) ? `Loan Payoffs (${c.refiLienLabel || "1st + 2nd"})` : "Current Loan Payoff"} value={-(c.refiNetPayoff || 0)} />
+                {(c.refiNetCredits || 0) >= 0.5 && <Row label="Credits to Borrower" value={c.refiNetCredits} color={GREEN} />}
                 <Row
                   label={c.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Cash to Close"}
                   value={Math.abs(c.refiEstCashOut || 0)}
