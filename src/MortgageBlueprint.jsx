@@ -7684,7 +7684,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
  // ── Mortgage statements: per-scenario documents behind the preview toggle ──
  // LO-only and cloud-only (a local scenario has no id to key the storage on).
- const stmtAvailable = isCloud && !isBorrower && !!activeScenarioId;
+ // Share-link borrowers upload their own statement too (Refi Hunter Phase 3):
+ // their calls carry the share token and Ops checks the scenario is theirs and
+ // editable. The LO path is unchanged.
+ const stmtShare = isBorrower ? (borrowerMode?.shareToken || null) : null;
+ const stmtAvailable = (isCloud && !isBorrower && !!activeScenarioId)
+  || (!!stmtShare && !!activeScenarioId && !scenarioReadOnly);
  useEffect(() => {
   // Scenario switched: whatever we held belongs to the old loan.
   if (stmtScenarioRef.current !== activeScenarioId) {
@@ -7712,7 +7717,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setStmtDocs({ status: 'loading', docs: [], activeId: null });
   (async () => {
    try {
-    const docs = await listStatements(sid);
+    const docs = await listStatements(sid, stmtShare);
     if (stmtScenarioRef.current !== sid) return;
     setStmtDocs({ status: 'ready', docs, activeId: docs[0]?.id || null });
    } catch (e) {
@@ -7731,7 +7736,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sid = activeScenarioId;
   (async () => {
    try {
-    const r = await fetchStatementDoc(sid, id);
+    const r = await fetchStatementDoc(sid, id, stmtShare);
     if (stmtScenarioRef.current !== sid) return;
     setStmtBlob({ id, blob: r.blob, type: r.contentType });
    } catch (e) {
@@ -7781,7 +7786,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
    setStmtBusy('uploading');
    const sid = activeScenarioId;
-   const { doc, upload_url } = await signStatementUpload(sid, name, type, blob.size);
+   const { doc, upload_url } = await signStatementUpload(sid, name, type, blob.size, stmtShare);
    await putStatementToSignedUrl(upload_url, blob, type);
    if (stmtScenarioRef.current !== sid) return;
    setStmtDocs((p) => ({ status: 'ready', docs: [...p.docs, doc], activeId: doc.id }));
@@ -7805,7 +7810,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const rest = stmtDocs.docs.filter((d) => d.id !== id);
   setStmtDocs({ status: 'ready', docs: rest, activeId: rest[0]?.id || null });
   if (!rest.length) setRefiPreviewTab('summary');
-  try { await deleteStatementDoc(activeScenarioId, id); }
+  try { await deleteStatementDoc(activeScenarioId, id, stmtShare); }
   catch (e) {
    console.warn('[Blueprint] statement delete failed:', e.message);
    setStmtDocs(prev);
@@ -7821,7 +7826,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setStmtFill(null);
   try {
    const sid = activeScenarioId;
-   const { extraction } = await extractStatements(sid);
+   const { extraction } = await extractStatements(sid, stmtShare);
    if (stmtScenarioRef.current !== sid) return;
    const lines = [];
    const money = (v) => `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
@@ -7882,9 +7887,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [stmtBusy, stmtDocs.docs.length]);
  // The in-flow statement card, rendered by SetupContent under "Do you have a
  // mortgage statement?" (Overview and Setup both mount SetupContent).
- const refiStatementNode = isRefi && !isBorrower ? (
+ // LO: ask the borrower for the statement on their existing share link, where
+ // they can now upload it themselves. Opens the LO's mail app, like the live
+ // link email; no new scenario is created.
+ const requestStatementHref = (!isBorrower && activeBorrower?.share_token) ? (() => {
+  const first = (borrowerName || activeBorrower?.name || '').trim().split(/\s+/)[0] || '';
+  const link = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
+  const body = [
+   `Hi${first ? ` ${first}` : ''},`,
+   '',
+   "To finish your refinance numbers I just need your latest mortgage statement. You can upload a PDF or snap a photo of it right in your Blueprint:",
+   '',
+   link,
+   '',
+   "Open it, tap Upload or take a photo of the statement on the Your Current Loan step, and it fills in your loan for us automatically.",
+   '',
+   loanOfficer ? `Thanks,\n${loanOfficer}` : 'Thanks!',
+  ].join('\n');
+  const to = activeBorrower?.email || borrowerEmail || '';
+  const bcc = loEmail ? `&bcc=${encodeURIComponent(loEmail)}` : '';
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent('Your mortgage statement for the refinance')}&body=${encodeURIComponent(body)}${bcc}`;
+ })() : null;
+ const refiStatementNode = isRefi ? (
   <StatementIntake
    T={T} isDesktop={isDesktop}
+   borrower={isBorrower}
+   requestHref={requestStatementHref}
    available={stmtAvailable}
    docs={stmtDocs.docs} loading={stmtDocs.status === 'loading'}
    busy={stmtBusy} fill={stmtFill}

@@ -308,22 +308,44 @@ export async function markRefiOfferSent(loanKey, loanName, canMark) {
   return true;
 }
 
-// ─── Mortgage statements (LO only) — documents per scenario ────────────────
+// ─── Mortgage statements — documents per scenario ──────────────────────────
 // Stored in a private Supabase Storage bucket via the Ops API. Files move
 // DIRECTLY between the browser and storage over short-lived signed URLs (the
 // API only mints them), so statement size isn't limited by API body caps.
+//
+// Every call takes an optional `shareToken` (Refi Hunter Phase 3): pass it for
+// a share-link BORROWER and the call goes out with their Supabase sign-in and
+// ?share_token= (Ops checks it's their own editable scenario and caps Claude
+// reads). Without it, the LO's Ops session is used, as before.
+async function stmtCall(path, options = {}, shareToken = null) {
+  if (!shareToken) return authFetch(path, options);
+  const sep = path.includes('?') ? '&' : '?';
+  const res = await fetch(`${API_BASE}${path}${sep}share_token=${encodeURIComponent(shareToken)}`, {
+    method: options.method || 'GET',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', ...(await shareAuthHeaders()) },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data.error || `HTTP ${res.status}`);
+    e.code = data.code || null; e.status = res.status;
+    throw e;
+  }
+  return data;
+}
 
-export async function listStatements(scenarioId) {
-  const r = await authFetch(`/api/statements?scenario_id=${encodeURIComponent(scenarioId)}&list=1`);
+export async function listStatements(scenarioId, shareToken = null) {
+  const r = await stmtCall(`/api/statements?scenario_id=${encodeURIComponent(scenarioId)}&list=1`, {}, shareToken);
   return r.docs || [];
 }
 
 // Two-step upload: authenticated sign, then a direct PUT to storage.
-export async function signStatementUpload(scenarioId, filename, contentType, size) {
-  return authFetch('/api/statements', {
+export async function signStatementUpload(scenarioId, filename, contentType, size, shareToken = null) {
+  return stmtCall('/api/statements', {
     method: 'POST',
     body: { action: 'sign-upload', scenario_id: scenarioId, filename, content_type: contentType, size },
-  });
+  }, shareToken);
 }
 
 export async function putStatementToSignedUrl(uploadUrl, blob, contentType) {
@@ -336,9 +358,9 @@ export async function putStatementToSignedUrl(uploadUrl, blob, contentType) {
 }
 
 // Returns { blob, contentType } for one document via a signed download URL.
-export async function fetchStatementDoc(scenarioId, docId) {
-  const { url } = await authFetch(
-    `/api/statements?scenario_id=${encodeURIComponent(scenarioId)}&doc=${encodeURIComponent(docId)}&sign=1`
+export async function fetchStatementDoc(scenarioId, docId, shareToken = null) {
+  const { url } = await stmtCall(
+    `/api/statements?scenario_id=${encodeURIComponent(scenarioId)}&doc=${encodeURIComponent(docId)}&sign=1`, {}, shareToken
   );
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Statement download failed: ${res.status}`);
@@ -346,14 +368,15 @@ export async function fetchStatementDoc(scenarioId, docId) {
   return { blob, contentType: res.headers.get('Content-Type') || 'application/pdf' };
 }
 
-export async function deleteStatementDoc(scenarioId, docId) {
-  return authFetch('/api/statements', { method: 'DELETE', body: { scenario_id: scenarioId, doc: docId } });
+export async function deleteStatementDoc(scenarioId, docId, shareToken = null) {
+  return stmtCall('/api/statements', { method: 'DELETE', body: { scenario_id: scenarioId, doc: docId } }, shareToken);
 }
 
 // Claude reads every uploaded statement and returns the refi current-loan
-// fields. Slow (up to ~2 minutes with several documents).
-export async function extractStatements(scenarioId) {
-  return authFetch('/api/statements', { method: 'POST', body: { action: 'extract', scenario_id: scenarioId } });
+// fields. Slow (up to ~2 minutes with several documents). Borrower reads are
+// capped per scenario per day on the Ops side (429, code 'read_limit').
+export async function extractStatements(scenarioId, shareToken = null) {
+  return stmtCall('/api/statements', { method: 'POST', body: { action: 'extract', scenario_id: scenarioId } }, shareToken);
 }
 
 // ─── Public listing (buydown flyer QR → ?listing=<token>) ───────────────────

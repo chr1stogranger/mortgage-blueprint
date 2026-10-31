@@ -12,10 +12,13 @@ import Icon from "../Icon.jsx";
 //
 // Upload/extract/remove are the parent's existing handlers (handleStatementFile,
 // handleStatementAutofill, handleStatementRemove) — one code path for both
-// surfaces. LO-only for now: the statements API is staff-authenticated.
+// surfaces. Share-link borrowers use it too (Phase 3): their calls carry the
+// share token, and Ops caps their Claude reads per scenario per day.
 //
 // Props:
 //   T, isDesktop
+//   borrower      — the borrower is the one looking (friendlier copy)
+//   requestHref   — LO only: mailto asking the borrower to upload it on their link
 //   available     — cloud + LO + saved scenario (stmtAvailable)
 //   docs          — [{ id, name }] (stmtDocs.docs)
 //   loading       — the document list is still loading
@@ -27,7 +30,7 @@ import Icon from "../Icon.jsx";
 //   onView(id)    — desktop: open it in the preview panel
 //   onDismissFill()
 export default function StatementIntake({
-  T, isDesktop, available, docs = [], loading, busy, fill,
+  T, isDesktop, borrower = false, requestHref = null, available, docs = [], loading, busy, fill,
   onFile, onAutofill, onRemove, onView, onDismissFill,
 }) {
   const inputRef = useRef(null);
@@ -36,7 +39,9 @@ export default function StatementIntake({
   if (!available) {
     return (
       <div style={{ marginTop: 10, padding: "12px 14px", borderRadius: 14, background: T.inputBg, border: `1px dashed ${T.separator}`, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>
-        Sign in and open this as a client to upload the statement and have it read for you. You can still type the numbers in below.
+        {borrower
+          ? "Your loan officer can add your statement for you. You can also type the numbers in below."
+          : "Sign in and open this as a client to upload the statement and have it read for you. You can still type the numbers in below."}
       </div>
     );
   }
@@ -70,10 +75,14 @@ export default function StatementIntake({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>
-            {working || (docs.length ? "Add another statement" : isDesktop ? "Drop the statement here, or click to choose it" : "Upload or take a photo of the statement")}
+            {working || (docs.length ? "Add another statement"
+              : borrower ? (isDesktop ? "Drop your latest mortgage statement here, or click to choose it" : "Upload or snap a photo of your latest mortgage statement")
+              : isDesktop ? "Drop the statement here, or click to choose it" : "Upload or take a photo of the statement")}
           </div>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>
-            {working ? "This takes about 15 seconds." : "PDF or photo, up to 10MB. We read the balance, rate, payment split, escrow and any second lien, then fill them in below for you to check."}
+            {working ? "This takes about 15 seconds."
+              : borrower ? "PDF or photo, up to 10MB. We read your balance, rate and payment and fill them in below. Your loan officer double-checks everything."
+              : "PDF or photo, up to 10MB. We read the balance, rate, payment split, escrow and any second lien, then fill them in below for you to check."}
           </div>
         </div>
         <input
@@ -84,6 +93,14 @@ export default function StatementIntake({
           onChange={(e) => { pick(e.target.files); e.target.value = ""; }}
         />
       </div>
+
+      {!borrower && requestHref && !docs.length && !loading && !busy && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>
+          <span>Don't have it?</span>
+          <a href={requestHref} style={{ padding: "5px 14px", borderRadius: 9999, border: `1px solid ${T.blue}66`, color: T.blue, fontWeight: 600, textDecoration: "none" }}>Request it from the borrower</a>
+          <span style={{ color: T.textTertiary }}>Emails their Blueprint link so they can upload it themselves.</span>
+        </div>
+      )}
 
       {(docs.length > 0 || loading) && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
@@ -118,7 +135,7 @@ export default function StatementIntake({
           </div>
           {fill.lines.length > 0 && <div style={{ fontSize: 12, color: T.text, marginTop: 4, lineHeight: 1.5 }}>{fill.lines.join(" · ")}</div>}
           {fill.notes && <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4, lineHeight: 1.45 }}>{fill.notes}</div>}
-          {fill.lines.length > 0 && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>Check each one against the statement below before you send anything.</div>}
+          {fill.lines.length > 0 && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{borrower ? "Your loan officer will double-check these." : "Check each one against the statement below before you send anything."}</div>}
         </div>
       )}
     </div>
