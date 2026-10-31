@@ -42,8 +42,13 @@ export function refiStructureTargets({ payoff = 0, closingCosts = 0, prepaids = 
   return { bring, zero, cash };
 }
 
-/** Which structure the current loan amount matches, within a few dollars. */
-export function activeRefiStructure(loanAmount, targets, tolerance = 3) {
+/**
+ * Which structure the current loan amount matches. $50 of slack: once a pill
+ * sets the loan, closing costs and prepaid interest re-price on the new amount
+ * and the target drifts a few dollars (CMG test file: $8 on Zero at close),
+ * which a tight match read as "custom". The three targets sit thousands apart.
+ */
+export function activeRefiStructure(loanAmount, targets, tolerance = 50) {
   const l = Number(loanAmount) || 0;
   for (const k of ["zero", "cash", "bring"]) {
     if (Math.abs(l - targets[k]) <= tolerance) return k;

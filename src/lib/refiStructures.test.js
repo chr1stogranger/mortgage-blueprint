@@ -38,6 +38,9 @@ describe("activeRefiStructure", () => {
     expect(activeRefiStructure(400000, t)).toBe("bring");
     expect(activeRefiStructure(406000, t)).toBe("cash");
   });
+  it("still matches after closing costs re-price the target by a few dollars", () => {
+    expect(activeRefiStructure(404008, t)).toBe("zero");
+  });
   it("returns null for a custom amount", () => {
     expect(activeRefiStructure(410000, t)).toBe(null);
   });
