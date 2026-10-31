@@ -46,6 +46,9 @@ const s = StyleSheet.create({
   hSub: { fontSize: 8.5, color: SUB, textAlign: "right", marginTop: 2 },
   rule: { height: 2, backgroundColor: INDIGO, marginTop: 7, marginBottom: 6 },
   metaRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED, marginBottom: 8 },
+  estimateBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#FDF3E1", borderRadius: 4, paddingVertical: 4, paddingHorizontal: 8, marginBottom: 6 },
+  estimateTag: { fontFamily: "Inter-Bold", fontSize: 7.5, color: ORANGE, letterSpacing: 0.8, marginRight: 8 },
+  estimateText: { fontSize: 8, color: SUB, flex: 1 },
 
   secHead: { backgroundColor: TINT, borderRadius: 4, paddingVertical: 3.5, paddingHorizontal: 8, marginTop: 6, marginBottom: 3 },
   secHeadText: { fontFamily: "Inter-Bold", fontSize: 9.5, color: INDIGO, letterSpacing: 0.4, textTransform: "uppercase" },
@@ -257,6 +260,14 @@ export function RefiSummaryDoc(p) {
           <Text>{propLine !== "—" ? `${propLine} · ${locLine}` : locLine}</Text>
           <Text>{dateStr}</Text>
         </View>
+        {/* No statement → the current loan was rebuilt from the original note.
+            Say so on the page the borrower holds (Refi Hunter Phase 2). */}
+        {c.refiFromStatement === false && (
+          <View style={s.estimateBar}>
+            <Text style={s.estimateTag}>ESTIMATE</Text>
+            <Text style={s.estimateText}>Your current balance and payment are estimated from the original loan, not read from a statement. Send your latest statement to firm these numbers up.</Text>
+          </View>
+        )}
 
         {/* ── Option 1: Cash Flow Savings ── */}
         <View style={s.secHead}><Text style={s.secHeadText}>Option 1 · Cash Flow Savings</Text></View>
@@ -290,7 +301,9 @@ export function RefiSummaryDoc(p) {
         </View>
         <View style={[s.line, { borderBottomWidth: 0 }]}>
           <Text style={[s.lineLabel, s.bold, { color: INK }]}>Months to Break Even</Text>
-          <Text style={[s.lineValue, s.bold]}>{piMiSavings > 0 && c.totalClosingCosts > 0 ? (c.totalClosingCosts / piMiSavings).toFixed(1) : "—"}</Text>
+          {/* Whole months, rounded up: the same figure the app and the 3-Point
+              Test show. The PDF used to print the raw ratio (3.0 vs 4 on screen). */}
+          <Text style={[s.lineValue, s.bold]}>{c.refiBreakevenMonths > 0 ? String(c.refiBreakevenMonths) : piMiSavings > 0 && c.totalClosingCosts > 0 ? String(Math.ceil(c.totalClosingCosts / piMiSavings)) : "—"}</Text>
         </View>
 
         {/* ── Option 2: Long Term Difference ── */}
@@ -328,6 +341,7 @@ export function RefiSummaryDoc(p) {
               ["Closing Costs", "−", c.refiNetClosingCosts],
               ["Prepaid Expenses", "−", c.refiNetPrepaids],
               ["Loans / Debts to Payoff", "−", c.refiNetPayoff],
+              ...((c.refiNetCredits || 0) >= 0.5 ? [["Credits to Borrower", "+", c.refiNetCredits]] : []),
             ].map(([l, sign, v], i) => (
               <View key={i} style={s.line}>
                 <Text style={s.lineLabel}>{l}</Text>
