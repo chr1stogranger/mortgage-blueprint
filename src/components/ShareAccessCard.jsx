@@ -84,7 +84,9 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
         <div style={{ marginBottom: 12 }}>
           {list.length === 0 && (
             <div style={{ fontSize: 13, color: T.textTertiary, fontFamily: FONT, padding: "4px 0 8px" }}>
-              No emails yet. Add the borrower's email on the client record.
+              {isBorrower
+                ? "Only your loan officer's team can open this right now. Add your spouse, a co-borrower or your agent below."
+                : "No emails yet. Add the borrower's email on the client record."}
             </div>
           )}
           {list.map(item => (

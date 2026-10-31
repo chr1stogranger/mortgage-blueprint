@@ -137,7 +137,9 @@ export default function useAccount() {
   // Pipeline Leads (creates/links a blueprint-crm borrowers row server-side
   // and copies their latest scenario). Fire-and-forget — never blocks the
   // click-through to the 1003 application.
-  const requestPreapproval = useCallback(async () => {
+  // loEmail = the Loan Officer email this Blueprint shows. Ops uses it to file
+  // the new lead in that LO's own book instead of the default one.
+  const requestPreapproval = useCallback(async ({ loEmail } = {}) => {
     if (!session) return null;
     try {
       const res = await fetch(`${API_BASE}/api/collab?resource=account&action=request-preapproval`, {
@@ -146,6 +148,7 @@ export default function useAccount() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
+        body: JSON.stringify({ lo_email: loEmail || null }),
       });
       if (!res.ok) return null;
       return await res.json();

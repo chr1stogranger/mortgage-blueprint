@@ -88,6 +88,7 @@ import PresenceBar from "./components/PresenceBar";
 import LivePresenceLayer from "./components/LivePresenceLayer";
 import { presenceRoot, findByKey, outlineBoxFor } from "./lib/fieldPresence";
 import LockControls from "./components/LockControls";
+import LockedSection from "./components/LockedSection";
 import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
@@ -1819,6 +1820,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [otherIncomeItems, setOtherIncomeItems] = useState({});
  const [assets, setAssets] = useState([]);
  const [creditScore, setCreditScore] = useState(0);
+ // Document-verification locks (LO: Share → Collaboration → Lock). Borrowers
+ // see a locked section as read-only (LockedSection); the share-sync endpoint
+ // also reverts locked fields server-side. The LO is never locked out.
+ const borrowerLocks = isBorrower ? (sync.lockedFields || {}) : {};
+ // (Declared after creditScore's useState: referencing it earlier is a TDZ crash.)
+ const setCreditScoreUi = borrowerLocks.creditScore ? () => {} : setCreditScore;
  const [pmiRateLocked, setPmiRateLocked] = useState(true);
  const [pmiRateOverride, setPmiRateOverride] = useState(0);
  // LO-edited PMI chart: { [ltvBucket 97|95|90|85]: annual % }. Overrides the
@@ -2275,13 +2282,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // regardless. Anonymous, LO, and share-link sessions are all no-ops.
  const notifyPreapprovalIntent = () => {
   if (!selfMode) return;
-  try { account.requestPreapproval?.(); } catch { /* non-blocking */ }
+  try { account.requestPreapproval?.({ loEmail }); } catch { /* non-blocking */ }
  };
  // Say where the button goes before the click (QA 2026-10-27: first users
  // hit an off-site account form with no warning, and signed-in clicks also
  // hand the scenario to the LO).
  const applyNote = `Opens the loan application in a new tab${selfMode ? ` · shares this Blueprint with ${(loanOfficer || "your loan officer").split(" ")[0]}` : ""}`;
- const [showAccountSheet, setShowAccountSheet] = useState(false);
+ // ?account=1 (the share view's Settings → "Export or delete my account")
+ // lands on the public calculator with My Account open.
+ const [showAccountSheet, setShowAccountSheet] = useState(() => {
+  try { return !isBorrower && new URLSearchParams(window.location.search).get("account") === "1"; } catch { return false; }
+ });
  const selfSync = useSelfCloudSync({
   enabled: selfMode && account.syncEnabled,
   account: account.account,
@@ -2850,8 +2861,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // row directly (RLS: live share viewer) instead of falling through to the
    // LO's local-storage path and showing someone else's numbers.
    let borrowerStart = initialState;
+   // The LO's verification locks for this scenario (from the row, else the
+   // /api/share summary) so locked sections open read-only.
+   let borrowerLocksStart = isBorrower ? (borrowerMode.scenarios?.find(x => x.id === activeScenarioId)?.locked_fields || null) : null;
    if (isBorrower && !borrowerStart && activeScenarioId) {
-    try { borrowerStart = (await fetchScenarioRow(activeScenarioId, borrowerMode.borrower?.id))?.state_data || null; } catch { /* stays null */ }
+    try {
+     const row = await fetchScenarioRow(activeScenarioId, borrowerMode.borrower?.id);
+     borrowerStart = row?.state_data || null;
+     if (row?.locked_fields) borrowerLocksStart = row.locked_fields;
+    } catch { /* stays null */ }
    }
    // Every shared scenario is listed (de-duped display names, same index the
    // LO uses); the lockstep effect already set the list, so only fill it if
@@ -2863,7 +2881,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     setScenarioList(prev => (prev && prev.length ? prev : idx.names));
     setScenarioName(idx.byId[activeScenarioId] || borrowerMode.scenarios?.find(x => x.id === activeScenarioId)?.name || "My Blueprint");
     if (activeScenarioId) {
-     if (borrowerStart) sync.initSync(borrowerStart, null);
+     if (borrowerStart) sync.initSync(borrowerStart, borrowerLocksStart);
      // No readable state → no baseline. Don't let the first autosave write
      // the blank defaults on screen over the real row.
      else setServerSaidReadOnly(m => ({ ...m, [activeScenarioId]: true }));
@@ -9483,15 +9501,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       still appears the first time they switch into Blueprint. */}
   {!consentGiven && appMode === "blueprint" && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>See your real payment</div>
+    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>{isBorrower ? "Your Blueprint is ready" : "See your real payment"}</div>
     {/* Softer welcome (Christo 2026-10-27): it read like a loan application
-        and a legal wall. Same three promises, consent stays clickwrap. */}
+        and a legal wall. Same three promises, consent stays clickwrap.
+        Share-link borrowers just signed in, so "no account" would be false
+        for them (2026-10-31): they get the shared-Blueprint promises. */}
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, marginBottom: 14, textAlign: "center" }}>
-     Start with just a price and ZIP. Add income, debts and savings later if you want to see what you qualify for.
+     {isBorrower
+      ? "Your loan officer built this for you. Change any number and the payment updates. They'll see what you try."
+      : "Start with just a price and ZIP. Add income, debts and savings later if you want to see what you qualify for."}
     </div>
     <div style={{ background: T.pillBg, borderRadius: 14, padding: "12px 14px", marginBottom: 14, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.7 }}>
-     <div><strong>Free.</strong> No account, no contact info</div>
-     <div><strong>Private.</strong> Your numbers stay on this device unless you turn on sync</div>
+     {isBorrower ? <>
+      <div><strong>Private.</strong> Only you, the people you add and your loan officer's team can open it</div>
+      <div><strong>Saved for you.</strong> Changes save automatically, on every device you sign in on</div>
+     </> : <>
+      <div><strong>Free.</strong> No account, no contact info</div>
+      <div><strong>Private.</strong> Your numbers stay on this device unless you turn on sync</div>
+     </>}
      <div><strong>Estimates only.</strong> Not an offer to lend</div>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14, lineHeight: 1.6 }}>
@@ -9634,6 +9661,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       Save PDF
      </button>
     </div>
+    {/* Live links are the LO's tool (they create the client + share token).
+        A share-link borrower already has their link: Copy Link in the Share
+        tab and "Email Me This Worksheet" cover them (2026-10-31). */}
+    {!isBorrower && (<>
     {/* ── Divider: "OR SEND A LIVE LINK" ── */}
     <div style={{
      display: "flex", alignItems: "center", gap: 10, margin: "14px 0 12px",
@@ -9744,6 +9775,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       <Icon name="check" size={12} /> {liveLinkToast}
      </div>
     )}
+    </>)}
     <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 12, background: "transparent", border: "none", color: T.textTertiary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
      Copy to Clipboard
     </button>
@@ -9862,15 +9894,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns: setAnnualInsManual, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, otherIncomeItems, setOtherIncomeItems, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue, isBorrower}} />}
+{tab === "income" && <LockedSection locked={!!borrowerLocks.incomes} T={T} label="Income"><IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, otherIncomeItems, setOtherIncomeItems, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue, isBorrower}} /></LockedSection>}
 {/* ═══ ASSETS ═══ */}
-{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, openMismoImport, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} />}
+{tab === "assets" && <LockedSection locked={!!borrowerLocks.assets} T={T} label="Assets"><AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, openMismoImport, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} /></LockedSection>}
 {/* ═══ DEBTS ═══ */}
-{tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, openMismoImport, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} />}
+{tab === "debts" && <LockedSection locked={!!borrowerLocks.debts} T={T} label="Debts"><DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, openMismoImport, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} /></LockedSection>}
 {/* ═══ REO (Real Estate Owned) ═══ */}
 {tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, MRow, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
-{tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
+{tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore: setCreditScoreUi, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
 {tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, occupiedUnits, setOccupiedUnits, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, InfoTip, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
@@ -10229,7 +10261,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    sellersProratedTaxCredit, setSellersProratedTaxCredit,
    closingMonths: [1,2,3,4,5,6,7,8,9,10,11,12],
    isRefi, setIsRefi,
-   firstTimeBuyer, setFirstTimeBuyer, creditScore, setCreditScore,
+   firstTimeBuyer, setFirstTimeBuyer, creditScore, setCreditScore: setCreditScoreUi, borrowerLocks,
    married, setMarried, taxState, setTaxState,
    refiPurpose, setRefiPurpose, refiCurrentRate, refiCashOut,
    refiNewLoanAmtOverride, setRefiNewLoanAmtOverride,
@@ -10426,7 +10458,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore: setCreditScoreUi, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}
@@ -10935,6 +10967,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <SetRow last title="Animated background" sub={`${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
     right={<SetSwitch on={!bgPaused} label="Animated background" onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} />} />
  </SetShell>
+ {/* Share-link borrowers had no way to see who they're signed in as, sign
+     out, or reach their account (export / delete) from inside the shared
+     view (2026-10-31). Signing out returns them to the share sign-in screen. */}
+ {isBorrower && <SetShell title="Your account">
+   <SetRow title={account.session?.user?.email || borrowerMode.account?.email || "Signed in"} sub="You're signed in with this email. Your loan officer's link only opens for emails on your file." />
+   <SetRow last title="Export or delete my account" sub="Opens Blueprint on its own, where My Account has Export my data and Delete my account"
+    right={<a href={`${WEB_ORIGIN}/?account=1`} target="_blank" rel="noopener noreferrer" style={{ color: T.blue, fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: FONT, whiteSpace: "nowrap" }}>Open</a>} />
+   <button onClick={async () => { try { await account.signOut(); } catch { /* still reload */ } window.location.reload(); }}
+    style={{ width: "100%", boxSizing: "border-box", padding: 12, marginTop: 8, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.red, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
+    Sign out
+   </button>
+ </SetShell>}
  {/* Loan-officer setup only for a signed-in LO (Christo 2026-10-27): a
      homebuyer saw Chris's contact fields as editable inputs, plus email
      signature and default-fee tools. Everyone else gets the sign-in door. */}

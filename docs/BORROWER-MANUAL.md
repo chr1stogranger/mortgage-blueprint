@@ -30,7 +30,7 @@ Blueprint is an estimate tool. Your official Loan Estimate and Closing Disclosur
 1. **Tap the link** your loan officer sent you by email or text.
 2. You'll see **"Sign in to view your Blueprint."** Pick one:
    - **Continue with Google**: the fastest option if your email is a Gmail or Google account.
-   - **Sign in with email**: type your email and tap **Send magic link**.
+   - **Sign in with email**: type your email and tap **Email me a code**.
 3. If you chose email, check your inbox for **"Your RealStack Blueprint sign-in code."** Type the code into **Code from email** and tap **Verify code**.
    - The code works once and expires in 60 minutes.
    - The email has no sign-in link on purpose. Just type the code.
@@ -93,7 +93,9 @@ Tap any number to change it. Everything recalculates instantly.
 - **Pre-Qualified?** Whether the payment fits your income and debts.
 - **True cost of owning:** your full payment, minus tax savings, principal you're paying down and appreciation.
 
-**Some numbers are locked.** If a scenario says **"View only. Your loan officer has locked this scenario,"** it's a fixed quote. Make a copy (scenario menu → **Duplicate**) or ask your loan officer if you want to play with it. Some income figures are entered by your loan officer from your documents.
+**Some numbers are locked.**
+- If a scenario says **"View only. Your loan officer has locked this scenario,"** it's a fixed quote. Make a copy (scenario menu → **Duplicate**) or ask your loan officer if you want to play with it.
+- If a section says **"Income verified by your loan officer"** (or Debts, Assets, Credit Score), your loan officer has checked it against your documents and locked it. Ask them if something changed, like a raise or a paid-off card.
 
 **Made a mistake?** Changes save automatically. Open the scenario menu → **Version history**, and pick **Restore this version** or **Open as a copy**. A version is kept every 10 minutes while you're editing.
 
@@ -134,7 +136,8 @@ After you close, your loan officer may set up a **My Home** tab. There you can o
 
 - **Who can see your Blueprint:** you, the people on your access list, and your loan officer's team. Nobody else, even with the link.
 - **You must be 18 or older** to use Blueprint. See the Terms (`blueprint.realstack.app/terms`) and Privacy Policy (`blueprint.realstack.app/privacy`).
-- **My Account.** Open `blueprint.realstack.app` directly (not through your share link) and tap your name or **Sign in** at the top. From there you can:
+- **Signed in through your loan officer's link?** Go to **Settings → Your account**. It shows the email you're signed in with and has **Sign out**. **Export or delete my account** opens My Account in a new tab.
+- **My Account** (also at `blueprint.realstack.app`, tap your name or **Sign in** at the top). From there you can:
   - turn **Cloud sync** on or off
   - **Export my data (JSON)**
   - **Sign out**
@@ -175,4 +178,4 @@ Open your link and sign in again with the same email.
 **Who do I contact?**
 Your loan officer. Their name, phone and email are on the **Team** tab and on every page you share.
 
-Last Changed: 2026-10-31 — first version.
+Last Changed: 2026-10-31 — Email me a code, verified sections, Settings → Your account.

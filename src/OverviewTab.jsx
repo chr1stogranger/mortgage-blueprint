@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
 import PricePointTeaser from "./components/PricePointTeaser.jsx";
 import Icon from "./Icon";
+import LockedSection from "./components/LockedSection";
 import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent, VaResidualContent } from "./content/index.js";
 
 
@@ -72,7 +73,7 @@ export default function OverviewTab(props) {
   const {
     T, isDesktop, isRefi, setTab, skillLevel, onToggleSkillLevel,
     scenarioName, scenarioList, switchScenario, onCompare,
-    isCloud, auth, isBorrower,
+    isCloud, auth, isBorrower, borrowerLocks,
     city, propertyState, propertyZip,
     showInvestor, setShowInvestor,
     showRentVsBuy, setShowRentVsBuy,
@@ -293,7 +294,7 @@ export default function OverviewTab(props) {
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Assets" T={T} id="overview-assets" heroStyle={true}>
-        <AssetsContent {...props} />
+        <LockedSection locked={!!borrowerLocks?.assets} T={T} label="Assets"><AssetsContent {...props} /></LockedSection>
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -301,7 +302,7 @@ export default function OverviewTab(props) {
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Debts" T={T} id="overview-debts" heroStyle={true}>
-        <DebtsContent {...props} />
+        <LockedSection locked={!!borrowerLocks?.debts} T={T} label="Debts"><DebtsContent {...props} /></LockedSection>
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -320,7 +321,7 @@ export default function OverviewTab(props) {
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Income" T={T} id="overview-income" heroStyle={true}>
-        <IncomeContent {...props} />
+        <LockedSection locked={!!borrowerLocks?.incomes} T={T} label="Income"><IncomeContent {...props} /></LockedSection>
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════

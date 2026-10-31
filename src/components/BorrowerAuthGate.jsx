@@ -16,6 +16,7 @@ import { FONT } from "../lib/fonts.js";
  */
 import { useState, useEffect, useRef } from 'react';
 import { fetchSharedData } from '../api';
+import { WEB_ORIGIN } from '../apiBase';
 import {
   getSession,
   onAuthStateChange,
@@ -589,7 +590,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
                   boxShadow: email.trim() && !sending ? '0 4px 16px rgba(59,107,245,0.3)' : 'none',
                 }}
               >
-                {sending ? 'Sending...' : 'Send magic link'}
+                {sending ? 'Sending...' : 'Email me a code'}
               </button>
             </form>
           )}
@@ -613,6 +614,15 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         }}>
           <ShieldIcon />
           <span>Your financial data is encrypted and secure</span>
+        </div>
+
+        {/* Clickwrap at the sign-in step itself (2026-10-31): share-link
+            borrowers create their account here, so the 18+ / Terms line
+            belongs here, not only on the later first-run card. */}
+        <div style={{ marginTop: 10, textAlign: 'center', color: T.textTertiary, fontSize: 11, lineHeight: 1.6, fontFamily: FONT }}>
+          By signing in you confirm you're 18 or older and agree to the{' '}
+          <a href={`${WEB_ORIGIN}/terms`} target="_blank" rel="noopener noreferrer" style={{ color: T.accent }}>Terms</a> and{' '}
+          <a href={`${WEB_ORIGIN}/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: T.accent }}>Privacy Policy</a>.
         </div>
 
         {/* Footer brand */}

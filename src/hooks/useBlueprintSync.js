@@ -414,8 +414,12 @@ export default function useBlueprintSync({
     sentSigsRef.current = [];
     pendingLocalRef.current = false;
     lastRemoteApplyAtRef.current = 0;
+    // A borrower switching scenarios must not carry the last one's locks over:
+    // no locks given = none. (The LO keeps the old merge behavior; locks never
+    // restrict the LO and LockControls re-reads them.)
     if (initialLockedFields) setLockedFields(initialLockedFields);
-  }, []);
+    else if (userType === 'borrower') setLockedFields({});
+  }, [userType]);
 
   // ── Force flush on unmount (only) ─────────────────────────────────────
   // Channels are torn down by their own effects' cleanups above.

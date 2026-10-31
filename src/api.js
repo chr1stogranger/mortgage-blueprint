@@ -239,60 +239,12 @@ export async function fetchMyPipeline(loEmail = null) {
   return authFetch(`/api/pipeline-data?_route=my-pipeline${qs}`);
 }
 
-// ─── Borrower Auth (public, no LO auth needed) ─────────────────────────────
-
-export async function requestBorrowerMagicLink(email, name = '', shareToken = null) {
-  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=request`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, name, share_token: shareToken }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Could not send magic link');
-  }
-  return res.json();
-}
-
-export async function verifyBorrowerMagicLink(token, email) {
-  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, email }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Invalid or expired magic link');
-  }
-  return res.json();
-}
+// Borrower sign-in is Supabase Auth (Google or a one-time email code), handled
+// in src/lib/supabaseClient.js + components/BorrowerAuthGate.jsx. The old
+// custom magic-link calls (collab borrower-auth) were removed 2026-10-31.
 
 export async function fetchBorrowerPrefill(borrowerId) {
   return authFetch(`/api/collab?resource=borrower-prefill&borrower_id=${borrowerId}`);
-}
-
-export async function authenticateBorrowerGoogle(credential, shareToken = null) {
-  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=google`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ credential, share_token: shareToken }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Google sign-in failed');
-  }
-  return res.json();
-}
-
-export async function fetchBorrowerProfile(sessionToken) {
-  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=me`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${sessionToken}`,
-    },
-  });
-  if (!res.ok) throw new Error('Session expired');
-  return res.json();
 }
 
 // ─── Deal Team (LO only) ────────────────────────────────────────────────────
