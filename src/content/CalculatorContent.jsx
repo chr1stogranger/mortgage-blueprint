@@ -5,6 +5,7 @@ import CashToCloseSummary from "../components/CashToCloseSummary";
 import NetPaymentLadder from "../components/NetPaymentLadder";
 import PricePointTeaser from "../components/PricePointTeaser.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
+import { refiStructureTargets, activeRefiStructure } from "../lib/refiStructures.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
 import CityTaxRatesSheet from "../components/CityTaxRatesSheet.jsx";
 import { CA_CITY_TAX_INFO } from "../data/caTaxRates.js";
@@ -665,6 +666,33 @@ export default function CalculatorContent(props) {
          )}
         </div>}
        </div>
+       {/* How the borrower pays for it (Refi Hunter Phase 2, from Ops' Refi
+           Tool): each pill just sets New Loan Amount. Rate/Term only; a
+           cash-out sets its own amount. lib/refiStructures.js has the math. */}
+       {!helocAlone && refiPurpose !== "Cash-Out" && (calc.refiNetPayoff || 0) > 0 && (() => {
+        const targets = refiStructureTargets({ payoff: calc.refiNetPayoff, closingCosts: calc.totalClosingCosts, prepaids: calc.totalPrepaidExp, credits: calc.refiNetCredits });
+        const current = refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0);
+        const active = activeRefiStructure(current, targets);
+        const opts = [
+         { k: "bring", label: "Bring costs", tip: `Borrower brings closing costs and prepaids. Loan ${fmt(targets.bring)}.`, set: () => setRefiNewLoanAmtOverride(0) },
+         { k: "zero", label: "Zero at close", tip: `Costs and prepaids roll into the loan, about $0 due at closing. Loan ${fmt(targets.zero)}.`, set: () => setRefiNewLoanAmtOverride(targets.zero) },
+         { k: "cash", label: "Max cash back", tip: `Roll costs in plus the most cash a Rate/Term refi allows (greater of $2,000 or 1%). Loan ${fmt(targets.cash)}.`, set: () => setRefiNewLoanAmtOverride(targets.cash) },
+        ];
+        return (
+         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 10 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginRight: 2, fontFamily: FONT }}>Costs:</span>
+          {opts.map(o => (
+           <button key={o.k} type="button" onClick={o.set} title={o.tip} aria-pressed={active === o.k}
+            style={{ padding: "5px 12px", borderRadius: 9999, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+             background: active === o.k ? `${T.blue}1f` : T.inputBg,
+             border: active === o.k ? `1.5px solid ${T.blue}` : `1px solid ${T.separator}`,
+             color: active === o.k ? T.blue : T.textSecondary }}>
+            {o.label}
+           </button>
+          ))}
+         </div>
+        );
+       })()}
        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
       </>) : (<>
       {/* Even split on phones (Christo 2026-10-01): dollar-mode down payments
