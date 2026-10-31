@@ -1276,19 +1276,8 @@ export default function SetupContent(props) {
  {/* ── Refi Sections (when applicable) ──
     Refi Purpose moved up into the Quick Start card (2026-07-22). */}
  {isRefi && <Sec title="Your Current Loan" hero>
-  {/* Live PDF preview toggle — floats the actual Refi Summary alongside the
-      intake so the LO watches the deliverable build (Ops flyer pattern). */}
-  {isDesktop && !!setRefiPreviewOpen && loanType !== "HELOC" && (
-   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, marginBottom: -4 }}>
-    <button type="button" onClick={() => setRefiPreviewOpen(v => !v)}
-     style={{ padding: "6px 16px", borderRadius: 9999, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-      background: refiPreviewOpen ? `${T.blue}22` : T.inputBg,
-      border: refiPreviewOpen ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-      color: refiPreviewOpen ? T.blue : T.textSecondary }}>
-     {refiPreviewOpen ? "✕ Close live PDF preview" : "Live PDF preview"}
-    </button>
-   </div>
-  )}
+  {/* The Live PDF toggle moved to the header (UnifiedHeader headerActions,
+      2026-10-31): solid blue, on every refi tab. */}
   <Card style={{ marginTop: 12 }}>
    {refiBanner("Loan Profile", true)}
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>

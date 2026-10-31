@@ -1,6 +1,10 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import { todayLocal } from "./lib/today.js";
 import AppBackground from "./components/AppBackground.jsx";
+import BackgroundPicker from "./components/BackgroundPicker.jsx";
+import EmbedPanelControls from "./components/EmbedPanelControls.jsx";
+import { EMBED, OPS_ORIGIN, postToHost } from "./lib/embed.js";
+import { backgroundById, readBgChoice, BG_CHOICE_KEY } from "./lib/backgrounds.js";
 import RateLadderSummary from "./components/RateLadderSummary.jsx";
 import { buildLadderView, ladderPdfData } from "./lib/rateLadder.js";
 import { computeRentVsBuy } from "./lib/rentVsBuy.js";
@@ -1397,6 +1401,43 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [bgPaused, setBgPaused] = useState(() => {
   try { return localStorage.getItem('bp_bg_paused') === '1'; } catch { return false; }
  });
+ // Background (Settings → Appearance, 2026-10-31; lib/backgrounds.js).
+ // null = never chosen: signed-in LOs follow Ops, everyone else gets the
+ // Blueprint canvas. Share-link borrowers always see the Blueprint canvas.
+ const [bgChoice, setBgChoice] = useState(readBgChoice);
+ const saveBgChoice = (v) => { setBgChoice(v); try { localStorage.setItem(BG_CHOICE_KEY, v); } catch { /* private mode */ } };
+ // The LO's Ops look for "Match Ops": bg from Ops (panel message or the
+ // appearance route); dark only from the Ops panel (Ops keeps light/dark per
+ // browser, so standalone Blueprint keeps its own Light/Dark).
+ const [opsLook, setOpsLook] = useState({ bg: null, dark: null });
+ const bgEffective = isBorrower ? "default" : (bgChoice || (isCloud ? "ops" : "default"));
+ const bgResolved = bgEffective === "ops" ? backgroundById(opsLook.bg) : bgEffective === "default" ? null : backgroundById(bgEffective);
+ // Ops side panel state, mirrored into the header controls (EMBED === "ops").
+ const [opsPanel, setOpsPanel] = useState({ frac: 0.5, follow: true });
+ useEffect(() => {
+  if (EMBED !== "ops") return;
+  const onMsg = (e) => {
+   if (e.origin !== OPS_ORIGIN || e.data?.source !== "ops") return;
+   if (e.data.type === "panel-state") setOpsPanel({ frac: Number(e.data.frac) || 0.5, follow: e.data.follow !== false });
+   if (e.data.type === "appearance") setOpsLook({ bg: e.data.bg || null, dark: typeof e.data.dark === "boolean" ? e.data.dark : null });
+  };
+  window.addEventListener("message", onMsg);
+  postToHost({ type: "embed-ready", v: 1 });
+  return () => window.removeEventListener("message", onMsg);
+ }, []);
+ // Outside the Ops panel, read the LO's Ops background from Ops itself.
+ useEffect(() => {
+  if (EMBED === "ops" || bgEffective !== "ops" || !isCloud || isBorrower) return;
+  let token = null;
+  try { token = localStorage.getItem("bp_token"); } catch { /* ignore */ }
+  if (!token) return;
+  let cancelled = false;
+  fetch(`${import.meta.env.VITE_API_BASE || "https://ops.realstack.app"}/api/pipeline-data?_route=appearance`, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } })
+   .then(r => (r.ok ? r.json() : null))
+   .then(d => { if (!cancelled && d?.bg) setOpsLook(l => ({ ...l, bg: d.bg })); })
+   .catch(() => { /* Blueprint canvas stays */ });
+  return () => { cancelled = true; };
+ }, [bgEffective, isCloud, isBorrower]);
  // Refi analysis noise control (Christo 2026-08-04): taxes/insurance carry
  // over unchanged on a refi, so their rows are often just noise in the
  // comparison + PDF. Device-local presentation pref, not scenario data.
@@ -1434,8 +1475,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { localStorage.setItem('bp_theme_mode', next); } catch {}
  };
  T = darkMode ? DARK : LIGHT; // DARK/LIGHT are constant objects — reference is stable per mode
+ // Match Ops inside the Ops panel also follows Ops' light/dark (not saved:
+ // Blueprint's own Theme setting comes back when the panel lets go).
+ useEffect(() => {
+  if (EMBED === "ops" && bgEffective === "ops" && typeof opsLook.dark === "boolean") setDarkMode(opsLook.dark);
+  else setDarkMode(themeMode === "dark");
+ }, [opsLook.dark, bgEffective, themeMode]);
  // ── Desktop sidebar collapsed state ──
- const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+ // Embedded (Ops panel / second pane): start on the icon rail to give the
+ // numbers the width.
+ const [sidebarCollapsed, setSidebarCollapsed] = useState(!!EMBED);
  // Mobile RealStack shell drawer — slides in from the left on mobile when
  // the hamburger button in UnifiedHeader is tapped. Replaces the killed
  // Blueprint|PricePoint segmented pill row (2026-05-03).
@@ -1615,14 +1664,46 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [splitRatio, setSplitRatio] = useState(50); // left pane width percentage
  const splitDragging = useRef(false);
  const splitContainerRef = useRef(null);
+ // Second Blueprint (split app "blueprint2", 2026-10-31): the right pane is
+ // this same app in an iframe (?pane=1, lib/embed.js). It opens on the
+ // current client, on a different scenario when there is one, and reports
+ // what it has open so the pane header can warn when both sides hold the same
+ // scenario (each side autosaves, so the later save would win).
+ const [paneSrc, setPaneSrc] = useState(null);
+ const [paneOpen, setPaneOpen] = useState(null); // { borrowerId, scenarioId } from the pane
+ useEffect(() => {
+  if (EMBED) return;
+  const onMsg = (e) => {
+   if (e.origin !== window.location.origin || e.data?.source !== "blueprint" || e.data.type !== "pane-scenario") return;
+   setPaneOpen({ borrowerId: e.data.borrowerId ?? null, scenarioId: e.data.scenarioId ?? null });
+  };
+  window.addEventListener("message", onMsg);
+  return () => window.removeEventListener("message", onMsg);
+ }, []);
+ useEffect(() => {
+  if (EMBED !== "pane") return;
+  postToHost({ type: "pane-scenario", borrowerId: activeBorrower?.id ?? null, scenarioId: activeScenarioId ?? null });
+ }, [activeBorrower?.id, activeScenarioId]);
+ const paneSameScenario = !!paneOpen && String(paneOpen.borrowerId ?? "") === String(activeBorrower?.id ?? "") && String(paneOpen.scenarioId ?? "") === String(activeScenarioId ?? "");
  // Open split view with a specific mode in the right pane
  const openSplit = useCallback((mode) => {
   if (!isDesktop) return;
   if (mode === appMode) return; // can't split same mode
+  if (mode === "blueprint2") {
+   const q = new URLSearchParams({ pane: "1" });
+   if (isCloud && !isBorrower && activeBorrower?.id) {
+    q.set("client", String(activeBorrower.id));
+    const other = (borrowerScenarios || []).find(sc => sc?.id && String(sc.id) !== String(activeScenarioId));
+    if (other) q.set("pscn", String(other.id));
+   }
+   setPaneSrc(`${window.location.origin}/?${q.toString()}`);
+   setPaneOpen(null);
+  }
   setSplitMode(true);
   setSplitApp(mode);
   setSplitRatio(50);
- }, [isDesktop, appMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isDesktop, appMode, isCloud, isBorrower, activeBorrower?.id, activeScenarioId, borrowerScenarios]);
  // Close split view
  const closeSplit = useCallback(() => {
   setSplitMode(false);
@@ -3853,7 +3934,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // restore below reopens it once the borrower list lands. Device-local like
  // the theme — never synced.
  useEffect(() => {
-  if (!isCloud || isBorrower || !activeBorrower?.id) return;
+  if (!isCloud || isBorrower || !activeBorrower?.id || EMBED === "pane") return; // the second pane never becomes "last client"
   try { localStorage.setItem('bp_last_client', JSON.stringify({ borrowerId: activeBorrower.id, scenarioId: activeScenarioId || null })); } catch { /* ignore */ }
  }, [isCloud, isBorrower, activeBorrower?.id, activeScenarioId]);
  const bootRestoreConsumedRef = useRef(false);
@@ -3861,6 +3942,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (bootRestoreConsumedRef.current) return;
   if (!isCloud || isBorrower || !borrowerList.length) return;
   bootRestoreConsumedRef.current = true;
+  if (EMBED === "pane") return; // the second pane opens what the left side handed it
   // A ?listing= flyer link (or a ?plan= chat handoff) opens detached from
   // every client — never reopen the last client over it (the restore would
   // land after the listing and autosave its numbers into that client's cloud
@@ -3906,13 +3988,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // flyer is the newer intent and must not be written into a client).
   if (listingToken || planToken || placeLink) { deepLinkClientConsumedRef.current = true; return; }
   let clientId = null;
-  try { clientId = new URLSearchParams(window.location.search).get('client'); } catch { /* ignore */ }
+  let preferScenarioId = null;
+  try { const q = new URLSearchParams(window.location.search); clientId = q.get('client'); preferScenarioId = q.get('pscn'); } catch { /* ignore */ }
   if (!clientId) { deepLinkClientConsumedRef.current = true; return; }
   const b = borrowerList.find(x => String(x.id) === String(clientId));
   if (!b) return; // not in this LO's list — no-op (re-checks if the list grows)
   deepLinkClientConsumedRef.current = true;
   try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
-  openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status });
+  openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status }, preferScenarioId ? { preferScenarioId } : {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isCloud, isBorrower, borrowerList]);
 
@@ -8725,10 +8808,29 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   : calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || calc.cashCheck === "Good!" || calc.resCheck === "Good!" || dpOk;
  const qualStatus = allGood ? "approved" : someGood ? "almost" : "none";
  const refiPillarCount = [calc.ficoCheck, calc.dtiCheck, refiLtvCheck].filter(c => c === "Good!").length;
+ // Live PDF (Christo 2026-10-31: the old pill sat unnoticed above "Your
+ // Current Loan" on Setup only). A solid blue header button on every refi
+ // tab: desktop toggles the docked Refi Summary preview, phones (no docked
+ // preview) open the PDF itself.
+ const livePdfButton = (isRefi && loanType !== "HELOC") ? (
+  <button type="button" onClick={() => { if (isDesktop) setRefiPreviewOpen(v => !v); else openRefiSummaryPdf(false); }}
+   aria-pressed={isDesktop ? refiPreviewOpen : undefined}
+   title={isDesktop ? (refiPreviewOpen ? "Hide the live Refi Summary PDF" : "Show the Refi Summary PDF beside the numbers, updating as you type") : "Open the Refi Summary PDF"}
+   style={{ display: "flex", alignItems: "center", gap: 6, padding: isDesktop ? "6px 14px" : "6px 11px", borderRadius: 9999, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap",
+    background: isDesktop && refiPreviewOpen ? `${T.blue}18` : T.blue, color: isDesktop && refiPreviewOpen ? T.blue : "#fff",
+    border: `1px solid ${T.blue}`, boxShadow: isDesktop && refiPreviewOpen ? "none" : "0 2px 8px rgba(59,107,245,0.35)" }}>
+   <Icon name="file" size={13} />
+   {isDesktop ? (refiPreviewOpen ? "Hide live PDF" : "Live PDF") : "PDF"}
+  </button>
+ ) : null;
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
   <WorkspaceProvider>
-  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "chart"} complete={appMode === "blueprint" && tab === "workspace"} />
+  {/* Settings → Appearance → Background: a picked gradient/solid replaces the
+      per-mode canvas; Grange Ribbons is the canvas's ribbons variant. */}
+  {bgResolved && bgResolved.kind !== "ribbons"
+   ? <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 0, background: bgResolved.css, pointerEvents: "none" }} />
+   : <AppBackground darkMode={darkMode} paused={bgPaused} variant={bgResolved ? "ribbons" : appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "chart"} complete={appMode === "blueprint" && tab === "workspace"} />}
   {/* Refi deep-link failure. Loud on purpose — the alternative is an empty
       refi that reads as a successful import (see the ?ariveRefi effect). */}
   {refiImportError && (
@@ -9065,7 +9167,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,ico,l]) => {
          const isActive = k === appMode;
-         const isSplit = splitMode && k === splitApp;
+         // Blueprint's split slot is a second Blueprint ("blueprint2"), so it
+         // works beside Blueprint itself as well as beside PricePoint/Markets.
+         const splitKey = k === "blueprint" ? "blueprint2" : k;
+         const isSplit = splitMode && splitKey === splitApp;
          return (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
            <button onClick={() => { if (splitMode && k !== appMode && k !== splitApp) { setSplitApp(k); } else { closeSplit(); setAppMode(k); } if (!isDesktop) setMobileMenuOpen(false); }} style={{
@@ -9078,9 +9183,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
             {isSplit && <span style={{ fontSize: 8, opacity: 0.5, marginLeft: "auto" }}>R</span>}
            </button>
            {/* Split button — show on hover for non-active modes */}
-           {k !== appMode && !isSplit && (
-            <button aria-label={`Open ${l} in split view`} onClick={(e) => { e.stopPropagation(); openSplit(k); }}
-             title={`Open ${l} in split view`}
+           {(k !== appMode || k === "blueprint") && !isSplit && !EMBED && (
+            <button aria-label={k === appMode ? "Open a second Blueprint side by side" : `Open ${l} in split view`} onClick={(e) => { e.stopPropagation(); openSplit(splitKey); }}
+             title={k === appMode ? "Open a second Blueprint side by side" : `Open ${l} in split view`}
              className="split-btn"
              style={{
               background: "none", border: "none", cursor: "pointer", padding: "4px",
@@ -9422,6 +9527,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     mobileMenuOpen={mobileMenuOpen}
     scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario, ...(isBorrower ? { canManage: (n) => borrowerCanManageRow(cloudRowForName(n)) } : {}), ...(versionsAvailable ? { history: openVersionHistory } : {}) }}
     canEditScenarios={!isBorrower || borrowerCanCreate}
+    embed={EMBED}
+    headerActions={livePdfButton}
+    panelControls={EMBED === "ops" ? (
+     <EmbedPanelControls T={T} frac={opsPanel.frac} follow={opsPanel.follow}
+      popoutUrl={isCloud && !isBorrower && activeBorrower?.id ? `${window.location.origin}/?client=${encodeURIComponent(activeBorrower.id)}` : `${window.location.origin}/`} />
+    ) : null}
+    rightInset={splitMode && isDesktop && splitApp ? `${100 - splitRatio}vw` : 0}
     tab={tab}
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
@@ -11050,6 +11162,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     } />
    {!isDesktop && <SetRow title="On this page button" sub={sectionPillHidden ? 'Hidden: the section jump pill stays off for screenshots' : 'On: the pill under the header jumps between Overview sections'}
     right={<SetSwitch on={!sectionPillHidden} label="On this page button" onClick={() => { setSectionPillHiddenPersist(!sectionPillHidden); Haptics.light(); }} />} />}
+   {!isBorrower && <SetRow title="Background" sub={bgEffective === "ops" ? `Match Ops: ${(bgResolved?.label || "loading your Ops background")}${EMBED === "ops" ? ", light/dark follows Ops too" : ""}` : bgEffective === "default" ? "Blueprint default: house here, target in PricePoint, stock line in Markets" : (bgResolved?.label || "")}>
+    <BackgroundPicker T={T} value={bgEffective} showOps={isCloud} onChange={(v) => { saveBgChoice(v); Haptics.light(); }} />
+   </SetRow>}
    <SetRow last title="Animated background" sub={`${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
     right={<SetSwitch on={!bgPaused} label="Animated background" onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} />} />
  </SetShell>
@@ -11358,6 +11473,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       />
       </Suspense>
      );
+     if (mode === "blueprint2") return paneSrc ? (
+      <iframe key={paneSrc} src={paneSrc} title="Second Blueprint"
+       style={{ position: "absolute", top: 41, left: 0, right: 0, bottom: 0, width: "100%", height: "calc(100% - 41px)", border: "none", background: "transparent" }} />
+     ) : null;
      if (mode === "markets") return (
       <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: T.textDim, fontSize: 13 }}>Loading...</div>}>
       <Markets
@@ -11390,7 +11509,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.separator}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
          <Icon name={splitApp === "pricepoint" ? "target" : splitApp === "markets" ? "trending-up" : "settings"} size={14} />
-         <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{splitApp === "pricepoint" ? "PricePoint" : splitApp === "markets" ? "Markets" : "Blueprint"}</span>
+         <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{splitApp === "pricepoint" ? "PricePoint" : splitApp === "markets" ? "Markets" : "Second Blueprint"}</span>
+         {splitApp === "blueprint2" && paneSameScenario && (
+          <span role="status" style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}40`, borderRadius: 9999, padding: "2px 9px" }}>
+           Same scenario as the left side: switch one so edits don't overwrite each other
+          </span>
+         )}
         </div>
         <button aria-label="Close split view" onClick={closeSplit} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4, display: "flex" }}>
          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

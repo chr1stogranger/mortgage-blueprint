@@ -68,6 +68,16 @@ export default function UnifiedHeader({
   /* Mobile scenario dropdown (2026-09-06) — rename/duplicate/remove/create */
   scenarioActions = null,
   canEditScenarios = false,
+  /* Inside another page (lib/embed.js, 2026-10-31): "ops" = the Ops side
+     panel, "pane" = the second Blueprint in split view. Compact chrome, no
+     account pill (Ops / the left side already show who's signed in). */
+  embed = null,
+  /* Header buttons: the refi Live PDF toggle (left of the controls divider)
+     and, inside Ops, the panel's width / pin / pop-out / close controls. */
+  headerActions = null,
+  panelControls = null,
+  /* Split view: keep the header off the right-hand pane (CSS length). */
+  rightInset = 0,
 }) {
   // A newer deploy than this tab is running → blue Update pill (as in Ops).
   const updateReady = useDeployVersion();
@@ -416,7 +426,7 @@ export default function UnifiedHeader({
       // Borrowers get the sidebar too (2026-05-12), so the header starts
       // after it for everyone; at left 0 it covered the Blueprint nav item.
       left: sidebarW,
-      right: 0,
+      right: rightInset,
       zIndex: 900,
       background: darkMode ? "rgba(5,5,5,0.92)" : "#FFFFFF",
       backdropFilter: "blur(20px) saturate(180%)",
@@ -432,7 +442,7 @@ export default function UnifiedHeader({
       <div style={{
         display: "flex",
         alignItems: "center",
-        padding: isDesktop ? "0 32px" : "0 14px",
+        padding: isDesktop ? (embed ? "0 12px 0 16px" : "0 32px") : "0 14px",
         paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
         // Breathing room below the controls so the avatar / theme toggle don't
         // sit flush against the bottom border. Needed because in standalone-PWA
@@ -456,7 +466,7 @@ export default function UnifiedHeader({
               fontSize: 16, fontWeight: 800,
               letterSpacing: "-0.03em", color: T.text,
               whiteSpace: "nowrap",
-            }}>Mortgage Blueprint</span>
+            }}>{embed ? "Blueprint" : "Mortgage Blueprint"}</span>
           ) : (
             /* Mobile (2026-09-06): the hamburger is gone. Tapping the wordmark
                opens the RealStack shell drawer (product switcher + theme + LO
@@ -565,6 +575,8 @@ export default function UnifiedHeader({
           </div>
         )}
 
+        {headerActions}
+
         {/* Divider before controls */}
         <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
 
@@ -646,7 +658,8 @@ export default function UnifiedHeader({
               }}
             >+</button>
           )}
-          {auth?.userPill}
+          {!embed && auth?.userPill}
+          {panelControls}
         </div>
       </div>
 
