@@ -73,6 +73,7 @@ import MyHomeTab from "./components/MyHomeTab";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import StatementIntake from "./components/StatementIntake.jsx";
+import { cleanHunterKey, refiPrefillFromHandoff, canMarkOfferSent } from "./lib/refiHandoff.js";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, fetchBorrowerById, createBorrower, updateBorrower, deleteBorrower,
@@ -80,7 +81,7 @@ import {
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
-  searchAriveLoans, fetchAriveImport, fetchDealTeam, saveDealTeam,
+  searchAriveLoans, fetchAriveImport, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
   fetchSharedData, fetchListing, fetchPlan,
@@ -2264,6 +2265,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // old single flow is exactly the "yes" branch, so nulls fall through to it
  // and nothing saved before today changes shape.
  const [refiHasStatement, setRefiHasStatement] = useState(null);
+ // Ops Refi Hunter row this refi came from (?hk=). Sending the refi flips that
+ // row's Refi Status to Offer Sent (Refi Hunter Phase 3).
+ const [refiHunterKey, setRefiHunterKey] = useState("");
  // Statements almost always print escrow as ONE line ("Escrow (Taxes and
  // Insurance)"), so combined is the default and the per-component split is the
  // exception. The combined figure is what the servicer COLLECTS today —
@@ -2491,7 +2495,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, showRefi3, borrowerEmail,
-  refiHasStatement, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
+  refiHasStatement, refiHunterKey, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
@@ -2730,6 +2734,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // scenario that carries per-component amounts was entered split, so
   // defaulting it to "combined" would hide figures the LO already typed.
   if (s.refiHasStatement !== undefined) setRefiHasStatement(s.refiHasStatement);
+  setRefiHunterKey(typeof s.refiHunterKey === 'string' ? s.refiHunterKey : '');
   if (s.refiEscrowMode !== undefined) setRefiEscrowMode(s.refiEscrowMode);
   else if (s.refiAnnualTax > 0 || s.refiAnnualIns > 0) setRefiEscrowMode("split");
   if (s.refiEscrowCombined !== undefined) setRefiEscrowCombined(s.refiEscrowCombined);
@@ -3619,7 +3624,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiTaxAssessedMode, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, borrowerEmail,
   // These were missing from the autosave deps — a lien-only (or statement/
   // maturity-only) edit never triggered a save until some other field moved.
-  refiHasStatement, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
+  refiHasStatement, refiHunterKey, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
@@ -3777,7 +3782,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   };
  };
 
- const createClientFromArivePayload = async (payload, { asRefi = false } = {}) => {
+ const createClientFromArivePayload = async (payload, { asRefi = false, extraState = null } = {}) => {
   if (!payload?.borrower) throw new Error('Arive returned no borrower data');
 
   // Normalize the financial rows before they become state_data. Ops is the
@@ -3791,7 +3796,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // back as a default, not as the last client's value. This object is both what
   // loadState receives and what gets persisted as state_data, so reopening the
   // imported scenario later behaves like any other saved one.
-  const prefill = { ...blankStateRef.current, ...(asRefi ? toRefiPrefill(basePrefill, payload.loan || {}) : basePrefill) };
+  const prefill = { ...blankStateRef.current, ...(asRefi ? toRefiPrefill(basePrefill, payload.loan || {}) : basePrefill), ...(extraState || {}) };
 
   // 1. Client record (POST dedupes by email and returns the existing row).
   //    Lead-stage Arive files (Application / Qualification / Pre-Approved)
@@ -3938,6 +3943,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { localStorage.setItem('bp_last_client', JSON.stringify({ borrowerId: activeBorrower.id, scenarioId: activeScenarioId || null })); } catch { /* ignore */ }
  }, [isCloud, isBorrower, activeBorrower?.id, activeScenarioId]);
  const bootRestoreConsumedRef = useRef(false);
+ // A refi deep link is mid-import: the boot "reopen last client" restore must
+ // not land on top of it (the URL params are stripped before the fetch ends).
+ const refiDeepLinkBusyRef = useRef(false);
  useEffect(() => {
   if (bootRestoreConsumedRef.current) return;
   if (!isCloud || isBorrower || !borrowerList.length) return;
@@ -3949,7 +3957,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // scenario).
   if (listingToken || planToken || placeLink) return;
   // A ?client= deep link wins — its own effect handles it.
-  try { if (new URLSearchParams(window.location.search).get('client')) return; } catch { /* ignore */ }
+  try { const q = new URLSearchParams(window.location.search); if (q.get('client') || q.get('ariveRefi') || q.get('refiLoan')) return; } catch { /* ignore */ }
+  if (refiDeepLinkBusyRef.current) return;           // a Refi Hunter deep link is importing
   if (activeBorrower?.id) return;                    // already in a file (import, share, …)
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('bp_last_client') || 'null'); } catch { /* ignore */ }
@@ -4014,50 +4023,100 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // 2026-07-22).
  const deepLinkRefiConsumedRef = useRef(false);
  const [refiImportError, setRefiImportError] = useState(null);
+ // Refi Hunter rows link here every time they're clicked. Reopen this
+ // borrower's refi from the last 30 days instead of stacking a new
+ // "Refi <date>" scenario per click (Refi Hunter Phase 2). True if reopened.
+ const reopenRecentRefi = async ({ email, name }, hunterKey) => {
+  const e = String(email || '').trim().toLowerCase();
+  const n = String(name || '').trim().toLowerCase();
+  try {
+   const found = e ? await fetchBorrowers({ email: e }) : (n ? await fetchBorrowers({ status: 'active' }) : []);
+   const b0 = (Array.isArray(found) ? found : []).find(x => e ? String(x.email || '').toLowerCase() === e : String(x.name || '').trim().toLowerCase() === n);
+   if (!b0) return false;
+   const scens = await apiFetchScenarios(b0.id);
+   const cutoff = Date.now() - 30 * 864e5;
+   const recent = (scens || []).find(x => x.type === 'refi' && new Date(x.updated_at || x.created_at || 0).getTime() >= cutoff);
+   if (!recent) return false;
+   await openClient({ borrowerId: b0.id, borrowerName: b0.name, status: b0.status }, { preferScenarioId: recent.id });
+   if (hunterKey) setRefiHunterKey(hunterKey);
+   setTab('overview');
+   return true;
+  } catch { return false; /* lookup failed: fall through to a fresh import */ }
+ };
+ const openNewRefiScenario = (b, s, label, prefill) => {
+  setActiveBorrower(b);
+  setBorrowerScenarios(prev => (s?.id ? [s, ...(b._deduplicated ? prev : [])] : prev));
+  if (s?.id) {
+   loadState(prefill);
+   setActiveScenarioId(s.id);
+   setScenarioName(s.name || label);
+   sync.initSync(prefill, null);
+  }
+  setTab('overview');
+ };
  useEffect(() => {
   if (deepLinkRefiConsumedRef.current) return;
   if (!isCloud || isBorrower) return;
-  let guid = null;
-  try { guid = new URLSearchParams(window.location.search).get('ariveRefi'); } catch { /* ignore */ }
+  let guid = null, hk = '';
+  try { const q = new URLSearchParams(window.location.search); guid = q.get('ariveRefi'); hk = cleanHunterKey(q.get('hk')); } catch { /* ignore */ }
   if (!guid) { deepLinkRefiConsumedRef.current = true; return; }
   deepLinkRefiConsumedRef.current = true;
+  refiDeepLinkBusyRef.current = true;
   try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
   (async () => {
    try {
     const payload = await fetchAriveImport(guid);
     if (!payload?.borrower) throw new Error('Arive no longer has this file');
-    // Refi Hunter rows link here every time they're clicked. Reopen this
-    // borrower's refi from the last 30 days instead of stacking a new
-    // "Refi <date>" scenario per click (Refi Hunter Phase 2).
-    const email = String(payload.borrower.email || '').trim().toLowerCase();
-    if (email) {
-     try {
-      const found = await fetchBorrowers({ email });
-      const b0 = (Array.isArray(found) ? found : []).find(x => String(x.email || '').toLowerCase() === email);
-      if (b0) {
-       const scens = await apiFetchScenarios(b0.id);
-       const cutoff = Date.now() - 30 * 864e5;
-       const recent = (scens || []).find(x => x.type === 'refi' && new Date(x.updated_at || x.created_at || 0).getTime() >= cutoff);
-       if (recent) {
-        await openClient({ borrowerId: b0.id, borrowerName: b0.name, status: b0.status }, { preferScenarioId: recent.id });
-        setTab('overview');
-        return;
-       }
-      }
-     } catch { /* lookup failed: fall through to a fresh import */ }
-    }
-    const { borrower: b, scenario: s, label, prefill } = await createClientFromArivePayload(payload, { asRefi: true });
-    setActiveBorrower(b);
-    setBorrowerScenarios(prev => (s?.id ? [s, ...(b._deduplicated ? prev : [])] : prev));
-    if (s?.id) {
-     loadState(prefill);
-     setActiveScenarioId(s.id);
-     setScenarioName(s.name || label);
-     sync.initSync(prefill, null);
-    }
-    setTab('overview');
+    if (await reopenRecentRefi({ email: payload.borrower.email }, hk)) return;
+    const { borrower: b, scenario: s, label, prefill } = await createClientFromArivePayload(payload, { asRefi: true, extraState: hk ? { refiHunterKey: hk } : null });
+    openNewRefiScenario(b, s, label, prefill);
    } catch (e) {
     setRefiImportError(e.message || 'Could not load that file from Arive.');
+   } finally {
+    refiDeepLinkBusyRef.current = false;
+   }
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isCloud, isBorrower]);
+
+ // ── Deep link: ?refiLoan=<closed_loans.id>&hk=<Hunter row key> ──
+ // Refi Hunter rows whose funded file is no longer in Arive (Phase 3). The
+ // closed-loan record comes from Ops' LO-authenticated refi-handoff route, so
+ // the URL carries only ids. Same reopen-or-create as ?ariveRefi; the current
+ // loan is rebuilt from the funding date and labeled Estimate.
+ const deepLinkRefiLoanConsumedRef = useRef(false);
+ useEffect(() => {
+  if (deepLinkRefiLoanConsumedRef.current) return;
+  if (!isCloud || isBorrower) return;
+  let loanId = null, hk = '';
+  try { const q = new URLSearchParams(window.location.search); loanId = q.get('refiLoan'); hk = cleanHunterKey(q.get('hk')); } catch { /* ignore */ }
+  if (!loanId) { deepLinkRefiLoanConsumedRef.current = true; return; }
+  deepLinkRefiLoanConsumedRef.current = true;
+  refiDeepLinkBusyRef.current = true;
+  try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
+  (async () => {
+   try {
+    const h = await fetchRefiHandoff(loanId);
+    if (!h?.name) throw new Error('That closed loan was not found');
+    const key = hk || cleanHunterKey(h.loan_key);
+    if (await reopenRecentRefi({ email: h.email, name: h.email ? '' : h.name }, key)) return;
+    const prefill = { ...blankStateRef.current, ...refiPrefillFromHandoff(h), ...(key ? { refiHunterKey: key } : {}) };
+    const createBody = { name: h.name, status: 'active', source: 'blueprint-refi-hunter' };
+    if (h.email) createBody.email = h.email;
+    if (h.phone) createBody.phone = h.phone;
+    const created = await createBorrower(createBody);
+    const b = Array.isArray(created) ? created[0] : created;
+    if (!b?.id) throw new Error('Could not create the client');
+    const label = `Refi ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    const ns = await apiCreateScenario({ borrower_id: b.id, name: label, type: 'refi', state_data: prefill, calc_summary: {} });
+    const s = Array.isArray(ns) ? ns[0] : ns;
+    setBorrowerList(prev => prev.some(x => x.id === b.id) ? prev.map(x => x.id === b.id ? b : x) : [...prev, b]);
+    recordRecentBlueprint(makeClientEntry(b));
+    openNewRefiScenario(b, s, label, prefill);
+   } catch (e) {
+    setRefiImportError(e.message || 'Could not open that closed loan.');
+   } finally {
+    refiDeepLinkBusyRef.current = false;
    }
   })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5227,6 +5286,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Action: 'copy' | 'email' | 'text'.
  // 'text' opens Messages via an sms: URI with the share URL pre-filled — the
  // send itself stays in the LO's hands (no Twilio/A2P infra, no server send).
+ // Refi Hunter: the refi went out (Gmail send, or the live link emailed/texted)
+ // → the Ops row moves to Offer Sent, unless it's already further along.
+ // Best-effort; a failure never blocks the send.
+ const markHunterOfferSent = () => {
+  if (!isRefi || isBorrower || !refiHunterKey) return;
+  markRefiOfferSent(refiHunterKey, borrowerName, canMarkOfferSent)
+   .catch(e => console.warn('[Blueprint] Offer Sent update failed:', e.message));
+ };
  const handleSendLiveLink = async (action) => {
   setLiveLinkError(null);
   setLiveLinkToast(null);
@@ -5329,6 +5396,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     });
     window.open(mailto, "_self");
     setLiveLinkToast("Email opened in your mail app");
+    markHunterOfferSent();
    } else if (action === "text") {
     const digits = phoneClean.replace(/[^\d+]/g, "");
     const firstName = (borrowerName || borrower.name || "").trim().split(/\s+/)[0] || "";
@@ -5336,6 +5404,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // `?&body=` is the one separator BOTH iOS and Android honor in sms: URIs.
     window.open(`sms:${digits}?&body=${encodeURIComponent(smsBody)}`, "_self");
     setLiveLinkToast("Messages opened with the link");
+    markHunterOfferSent();
    }
    // ── Step 5: Lift the resolved borrower into session state so the rest
    // of the UI (BorrowerPicker, in-pane Copy Link button) reflects it ─────
@@ -9793,6 +9862,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    realtorPartner={realtorPartner}
    signatureHtml={loSigIsHtml ? loSignature : ""}
    onFallbackMailto={handleEmailSummary}
+   onSent={isRefi ? markHunterOfferSent : undefined}
   />}
   {/* ═══ CREATE NEW CLIENT ═══ */}
   {createClientOpen && <CreateClientModal

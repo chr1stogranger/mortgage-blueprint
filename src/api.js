@@ -285,6 +285,29 @@ export async function fetchAriveImport(loanId) {
   return authFetch(`/api/arive?action=blueprint-import&id=${encodeURIComponent(loanId)}`, { method: 'POST' });
 }
 
+// Refi Hunter handoff for a closed loan with no Arive file (?refiLoan=<id>).
+// Staff-only and tenant-scoped on the Ops side; returns the closed-loan record
+// restated for a refi: { loan_key, name, email, phone, rate, loan_amount,
+// funding_date, loan_type, product, purpose }.
+export async function fetchRefiHandoff(closedLoanId) {
+  return authFetch(`/api/pipeline-data?_route=refi-handoff&id=${encodeURIComponent(closedLoanId)}`);
+}
+
+// Flip a Refi Hunter row to Offer Sent after the refi goes out — only from no
+// status or Prospecting (canMarkOfferSent), never over In Process / Won / Lost.
+// Same manual_steps row the Hunter's Refi Status column reads.
+export async function markRefiOfferSent(loanKey, loanName, canMark) {
+  if (!loanKey) return false;
+  const rows = await authFetch(`/api/pipeline-data?table=manual_steps&loan_key=${encodeURIComponent(loanKey)}`);
+  const cur = Array.isArray(rows) ? rows[0]?.refi_status : rows?.refi_status;
+  if (!canMark(cur)) return false;
+  await authFetch('/api/pipeline-data?table=manual_steps', {
+    method: 'POST',
+    body: { loan_key: loanKey, refi_status: 'offer_sent', source_tab: 'blueprint', loan_name: loanName || '', last_activity: new Date().toISOString() },
+  });
+  return true;
+}
+
 // ─── Mortgage statements (LO only) — documents per scenario ────────────────
 // Stored in a private Supabase Storage bucket via the Ops API. Files move
 // DIRECTLY between the browser and storage over short-lived signed URLs (the

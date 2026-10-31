@@ -77,6 +77,7 @@ export default function SendWorksheetModal({
   signatureHtml,             // optional raw-HTML signature appended below the body at send
   onFallbackMailto,          // () => void — old mailto path
   docKind = "fees",          // "fees" | "refi" — which PDF gets attached
+  onSent,                    // optional () => void after a successful send (Refi Hunter Offer Sent)
 }) {
   const [to, setTo] = useState(defaultTo || "");
   const [subject, setSubject] = useState(defaultSubject || "");
@@ -162,6 +163,7 @@ export default function SendWorksheetModal({
         throw new Error(j.error || `Send failed (${res.status})`);
       }
       setPhase("sent");
+      onSent?.();
       setTimeout(() => onClose(true), 1600);
     } catch (e) {
       setPhase("error");
