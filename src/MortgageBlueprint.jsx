@@ -9062,6 +9062,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     html { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     html::-webkit-scrollbar { width: 6px; }
     html::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
+    /* Settings → Appearance → Background (2026-10-31), ported from Ops theme.js:
+       anything sitting DIRECTLY on a colored background (overline labels,
+       links, toolbars) follows its tone. "Directly" = no ancestor with its own
+       inline background; cards, hero bars, pills and inputs are surfaces and
+       keep theme colors (color inherits, so each surface resets it). */
+    .bp-content.bp-bg-dark *:not(:is([style*="background"]:not([style*="background: none"]):not([style*="background: transparent"]):not([style*="background-color: transparent"]):not([style*="background: rgba(0, 0, 0, 0)"]), [style*="background"]:not([style*="background: none"]):not([style*="background: transparent"]):not([style*="background-color: transparent"]):not([style*="background: rgba(0, 0, 0, 0)"]) *, input, select, textarea, option, svg *)) { color: #fff !important; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+    .bp-content.bp-bg-light *:not(:is([style*="background"]:not([style*="background: none"]):not([style*="background: transparent"]):not([style*="background-color: transparent"]):not([style*="background: rgba(0, 0, 0, 0)"]), [style*="background"]:not([style*="background: none"]):not([style*="background: transparent"]):not([style*="background-color: transparent"]):not([style*="background: rgba(0, 0, 0, 0)"]) *, input, select, textarea, option, svg *)) { color: #1f2937 !important; }
+    .bp-content:is(.bp-bg-dark, .bp-bg-light) [style*="background"]:not([style*="background: none"]):not([style*="background: transparent"]):not([style*="background-color: transparent"]):not([style*="background: rgba(0, 0, 0, 0)"]) { color: ${T.text}; text-shadow: none; }
     .bp-main-content { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     .bp-main-content::-webkit-scrollbar { width: 6px; }
     .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
@@ -9491,7 +9499,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
