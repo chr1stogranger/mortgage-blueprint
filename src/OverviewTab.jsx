@@ -1,4 +1,6 @@
 import { FONT, MONO } from "./lib/fonts.js";
+import RefiSteps from "./components/RefiSteps.jsx";
+import { REFI_STEPS } from "./lib/refiSteps.js";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
 import PricePointTeaser from "./components/PricePointTeaser.jsx";
@@ -87,6 +89,43 @@ export default function OverviewTab(props) {
   } = props;
 
   const isGuided = skillLevel === "guided";
+
+  // ── Refi steps (Refi Hunter Phase 3, Christo 2026-10-31) ──
+  // A refi opens as four steps (Current loan · New loan · Costs · Review &
+  // send) under a sticky verdict bar. "Show everything" brings back the single
+  // long page, remembered per device. Each step just shows existing sections.
+  const [refiShowAll, setRefiShowAll] = useState(() => { try { return localStorage.getItem("bp_refi_show_all") === "1"; } catch { return false; } });
+  const setShowAll = (v) => { setRefiShowAll(v); try { localStorage.setItem("bp_refi_show_all", v ? "1" : "0"); } catch { /* storage blocked */ } };
+  // Step is per scenario: switching Blueprints starts the next one at step 1.
+  const [stepState, setStepState] = useState({ id: activeScenarioId, step: 0 });
+  const refiStep = stepState.id === activeScenarioId ? stepState.step : 0;
+  const setRefiStep = (n) => setStepState({ id: activeScenarioId, step: n });
+  const stepMode = isRefi && !refiShowAll;
+  const STEP_KEYS = ["current", "new", "costs", "review"];
+  const vis = (k) => !stepMode || k === STEP_KEYS[refiStep] || (k === "more" && refiStep === 3);
+  // Section jumps (sidebar "Jump to", the phone section sheet) can name a
+  // section another step holds: switch to that step so the jump lands.
+  useEffect(() => {
+    if (!stepMode) return undefined;
+    const STEP_OF = { "overview-setup": 0, "overview-payment": 1, "overview-costs": 2, "overview-rateladder": 2 };
+    const onShow = (e) => {
+      const id = e.detail?.id;
+      if (!id || !String(id).startsWith("overview-")) return;
+      setRefiStep(STEP_OF[id] ?? 3);
+    };
+    window.addEventListener("bp:show-section", onShow);
+    return () => window.removeEventListener("bp:show-section", onShow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepMode, activeScenarioId]);
+  const goStep = (i) => {
+    const n = Math.max(0, Math.min(REFI_STEPS.length - 1, i));
+    setRefiStep(n);
+    props.onRefiStep?.(n);
+    try {
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    } catch { /* old browser: stay put */ }
+  };
 
   // Quick Start opens only when the Blueprint still needs its setup inputs
   // (Christo 2026-09-23, LLM council): a filled Blueprint opens on the payment
@@ -183,15 +222,24 @@ export default function OverviewTab(props) {
         </div>
       )}
 
+      {stepMode && (
+        <RefiSteps T={T} isDesktop={isDesktop} step={refiStep} onStep={goStep} calc={props.calc} fmt={props.fmt} onShowAll={() => setShowAll(true)} />
+      )}
+      {isRefi && !stepMode && (
+        <div style={{ display: "flex", justifyContent: "flex-end", margin: "4px 0 6px" }}>
+          <button type="button" onClick={() => { setShowAll(false); goStep(0); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600, color: T.blue }}>Use steps</button>
+        </div>
+      )}
+
       {/* ═══════════════════════════════════════
           SECTION 1: QUICK START (full Setup tab)
           ═══════════════════════════════════════ */}
-      <CollapsibleSection
+      {vis("current") && <CollapsibleSection
         compact={!isDesktop}
         title="Quick Start"
         T={T}
         id="overview-setup"
-        open={setupOpen}
+        open={stepMode ? true : setupOpen}
         onToggle={toggleSetup}
         collapsedSubtitle={setupSummary}
         heroStyle={true}
@@ -206,7 +254,7 @@ export default function OverviewTab(props) {
             screenshot short); on desktop it heads Monthly Payment instead,
             right above the rate it drives (Christo 2026-10-13). */}
         {!isDesktop && <CalculatorContent {...props} loanStructureOnly={true} />}
-      </CollapsibleSection>
+      </CollapsibleSection>}
 
       {/* ═══════════════════════════════════════
           SECTION 2: MONTHLY PAYMENT (Calculator)
@@ -215,15 +263,15 @@ export default function OverviewTab(props) {
           donut section sits right under it. */}
       {/* Desktop: no divider either — the strip card sits right above the
           next banner (Christo 2026-10-21: "eliminate that white space"). */}
-      {setupOpen && !isDesktop && <SectionDivider T={T} />}
+      {!stepMode && setupOpen && !isDesktop && <SectionDivider T={T} />}
       {/* Refi reads "New Loan" — this whole section IS the new loan being
           built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
       {/* Phones: slimmer banners so the screenshot reaches from Quick Start
           through the pillars (Christo 2026-10-01). */}
-      <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
+      {vis("new") && <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
         {isDesktop && <CalculatorContent {...props} loanStructureOnly={true} />}
         <CalculatorContent {...props} loanStructureInQuickStart={true} />
-      </CollapsibleSection>
+      </CollapsibleSection>}
 
       {/* PricePoint home card, desktop placement (phones render it inside the
           payment section, right under the qualification pillars). */}
@@ -252,15 +300,15 @@ export default function OverviewTab(props) {
           MortgageBlueprint's render functions — the SAME JSX the standalone
           routable tabs use, so there's one source of truth.
           ═══════════════════════════════════════ */}
-      {isRefi && renderRefiSummarySection && (
+      {isRefi && vis("review") && renderRefiSummarySection && (
         <>
-          <SectionDivider T={T} />
+          {!stepMode && <SectionDivider T={T} />}
           <CollapsibleSection title="Refi Summary" T={T} id="overview-refi" heroStyle={true}>
             {renderRefiSummarySection()}
           </CollapsibleSection>
         </>
       )}
-      {isRefi && showRefi3 && renderRefi3Section && (
+      {isRefi && vis("review") && showRefi3 && renderRefi3Section && (
         <>
           <SectionDivider T={T} />
           <CollapsibleSection title="3-Point Refi Test" T={T} id="overview-refi3" heroStyle={true}>
@@ -272,15 +320,17 @@ export default function OverviewTab(props) {
       {/* ═══════════════════════════════════════
           SECTION 3: CASH TO CLOSE (Costs)
           ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
-      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Costs"} T={T} id="overview-costs" heroStyle={true}>
-        <CostsContent {...props} />
-      </CollapsibleSection>
+      {vis("costs") && <>
+        {!stepMode && <SectionDivider T={T} />}
+        <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Costs"} T={T} id="overview-costs" heroStyle={true}>
+          <CostsContent {...props} />
+        </CollapsibleSection>
+      </>}
 
       {/* ═══════════════════════════════════════
           RATE & POINTS BREAKEVEN (module, 2026-09-11)
           ═══════════════════════════════════════ */}
-      {showRateLadder && (
+      {showRateLadder && vis("costs") && (
         <>
           <SectionDivider T={T} />
           <CollapsibleSection title="Rate & Points Breakeven" T={T} id="overview-rateladder" heroStyle={true} subtitle="Buy the rate down, take a credit, or stay at par">
@@ -289,6 +339,22 @@ export default function OverviewTab(props) {
         </>
       )}
 
+      {/* Step navigation (refi steps only). */}
+      {stepMode && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 18 }}>
+          {refiStep > 0 ? (
+            <button type="button" onClick={() => goStep(refiStep - 1)} style={{ padding: "10px 18px", borderRadius: 9999, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>← {REFI_STEPS[refiStep - 1]}</button>
+          ) : <span />}
+          {refiStep < REFI_STEPS.length - 1 && (
+            <button type="button" onClick={() => goStep(refiStep + 1)} style={{ padding: "10px 22px", borderRadius: 9999, border: "none", background: T.blue, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, boxShadow: `0 4px 16px ${T.blue}30` }}>Next: {REFI_STEPS[refiStep + 1]} →</button>
+          )}
+        </div>
+      )}
+
+      {vis("more") && <>
+      {stepMode && (
+        <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: T.textTertiary, textTransform: "uppercase", margin: "32px 0 -12px" }}>More details</div>
+      )}
       {/* ═══════════════════════════════════════
           SECTION 4: ASSETS
           ═══════════════════════════════════════ */}
@@ -412,6 +478,8 @@ export default function OverviewTab(props) {
           </CollapsibleSection>
         </>
       )}
+
+      </>}
 
       {/* ═══════════════════════════════════════
           BOTTOM CTA — Share + mode switch

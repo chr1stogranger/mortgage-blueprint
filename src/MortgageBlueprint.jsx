@@ -8786,6 +8786,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // [id^="overview-"]) keeps the sticky header from covering the section.
  const jumpToSection = (sectionId) => {
   if (!isDesktop) setMobileMenuOpen(false);
+  // Refi steps show one step at a time: let the Overview switch to the step
+  // that holds this section first; the retry below then finds it.
+  try { window.dispatchEvent(new CustomEvent("bp:show-section", { detail: { id: sectionId } })); } catch { /* old browser */ }
   const tryScroll = (attempts) => {
    const el = document.getElementById(sectionId);
    if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
@@ -10714,6 +10717,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiHomeValue, setRefiHomeValue,
    refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3,
    refiPreviewOpen, setRefiPreviewOpen, refiStatementNode,
+   // Refi steps drive the docked preview on desktop: the statement beside the
+   // fields on Current loan, the PDF on Review & send (Refi Hunter Phase 3).
+   onRefiStep: (i) => {
+    if (!isDesktop) return;
+    if (i === 0 && stmtDocs.docs.length) { setRefiPreviewTab('statement'); setRefiPreviewOpen(true); }
+    else if (i === 3) setRefiPreviewTab('summary');
+   },
    refiPayoffDebts, setRefiPayoffDebts,
    /* Live rates */
    liveRates, fetchRates, ratesLoading, ratesError, fredApiKey,

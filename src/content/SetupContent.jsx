@@ -143,6 +143,10 @@ export default function SetupContent(props) {
   // Monthly Debts / Income / REO tables (Christo 2026-09-23: "same restyle for
   // the refi section"). Full-bleed against the Card's default 18px padding;
   // `first` rounds the top corners to the card and pulls up into its padding.
+  // Borrowers read plain words, not the statement's box names (Refi Hunter
+  // Phase 3). LO view keeps the statement vocabulary it's built around.
+  const BORROWER_BANNERS = { "Loan Profile": "About your loan", "Account Information": "Your loan today", "Current Loan": "Your loan today", "Explanation of Amount Due": "Your monthly payment", "Current Property Taxes & Insurance": "Your taxes & insurance", "Other Liens & History": "Other loans on the home" };
+  const bannerTitle = (t) => (props.isBorrower && BORROWER_BANNERS[t]) || t;
   const refiBanner = (title, first = false, meta = null) => (
    <div style={{
     margin: first ? "-18px -18px 14px" : "18px -18px 14px",
@@ -154,7 +158,7 @@ export default function SetupContent(props) {
     fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT,
     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
    }}>
-    <span>{title}</span>
+    <span>{bannerTitle(title)}</span>
     {meta && <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5 }}>{meta}</span>}
    </div>
   );
