@@ -46,7 +46,8 @@ export default async function handler(req, res) {
   };
 
   const playerId = String(req.query?.p || '').trim();
-  const valid = playerId.length > 0 && playerId.length <= 64 && verifyUnsubToken(playerId, req.query?.t);
+  // pp_players.id is a uuid; anything else would reach Postgres as 22P02 and render the 500 page.
+  const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(playerId) && verifyUnsubToken(playerId, req.query?.t);
   if (!valid) {
     if (req.method === 'POST') return res.status(400).json({ error: 'invalid link' });
     return html(400, 'Link not valid', 'This unsubscribe link is invalid or incomplete. Turn off Email in PricePoint\'s notification settings, or reply to the email and we will remove you.');
