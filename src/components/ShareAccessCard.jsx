@@ -15,7 +15,8 @@ import {
  */
 const KIND_LABEL = { borrower: "Borrower", coborrower: "Co-Borrower" };
 
-export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, shareToken }) {
+// hideCopy: the Share tab puts the link (and its Copy button) right above.
+export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, shareToken, hideCopy = false }) {
   const [list, setList] = useState(null);     // null = loading
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,7 +63,7 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
     <Card>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
         <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>People with access</div>
-        {shareToken && (
+        {shareToken && !hideCopy && (
           <button onClick={copyLink} style={{
             display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9999,
             border: `1px solid ${T.blue}30`, background: `${T.blue}12`, color: T.blue,

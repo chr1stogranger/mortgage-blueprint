@@ -350,7 +350,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
 
   // ── DESKTOP LAYOUT: Side by side panes ──
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "100vh", background: T.bg }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.bg }}>
       {/* Workspace header bar */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",

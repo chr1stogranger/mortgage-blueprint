@@ -2,7 +2,6 @@ import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
-import { WEB_ORIGIN } from "./apiBase";
 import { repayPillar } from "./lib/nonQm.js";
 import useEscape from "./hooks/useEscape.js";
 import useDeployVersion from "./hooks/useDeployVersion.js";
@@ -121,7 +120,6 @@ export default function UnifiedHeader({
     window.addEventListener("wheel", onWheel, { passive: true });
     return () => { document.removeEventListener("pointerdown", onDown, true); window.removeEventListener("wheel", onWheel); };
   }, [statPop]);
-  const [shareCopied, setShareCopied] = useState(false);
   const statContent = (key) => {
     if (key === "price") {
       const dp = Math.max(0, salesPrice - (calc.baseLoan || 0));
@@ -349,55 +347,28 @@ export default function UnifiedHeader({
     )}
   </>);
 
-  // LO-only "Share Link" + "Preview" pills. Desktop: row 1 after the
-  // breadcrumb. Mobile: row 2, right of the scenario pill (2026-09-06).
-  // Preview opens the client's own share URL in a new tab, so the LO sees
-  // exactly the borrower view (share-link mode overrides LO auth in that tab)
-  // without copying the link and pasting it into a private window.
-  const shareLinkPill = (isCloud && !isBorrower && activeBorrower?.share_token) ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-
+  // LO-only Share pill (2026-10-31, Christo: "too many places to click").
+  // One door: it opens the Share tab, where the live link, Preview, Email,
+  // PDF and who-has-access all live. The old Share Link / Preview pills
+  // duplicated two of that tab's buttons.
+  const shareLinkPill = (isCloud && !isBorrower && activeBorrower) ? (
             <button
-              onClick={() => {
-                const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  setShareCopied(true);
-                  setTimeout(() => setShareCopied(false), 2000);
-                }).catch(() => { prompt('Copy this share link:', url); });
-              }}
-              id="bp-copy-share-btn"
-              aria-label="Copy share link"
-              aria-live="polite"
+              onClick={() => setTab?.("summary")}
+              aria-label="Share this blueprint"
+              aria-current={tab === "summary" ? "page" : undefined}
               style={{
-                fontSize: 10, fontWeight: 600, color: '#3B6BF5',
-                background: 'rgba(59,107,245,0.08)',
+                fontSize: 10, fontWeight: 600,
+                color: tab === "summary" ? '#fff' : '#3B6BF5',
+                background: tab === "summary" ? '#3B6BF5' : 'rgba(59,107,245,0.08)',
                 border: '1px solid rgba(59,107,245,0.2)',
-                borderRadius: 9999, padding: isDesktop ? '3px 9px' : '7px 11px', minHeight: isDesktop ? undefined : 32,
+                borderRadius: 9999, padding: isDesktop ? '3px 10px' : '7px 11px', minHeight: isDesktop ? undefined : 32,
                 cursor: 'pointer', fontFamily: FONT, marginLeft: 6,
                 whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
               }}
             >
-              <Icon name="link" size={11} />
-              <span>{shareCopied ? 'Copied!' : 'Share Link'}</span>
+              <Icon name="share" size={11} />
+              <span>Share</span>
             </button>
-            <a
-              href={`${WEB_ORIGIN}?share=${activeBorrower.share_token}`}
-              target="_blank" rel="noopener noreferrer"
-              title="Open this client's blueprint the way they see it"
-              aria-label="Preview as borrower"
-              style={{
-                fontSize: 10, fontWeight: 600, color: T.textSecondary,
-                background: 'transparent',
-                border: `1px solid ${T.separator}`,
-                borderRadius: 9999, padding: isDesktop ? '3px 9px' : '7px 11px', minHeight: isDesktop ? undefined : 32,
-                cursor: 'pointer', fontFamily: FONT, textDecoration: 'none',
-                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
-              }}
-            >
-              <Icon name="eye" size={11} />
-              <span>Preview</span>
-            </a>
-          </div>
   ) : null;
 
   // Publish the header's real rendered height as a CSS var so the content

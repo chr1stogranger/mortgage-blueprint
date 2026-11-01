@@ -92,6 +92,22 @@
   `campaign_settings.postal_address` (Ops → CRM → Sender & compliance);
   `MAILING_ADDRESS` env overrides.
 
+## Panel UX rework (2026-10-31)
+- **Share tab** = one question per audience. LO: Live Blueprint (link,
+  Copy / Email / Text / Preview + People with access) vs PDF worksheet;
+  edit locks + version history fold under "Edit permissions & history".
+  Borrower/public: Get pre-approved, Keep a copy, People with access. No
+  numbers recap there (header + their own tabs have them). The header's
+  single LO **Share** pill opens this tab.
+- **LO identity + email signature flow from Ops on every load** (marketing
+  profile → roster → Signature Studio via `?_route=signatures`). Settings →
+  Your profile shows them read-only with Edit in Ops; only the 1003 link,
+  company NMLS and default fee sheet are edited in Blueprint.
+- Wide screens use columns (auto-fit grids / CSS columns) — Workspace picker,
+  Deal Team, Share, Settings — so the Ops side panel doesn't scroll a narrow
+  640px strip. `T.pillBg` is near-solid on colored backgrounds
+  (`*_ON_COLOR` in MortgageBlueprint.jsx) so toggles stay readable.
+
 ## Gotchas
 - `email-templates/*.html` are pasted into Supabase Auth settings by hand —
   editing the files does NOT deploy them; remind Christo to re-paste.

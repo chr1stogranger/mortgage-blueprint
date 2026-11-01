@@ -94,6 +94,7 @@ import PresenceBar from "./components/PresenceBar";
 import LivePresenceLayer from "./components/LivePresenceLayer";
 import { presenceRoot, findByKey, outlineBoxFor } from "./lib/fieldPresence";
 import LockControls from "./components/LockControls";
+import ShareAccessCard from "./components/ShareAccessCard";
 import LockedSection from "./components/LockedSection";
 import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
@@ -258,6 +259,13 @@ let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 // DARK/LIGHT theme tokens moved to lib/theme.js (audit L-4)
 let T = DARK;
+// On a colored background (Settings → Appearance → Background) the 6%-alpha
+// pillBg is effectively clear, yet the tone rule counts it as a surface and
+// keeps its theme text colors: segmented toggles went blue-on-blue (Learn tab,
+// 2026-10-31). Near-solid pills read on any color. Constant objects so T's
+// reference stays stable per mode.
+const DARK_ON_COLOR = { ...DARK, pillBg: "rgba(14,22,40,0.86)" };
+const LIGHT_ON_COLOR = { ...LIGHT, pillBg: "rgba(255,255,255,0.9)" };
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
  useEscape(open, () => setOpen(false));
@@ -447,7 +455,7 @@ function Hero({ value, label, color, sub, small, light }) {
 function SetShell({ title, meta, tone, children }) {
  const c = tone === "danger" ? T.red : T.blue;
  return (
-  <div style={{ border: `1px solid ${tone === "danger" ? c + "40" : T.cardBorder}`, borderRadius: 14, background: T.card, marginTop: 20, marginBottom: 12, overflow: "hidden" }}>
+  <div style={{ border: `1px solid ${tone === "danger" ? c + "40" : T.cardBorder}`, borderRadius: 14, background: T.card, marginTop: 18, marginBottom: 0, overflow: "hidden", breakInside: "avoid", display: "inline-block", width: "100%", boxSizing: "border-box" }}>
    <div style={{ background: `linear-gradient(135deg, ${c}18, ${c}0c)`, color: c, borderBottom: `1px solid ${c}38`, padding: "10px 16px", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
     <span>{title}</span>
     {meta && <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5, textTransform: "none", fontWeight: 600 }}>{meta}</span>}
@@ -1069,8 +1077,11 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
  const isSellBuy = workspaceMode === "sell-buy";
  return (
   <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: T.textSecondary, fontSize: 13 }}>Loading Workspace...</div>}>
-  {/* transparent so the blueprint canvas shows through (Christo 2026-07-18) */}
-  <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: "transparent" }}>
+  {/* transparent so the blueprint canvas shows through (Christo 2026-07-18).
+      Starts BELOW the header (its real height, --bp-header-h) and scrolls on
+      its own: it used to start at 0, so the header hid the top of the picker
+      and the workspace toolbar (2026-10-31). */}
+  <div style={{ position: "fixed", inset: 0, top: "var(--bp-header-h, 0px)", left: sidebarW, zIndex: 100, background: "transparent", overflowY: "auto" }}>
    <WorkspaceView
     T={T}
     isDesktop={isDesktop}
@@ -1475,7 +1486,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setThemeMode(next);
   try { localStorage.setItem('bp_theme_mode', next); } catch {}
  };
- T = darkMode ? DARK : LIGHT; // DARK/LIGHT are constant objects — reference is stable per mode
+ T = bgResolved?.tone ? (darkMode ? DARK_ON_COLOR : LIGHT_ON_COLOR) : (darkMode ? DARK : LIGHT); // constant objects — reference is stable per mode
  // Match Ops inside the Ops panel also follows Ops' light/dark (not saved:
  // Blueprint's own Theme setting comes back when the panel lets go).
  useEffect(() => {
@@ -2009,49 +2020,64 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   try { localStorage.setItem("bp_lo_info", JSON.stringify({ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, applyUrl })); } catch { /* private mode */ }
  }, [loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, applyUrl]);
- // ── Seed LO identity from the signed-in team account (2026-07-29) ──
- // A device belongs to whoever signed in last (bp_lo_info_owner). Rules:
- //  · same owner signs in again → leave everything alone (manual edits win)
- //  · no owner recorded but identity was customized → grandfather it to the
- //    current signer (Chris's existing devices keep their branding)
- //  · fresh device, or a DIFFERENT team member signs in → pull their
- //    name/NMLS/phone/company from the Ops marketing profile + roster, and
- //    clear the apply URL so borrowers are never sent to another LO's 1003.
+ // ── LO identity + signature come from Ops (2026-07-29; every load since
+ //    2026-10-31, Christo: "it should just flow in from Ops") ──
+ // Name / email / phone / NMLS / company: the Ops marketing profile, then the
+ // team roster. Signature: the LO's Signature Studio default (newest if none
+ // is marked default). Settings shows them read-only with an Edit in Ops
+ // link. An empty Ops value never blanks what the device already has.
+ // The device owner (bp_lo_info_owner) still matters for one thing: when a
+ // DIFFERENT team member signs in (or a fresh device), the apply URL is
+ // cleared so borrowers are never sent to another LO's 1003.
+ // opsSigState: "loading" | "ops" (signature from Signature Studio) | "none".
+ const [opsSigState, setOpsSigState] = useState("loading");
  useEffect(() => {
   const email = (auth?.user?.email || "").toLowerCase();
   if (!email || isBorrower || !isCloud) return;
   let owner = "";
   try { owner = (localStorage.getItem("bp_lo_info_owner") || "").toLowerCase(); } catch { /* private mode */ }
-  if (owner === email) return;
+  const newOwner = owner ? owner !== email : loInfoWasEmpty;
   const claim = () => { try { localStorage.setItem("bp_lo_info_owner", email); } catch { /* private mode */ } };
-  if (!owner && !loInfoWasEmpty) { claim(); return; }
+  let cancelled = false;
   (async () => {
    try {
     const token = localStorage.getItem("bp_token") || "";
     const base = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
     const hdrs = { Authorization: `Bearer ${token}` };
-    const [pRes, lRes] = await Promise.all([
+    const [pRes, lRes, sRes] = await Promise.all([
      fetch(`${base}/api/pipeline-data?_route=marketing&kind=profiles`, { headers: hdrs }),
      fetch(`${base}/api/pipeline-data?_route=marketing&kind=los`, { headers: hdrs }),
+     fetch(`${base}/api/pipeline-data?_route=signatures`, { headers: hdrs, cache: "no-store" }).catch(() => null),
     ]);
+    if (cancelled) return;
     const profiles = pRes.ok ? await pRes.json() : [];
     const roster = lRes.ok ? await lRes.json() : { los: [] };
+    const sigs = sRes?.ok ? await sRes.json() : null;
+    if (cancelled) return;
+    const me = sigs?.me || {};
     const myName = (auth?.user?.name || "").trim().toLowerCase();
     const prof = (Array.isArray(profiles) ? profiles : []).find((p) => (p.email || "").toLowerCase() === email) || null;
     const row = (roster?.los || []).find((r) => r.email === email)
      || (roster?.los || []).find((r) => (r.name || "").trim().toLowerCase() === myName)
      || null;
-    setLoanOfficer(prof?.name || row?.name || auth?.user?.name || "");
-    setLoEmail(prof?.email || row?.email || email);
-    setLoPhone(prof?.phone || row?.phone || "");
-    setLoNmls(prof?.nmls || row?.nmls || "");
+    const set = (v, fn) => { if (v) fn(v); };
+    set(prof?.name || row?.name || me.name || (newOwner ? auth?.user?.name : ""), setLoanOfficer);
+    set(prof?.email || row?.email || email, setLoEmail);
+    set(prof?.phone || row?.phone || me.phone, setLoPhone);
+    set(prof?.nmls || row?.nmls || me.nmls, setLoNmls);
     // Company: profile value if set (defaults to the brokerage in Ops);
-    // company NMLS is brokerage-wide, so it carries over for team LOs.
-    if (prof?.company) setCompanyName(prof.company);
-    setApplyUrl("");
+    // company NMLS is brokerage-wide and stays a Blueprint setting.
+    set(prof?.company, setCompanyName);
+    const rows = Array.isArray(sigs?.rows) ? sigs.rows.filter((r) => r?.html) : [];
+    const sig = rows.find((r) => r.is_default) || rows[0] || null;
+    if (sig) { setLoSignature(sig.html); setOpsSigState("ops"); }
+    else if (sigs) { setLoSignature(""); setOpsSigState("none"); }
+    else setOpsSigState("none");
+    if (newOwner) setApplyUrl("");
     claim();
-   } catch { /* offline — keep whatever the device had; retry next sign-in */ }
+   } catch { if (!cancelled) setOpsSigState("none"); /* offline — keep whatever the device had */ }
   })();
+  return () => { cancelled = true; };
  }, [auth?.user?.email, isBorrower, isCloud]); // eslint-disable-line react-hooks/exhaustive-deps
  const [borrowerName, setBorrowerName] = useState("");
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
@@ -2063,6 +2089,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // switch. Not part of getState/loadState.
  const [borrowerPhone, setBorrowerPhone] = useState("");
  const [showEmailModal, setShowEmailModal] = useState(false);
+ // Share tab (2026-10-31 redesign): Copy link feedback + the folded
+ // "Edit permissions & history" section.
+ const [shareLinkCopied, setShareLinkCopied] = useState(false);
+ const [shareMoreOpen, setShareMoreOpen] = useState(false);
  const [showWorksheetModal, setShowWorksheetModal] = useState(false); // Fees Worksheet preview → Gmail send (LO)
  const [showBorrowerSend, setShowBorrowerSend] = useState(false); // "Email me this worksheet" (borrower/local via Resend)
  const [createClientOpen, setCreateClientOpen] = useState(false);
@@ -8182,17 +8212,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   rentvbuy: "Compare the true cost of renting vs. buying over time, including tax savings, equity buildup, and appreciation.",
   learn: "Interactive courses that teach you how mortgages work, from credit scores to closing day. Earn badges as you complete each module.",
   compare: "Side-by-side comparison of all your saved loan options: payment, cash to close, DTI, total interest, and more.",
-  summary: "Share your loan estimate via email or PDF. It's an estimate from what you entered, not a pre-qualification. Click Get Pre-Approved to start your official loan application.",
   refi: "Compare your current loan to a new refinance: monthly savings, breakeven timeline, and total interest comparison.",
   refi3: "The 3-point refinance test: does the new loan save money, break even fast enough, and accelerate your payoff?",
-  settings: "Customize your experience: PIN lock, privacy mode, theme, and data management.",
  };
  const TabIntro = ({ id }) => {
   const desc = TAB_DESC[id];
   if (!desc) return null;
   return (
-   <div style={{ padding: "12px 14px", background: `${T.blue}06`, borderRadius: 12, marginTop: 16, marginBottom: -4 }}>
-    <div style={{ fontSize: 12, lineHeight: 1.5, color: T.textTertiary }}>{desc}</div>
+   // No tinted box (2026-10-31): a 2%-alpha fill counted as a "surface" on
+   // colored backgrounds, so the line stayed tertiary gray on blue.
+   <div style={{ padding: "12px 2px 0", marginTop: 8, marginBottom: -4 }}>
+    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: T.textSecondary }}>{desc}</div>
    </div>
   );
  };
@@ -10233,191 +10263,189 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Suspense>
 )}
 {/* ═══ SUMMARY ═══ */}
-{tab === "summary" && (<>
- {/* ── CTA Buttons (top of summary) ── */}
- <div style={{ marginTop: 16, marginBottom: 8, display: "flex", gap: 8 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
-   <Icon name="mail" size={16} />
-   Email
-  </button>
-  {activeBorrower?.share_token && (
-   <button
-    onClick={() => {
-     const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
-     navigator.clipboard.writeText(url).then(() => {
-      const btn = document.getElementById('bp-share-link-summary');
-      if (btn) { btn.querySelector('span').textContent = 'Copied!'; setTimeout(() => { btn.querySelector('span').textContent = 'Copy Link'; }, 2000); }
-     }).catch(() => { prompt('Copy this link:', url); });
-    }}
-    id="bp-share-link-summary"
-    style={{ flex: 1, padding: 16, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: '0 4px 14px rgba(59,107,245,0.3)' }}
-   >
-    <Icon name="link" size={16} />
-    <span>Copy Link</span>
-   </button>
-  )}
- </div>
- {/* Preview as borrower — lives here now that the mobile header dropped its
-     Share Link / Preview row (Christo 2026-09-23). LO-only by construction:
-     borrowers have no share_token on activeBorrower. */}
- {activeBorrower?.share_token && !isBorrower && (
-  <a href={`${WEB_ORIGIN}?share=${activeBorrower.share_token}`} target="_blank" rel="noopener noreferrer"
-   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 700, fontSize: 14, fontFamily: FONT, textDecoration: "none" }}>
-   <Icon name="eye" size={15} />
-   Preview as borrower
-  </a>
- )}
- {/* ── One-click PDF: fees worksheet for purchases, legacy refi estimate
-     for refis. Sits between Email and Get Pre-Approved (Christo 2026-07-05). ── */}
- <button onClick={handleSaveScenarioPdf} style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: T.card, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-  <Icon name="download" size={15} />
-  Save Scenario as PDF
- </button>
- {!activeBorrower?.share_token && isCloud && (
-  <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>
-   Select a borrower above to generate a shareable live link
+{tab === "summary" && (() => {
+ // ═══ SHARE (redesigned 2026-10-31, Christo: "too many places to click") ═══
+ // First principles: this tab answers ONE question per audience.
+ //  · LO: how does the client get this? Two answers, side by side:
+ //    the live Blueprint (link, the default) or a PDF worksheet (snapshot).
+ //    Who can open the link sits with the link. Edit locks + version history
+ //    fold away below. The numbers themselves live in the header and their
+ //    own tabs, so the old Loan Overview / Monthly Breakdown / Qualification
+ //    recap is gone.
+ //  · Borrower / public app: get pre-approved, or keep a copy.
+ const shareUrl = activeBorrower?.share_token ? `${WEB_ORIGIN}?share=${activeBorrower.share_token}` : "";
+ const firstName = (activeBorrower?.name || "").trim().split(/\s+/)[0] || "";
+ const toEmail = (activeBorrower?.email || "").trim();
+ const toPhone = String(activeBorrower?.phone || "").replace(/[^\d+]/g, "");
+ const isLO = isCloud && !isBorrower;
+ const copyShareUrl = () => {
+  if (!shareUrl) return;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+   setShareLinkCopied(true); setTimeout(() => setShareLinkCopied(false), 2000);
+  }).catch(() => { prompt("Copy this link:", shareUrl); });
+ };
+ // The open client already has the link: email / text it straight from
+ // their file (the old modal re-saved the scenario as a new row first).
+ const emailShareUrl = () => {
+  if (!shareUrl || !toEmail) return;
+  window.open(buildLiveLinkMailto({ to: toEmail, name: activeBorrower?.name || "", url: shareUrl, lo: loEmail, isRefiFlag: isRefi, scenario: scenarioName || (isRefi ? "Refi Estimate" : "Purchase Estimate") }), "_self");
+  markHunterOfferSent();
+ };
+ const textShareUrl = () => {
+  if (!shareUrl || toPhone.replace(/\D/g, "").length < 10) return;
+  const body = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint. It updates as we fine-tune your numbers: ${shareUrl}`;
+  window.open(`sms:${toPhone}?&body=${encodeURIComponent(body)}`, "_self");
+  markHunterOfferSent();
+ };
+ const pill = (primary, disabled) => ({
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+  padding: "10px 16px", borderRadius: 9999, fontSize: 13.5, fontWeight: 700, fontFamily: FONT,
+  cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1, textDecoration: "none", whiteSpace: "nowrap",
+  ...(primary
+   ? { background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", border: "none" }
+   : { background: T.card, color: T.text, border: `1px solid ${T.separator}` }),
+ });
+ const optionHead = (icon, title, sub) => (
+  <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 14 }}>
+   <div style={{ width: 38, height: 38, borderRadius: 12, background: `${T.blue}14`, color: T.blue, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name={icon} size={18} /></div>
+   <div style={{ minWidth: 0 }}>
+    <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT, letterSpacing: "-0.01em" }}>{title}</div>
+    <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, marginTop: 2, fontFamily: FONT }}>{sub}</div>
+   </div>
   </div>
- )}
- {loanOfficer && applyUrl && (
-  <div style={{ marginBottom: 16 }}>
-   <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
-    style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
-     Get Pre-Approved Now
-   </a>
-   <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginTop: 6, lineHeight: 1.35, fontFamily: FONT }}>{applyNote}</div>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
-    {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
-     <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.card, borderRadius: 10, border: `1px solid ${T.green}15` }}>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2, color: T.green }}><Icon name={icon} size={16} /></div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
+ );
+ const disclaimer = (
+  <div style={{ fontSize: 11, lineHeight: 1.5, marginTop: 14, fontFamily: FONT, color: T.textTertiary }}>An estimate from the numbers entered, not a pre-qualification or a commitment to lend. Rates change daily; subject to lender requirements.</div>
+ );
+
+ // ── LO ──
+ if (isLO) return (
+  <div style={{ maxWidth: 1080, margin: "0 auto", paddingTop: 18 }}>
+   <div style={{ marginBottom: 14 }}>
+    <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", fontFamily: FONT, color: T.text }}>{firstName ? `Share with ${firstName}` : "Share"}</div>
+    <div style={{ fontSize: 13.5, color: T.textSecondary, marginTop: 4, fontFamily: FONT }}>{scenarioName ? <><strong style={{ fontWeight: 600 }}>{scenarioName}</strong>: </> : null}pick how they get it.</div>
+   </div>
+   {!activeBorrower ? (
+    <Card>
+     {optionHead("user", "Open a client first", "The live link lives on a client's file. Pick one from the client picker above, or create one for this scenario.")}
+     <button onClick={() => setCreateClientOpen(true)} style={pill(true)}><Icon name="plus" size={14} />New client</button>
+    </Card>
+   ) : (
+   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, alignItems: "start" }}>
+    {/* ── Option 1: the live Blueprint ── */}
+    <div>
+     <Card style={{ padding: 18 }}>
+      {optionHead("link", "Live Blueprint", "Their own private copy of this file. They can try their own numbers, and you see every change.")}
+      {shareUrl ? (<>
+       <div style={{ display: "flex", gap: 8, alignItems: "center", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 9999, padding: "4px 4px 4px 14px", marginBottom: 12 }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shareUrl.replace(/^https?:\/\//, "")}</span>
+        <button onClick={copyShareUrl} style={{ ...pill(true), padding: "8px 16px" }}><Icon name={shareLinkCopied ? "check" : "copy"} size={13} />{shareLinkCopied ? "Copied" : "Copy"}</button>
+       </div>
+       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button onClick={emailShareUrl} disabled={!toEmail} title={toEmail ? `Email ${toEmail}` : "No email on file"} style={pill(false, !toEmail)}><Icon name="mail" size={14} />Email</button>
+        <button onClick={textShareUrl} disabled={toPhone.replace(/\D/g, "").length < 10} title={toPhone ? `Text ${activeBorrower.phone}` : "No phone on file"} style={pill(false, toPhone.replace(/\D/g, "").length < 10)}><Icon name="phone" size={14} />Text</button>
+        <a href={shareUrl} target="_blank" rel="noopener noreferrer" title="Open the link the way they'll see it" style={pill(false)}><Icon name="eye" size={14} />Preview as {firstName || "them"}</a>
+       </div>
+       {(!toEmail || toPhone.replace(/\D/g, "").length < 10) && (
+        <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 10, fontFamily: FONT }}>
+         {!toEmail && toPhone.replace(/\D/g, "").length < 10 ? "No email or phone on file" : !toEmail ? "No email on file" : "No phone on file"}: add it on <button onClick={() => setTab("team")} style={{ background: "none", border: "none", padding: 0, color: T.blue, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Deal Team</button>.
+        </div>
+       )}
+      </>) : (
+       <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>This client has no link yet. Reopen them from the client picker to generate one.</div>
+      )}
+     </Card>
+     {shareUrl && <ShareAccessCard key={activeBorrower.id} T={T} Card={Card} isBorrower={false} borrowerId={activeBorrower.id} shareToken={activeBorrower.share_token} hideCopy />}
+    </div>
+    {/* ── Option 2: a PDF snapshot ── */}
+    <Card style={{ padding: 18 }}>
+     {optionHead("file", "PDF worksheet", "A snapshot of today's numbers and fees to print or forward. It won't update when you do.")}
+     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <button onClick={handleEmailWorksheet} style={pill(true)}><Icon name="send" size={14} />Email worksheet</button>
+      <button onClick={handleSaveScenarioPdf} style={pill(false)}><Icon name="download" size={14} />Download PDF</button>
      </div>
-    ))}
+    </Card>
    </div>
+   )}
+   {/* ── Folded: what the borrower can edit + version history ── */}
+   {activeScenarioId && (
+    <div style={{ marginTop: 16 }}>
+     <button onClick={() => setShareMoreOpen(o => !o)} aria-expanded={shareMoreOpen} style={{ ...pill(false), padding: "8px 14px", fontSize: 12.5 }}>
+      <Icon name={shareMoreOpen ? "chevron-up" : "chevron-down"} size={13} />Edit permissions & history
+     </button>
+     {shareMoreOpen && (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, alignItems: "start", marginTop: 12 }}>
+       <LockControls
+        T={T}
+        scenarioId={activeScenarioId}
+        lockedFields={sync.lockedFields}
+        userType="lo"
+        lockableSections={{
+         incomes: { label: 'Income', description: 'Annual income, sources, and frequency' },
+         debts: { label: 'Debts', description: 'Monthly debts, car payments, student loans' },
+         creditScore: { label: 'Credit Score', description: 'FICO score: verified from credit pull' },
+         assets: { label: 'Assets', description: 'Bank balances, retirement, gift funds' },
+         employmentInfo: { label: 'Employment', description: 'Employer, years at job, title' },
+        }}
+        onLockChange={() => { /* LockControls saves internally */ }}
+       />
+       <VersionTimeline
+        T={T}
+        history={versionHistory}
+        bookmarks={versionBookmarks}
+        onUndo={handleVersionUndo}
+        onRevertTo={handleVersionRevert}
+        onCreateBookmark={handleCreateBookmark}
+        userType="lo"
+        maxVisible={10}
+       />
+      </div>
+     )}
+    </div>
+   )}
+   {disclaimer}
   </div>
- )}
- <div style={{ marginTop: 8 }}>
-  <Hero value={fmt(calc.displayPayment)} label={!includeEscrow ? "Monthly Payment (No Escrow)" : escrowInsWaived ? "Monthly Payment (Taxes Escrowed)" : "Monthly Payment"} sub={propertyTBD ? "TBD" : (propertyAddress ? propertyAddress : (isRefi ? (calc.refiMonthlyTotalSavings > 0 ? `Save ${fmt(calc.refiMonthlyTotalSavings)}/mo` : `${fmt(calc.totalClosingCosts)} refi costs`) : fmt(calc.cashToClose) + " to close"))} />
-  {!propertyTBD && propertyAddress && <div style={{ textAlign: "center", marginTop: -8, marginBottom: 8, fontSize: 12, color: T.textTertiary }}>{fmt(calc.cashToClose)} to close · {city}{propertyCounty ? `, ${propertyCounty} Co.` : ""}</div>}
- </div>
- <Sec title="Loan Overview">
-  <Card>
-   {[...(propertyTBD ? [["Property", "TBD"]] : (propertyAddress ? [["Property", propertyAddress]] : [])),
-    ...(city && propertyState ? [[" ", `${city}, ${propertyState}${propertyZip ? " " + propertyZip : ""}`]] : []),
-    [isRefi ? "Home Value" : "Purchase Price", fmt(salesPrice)],
-    ...(isRefi ? [
-     ["Current Balance", fmt(calc.refiEffBalance || 0)],
-     ["Equity", fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))],
-     ...(refiPurpose === "Cash-Out" && refiCashOut > 0 ? [["Cash-Out Amount", fmt(refiCashOut)]] : []),
-     ["New Loan Amount", fmt(calc.refiNewLoanAmt || 0)],
-    ] : [
-     ["Down Payment", `${fmt(calc.dp)} (${downPct}%)`],
-     ["Base Loan", fmt(calc.baseLoan)],
-    ]),
-    ...(calc.fhaUp > 0 ? [["FHA UFMIP (1.75%)", fmt(calc.fhaUp)]] : []),
-    ...(calc.vaFundingFee > 0 ? [[`VA Funding Fee (${(calc.vaFundingFee / calc.baseLoan * 100).toFixed(2)}%)`, fmt(calc.vaFundingFee)]] : []),
-    ...(calc.usdaFee > 0 ? [["USDA Guarantee Fee", fmt(calc.usdaFee)]] : []),
-    ...(!isRefi && (calc.fhaUp > 0 || calc.vaFundingFee > 0 || calc.usdaFee > 0) ? [["Total Loan Amount", fmt(calc.loan)]] : (!isRefi ? [["Loan Amount", fmt(calc.loan)]] : [])),
-    ["Loan Type", `${loanType}${loanType === "VA" ? " - " + vaUsage : ""} · ${term}yr`],
-    [isRefi ? "New Rate" : "Interest Rate", `${rate}%`], ["Category", calc.loanCategory],
-    ...(isRefi ? [["Current Rate", refiCurrentRate + "%"], ["Refi Purpose", refiPurpose]] : []),
-   ].map(([l, v], i) => (
-    <MRow key={i} label={l} value={v} />
-   ))}
-  </Card>
- </Sec>
- <Sec title="Monthly Breakdown">
-  <Card>
-   {paySegs.filter(s => s.v > 0).map((s, i) => (
-    <MRow key={i} label={s.l} value={fmt(s.v)} color={s.c} tip={s.tip} />
-   ))}
-   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label="Total" value={fmt(calc.displayPayment)} bold />
+ );
+
+ // ── Borrower (share link) / public app ──
+ const canApply = !!(loanOfficer && applyUrl);
+ return (
+  <div style={{ maxWidth: 1080, margin: "0 auto", paddingTop: 18 }}>
+   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, alignItems: "start" }}>
+    {canApply ? (
+     <Card style={{ padding: 18 }}>
+      {optionHead("check", "Ready to make it official?", applyNote || "Start your application. It takes about 15 minutes.")}
+      <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+       style={{ ...pill(false), width: "100%", boxSizing: "border-box", padding: 14, fontSize: 15, background: `linear-gradient(135deg, ${T.green}, #059669)`, color: "#fff", border: "none" }}>
+       Get pre-approved
+      </a>
+      <div style={{ fontSize: 11.5, color: T.textTertiary, textAlign: "center", marginTop: 8, fontFamily: FONT }}>48-hour turnaround · No hard credit pull · Direct access to your loan officer</div>
+     </Card>
+    ) : (
+     <Card style={{ padding: 18 }}>
+      {optionHead("info", "Apply when a loan officer is set", "Add your loan officer's name and email in Settings to turn on Get pre-approved.")}
+     </Card>
+    )}
+    <div>
+     <Card style={{ padding: 18 }}>
+      {optionHead("file", "Keep a copy", "Your numbers and fees as a PDF worksheet.")}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+       <button onClick={handleEmailWorksheet} style={pill(true)}><Icon name="send" size={14} />Email it to me</button>
+       <button onClick={handleSaveScenarioPdf} style={pill(false)}><Icon name="download" size={14} />Download PDF</button>
+      </div>
+     </Card>
+     {isBorrower && borrowerMode?.shareToken && <ShareAccessCard T={T} Card={Card} isBorrower borrowerId={borrowerMode?.borrower?.id} shareToken={borrowerMode.shareToken} />}
+    </div>
    </div>
-   {includeEscrow && escrowInsWaived && !isRefi && <Note color={T.orange} strong>Insurance not escrowed: {fmt(calc.ins)}/mo paid separately · Full PITI: {fmt(calc.housingPayment)}</Note>}
-   {!includeEscrow && <Note color={T.orange} strong>Escrow OFF: Tax ({fmt(calc.monthlyTax)}) + Ins ({fmt(calc.ins)}) = {fmt(calc.escrowAmount)}/mo paid separately · Full PITI: {fmt(calc.housingPayment)}</Note>}
-  </Card>
- </Sec>
- <Sec title="Qualification">
-  <Card>
-   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-    <StatusPill ok={calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false} label={creditScore ? `FICO ${creditScore}` : "FICO"} />
-    <StatusPill ok={calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false} label={repayPillar(calc, { fmt, pct, loanType }).value} />
-    <StatusPill ok={calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false} label="Cash" />
-    <StatusPill ok={calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false} label="Reserves" />
-   </div>
-  </Card>
- </Sec>
- {vaResidualOn && <Sec title="VA Residual Income">
-  <VaResidualSummary T={T} calc={calc} isRefi={isRefi} propertyState={propertyState} married={married} taxState={taxState} vaResidual={vaResidual} Card={Card} />
- </Sec>}
- {showRateLadder && (rateLadder?.rungs || []).length > 0 && <Sec title="Rate & Points">
-  <RateLadderSummary T={T} calc={calc} term={term} isRefi={isRefi} rateLadder={rateLadder} Card={Card} />
- </Sec>}
- {(loanOfficer || realtorName) && <Sec title="Your Team">
-  <Card>
-   {loanOfficer && <MRow label="Loan Officer" value={loanOfficer} />}
-   {loPhone && <MRow label="Phone" value={loPhone} />}
-   {loNmls && <MRow label="NMLS" value={"#" + loNmls} />}
-   {companyName && <MRow label="Company" value={companyName + (companyNmls ? " · NMLS #" + companyNmls : "")} />}
-   {realtorName && <MRow label="Realtor" value={realtorName + (realtorPartner?.brokerage ? ` · ${realtorPartner.brokerage}` : "")} />}
-   {realtorPartner?.dre && <MRow label="DRE #" value={realtorPartner.dre} />}
-   {realtorPartner?.phone && <MRow label="Realtor Phone" value={realtorPartner.phone} />}
-  </Card>
- </Sec>}
- {ownsProperties && reos.length > 0 && <Sec title="Real Estate Owned">
-  <Card>
-   <MRow label="Properties" value={reos.length.toString()} />
-   <MRow label="Total Equity" value={fmt(calc.reoTotalEquity)} color={T.green} />
-   <MRow label="Net Cash Flow" value={`${fmt(calc.reoNetCashFlow)}/mo`} color={calc.reoNetCashFlow >= 0 ? T.green : T.red} />
-  </Card>
- </Sec>}
- {!loanOfficer && (
-  <div style={{ padding: "12px 16px", background: T.warningBg, borderRadius: 12, marginBottom: 12 }}>
-   <div style={{ fontSize: 12, color: T.orange, fontWeight: 600 }}>Apply Now available when a Loan Officer is set</div>
-   <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Add your LO name and email in Settings → Team.</div>
+   {loanOfficer && (
+    <div style={{ fontSize: 12.5, marginTop: 14, fontFamily: FONT, color: T.textSecondary }}>
+     Questions? {loanOfficer}{loPhone ? ` · ${loPhone}` : ""}{loNmls ? ` · NMLS #${loNmls}` : ""}{companyName ? ` · ${companyName}` : ""}
+    </div>
+   )}
+   {disclaimer}
   </div>
- )}
- {/* ── Collaboration Panel (LO only) ── */}
- {isCloud && !isBorrower && activeScenarioId && (
-  <div style={{ marginTop: 16 }}>
-   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-    <div style={{ width: 4, height: 16, borderRadius: 2, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' }} />
-    <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: FONT }}>COLLABORATION</span>
-   </div>
-   <LockControls
-    T={T}
-    scenarioId={activeScenarioId}
-    lockedFields={sync.lockedFields}
-    userType="lo"
-    lockableSections={{
-     incomes: { label: 'Income', description: 'Annual income, sources, and frequency' },
-     debts: { label: 'Debts', description: 'Monthly debts, car payments, student loans' },
-     creditScore: { label: 'Credit Score', description: 'FICO score: verified from credit pull' },
-     assets: { label: 'Assets', description: 'Bank balances, retirement, gift funds' },
-     employmentInfo: { label: 'Employment', description: 'Employer, years at job, title' },
-    }}
-    onLockChange={(newLocked) => {
-     // Lock change is handled by LockControls component internally
-    }}
-   />
-   <div style={{ marginTop: 12 }}>
-    <VersionTimeline
-     T={T}
-     history={versionHistory}
-     bookmarks={versionBookmarks}
-     onUndo={handleVersionUndo}
-     onRevertTo={handleVersionRevert}
-     onCreateBookmark={handleCreateBookmark}
-     userType="lo"
-     maxVisible={10}
-    />
-   </div>
-  </div>
- )}
- <Card style={{ marginTop: 8, background: T.pillBg }}>
-  <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Subject to lender requirements. Rates change daily. Not a commitment to lend.</div>
- </Card>
-</>)}
+ );
+})()}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
  <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 270} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
@@ -10786,19 +10814,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ LEARNING CENTER ═══ */}
 {tab === "learn" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value="home" label="Homebuyer Academy" color={T.blue} sub={courseComplete ? "Course Complete!" : `${completedCount}/${COURSE_CHAPTERS.length} chapters`} />
+  <Hero value="Homebuyer Academy" label={courseComplete ? "Course complete" : `${completedCount} of ${COURSE_CHAPTERS.length} chapters done`} color={T.blue} />
  </div>
- {/* Toggle: Course / Library / Guidelines */}
- <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 12, padding: 3, marginTop: 12 }}>
+ {/* Toggle: Course / Library / Guidelines. Solid pill track so the
+     unselected labels read on any background (2026-10-31: they vanished
+     blue-on-blue under Match Ops). */}
+ <div role="tablist" style={{ display: "flex", gap: 4, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: 4, marginTop: 12 }}>
   {[["course","Build Your Home"],["library","Article Library"],["guidelines","Loan Guidelines"]].map(([v,l]) => (
-   <button key={v} onClick={() => setCourseView(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", background: courseView === v ? T.card : "transparent", color: courseView === v ? T.blue : T.textTertiary, boxShadow: courseView === v ? "0 1px 4px rgba(0,0,0,0.12)" : "none", transition: "all 0.2s" }}>{l}</button>
+   <button key={v} role="tab" aria-selected={courseView === v} onClick={() => setCourseView(v)} style={{ flex: 1, padding: "9px 6px", borderRadius: 9999, border: "none", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", background: courseView === v ? T.blue : T.card, color: courseView === v ? "#fff" : T.textSecondary, transition: "all 0.2s", whiteSpace: "nowrap" }}>{l}</button>
   ))}
  </div>
- {/* Subscribe CTA — always visible at top */}
- <Card style={{ marginTop: 12, background: `linear-gradient(135deg, ${T.blue}15, ${T.purple}10)`, border: `1px solid ${T.blue}25`, textAlign: "center", padding: "16px 20px" }}>
-  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}> Three Point Thursday</div>
-  <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>3 actionable mortgage insights delivered to your inbox every Thursday.</div>
-  <a href="https://chrisgranger.substack.com/subscribe" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, padding: "10px 24px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", borderRadius: 12, display: "inline-block", fontWeight: 600, fontSize: 14, fontFamily: FONT, cursor: "pointer", textDecoration: "none", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>Subscribe Free →</a>
+ {/* Newsletter: one slim row instead of a centered banner. */}
+ <Card style={{ marginTop: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+  <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>Three Point Thursday</div>
+   <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2, lineHeight: 1.45 }}>3 actionable mortgage insights in your inbox every Thursday.</div>
+  </div>
+  <a href="https://chrisgranger.substack.com/subscribe" target="_blank" rel="noopener noreferrer" style={{ padding: "9px 18px", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", borderRadius: 9999, display: "inline-block", fontWeight: 600, fontSize: 13, fontFamily: FONT, textDecoration: "none", whiteSpace: "nowrap" }}>Subscribe free</a>
  </Card>
 
  {courseView === "course" && (<>
@@ -11103,21 +11135,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
   {[
    { cat: "Getting Started", items: [
-    { title: "The 5 Pillars of Qualifying", icon: "", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO): Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment: VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI): Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close: Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves: Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
+    { title: "The 5 Pillars of Qualifying", icon: "check", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO): Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment: VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI): Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close: Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves: Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
     { title: "How Mortgage Rates Work", icon: "trending-up", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow, usually within days." },
     { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into, and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket. Saving you thousands over the life of the loan." },
     { title: "Property Taxes & Your Tax Bill", icon: "landmark", desc: "Every California city's rate, a tax calculator, and your county's bill lookup", href: CA_TAX_HUB_URL },
    ]},
    { cat: "Loan Programs", items: [
-    { title: "VA Loans: The Best Loan in America", icon: "", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment. Buy a home with nothing down.\n• No PMI: Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates: VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits. With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI: Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
+    { title: "VA Loans: The Best Loan in America", icon: "shield", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment. Buy a home with nothing down.\n• No PMI: Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates: VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits. With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI: Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
     { title: "FHA Loans & The FHA Duplex", icon: "home", desc: "3.5% down, 580 FICO, and a house-hacking cheat code", body: "FHA loans are government-backed mortgages designed for buyers who need a lower barrier to entry: 3.5% down with a 580+ credit score.\n\nThe trade-off: FHA requires both upfront (1.75%) and monthly mortgage insurance (MIP) for the life of the loan. If you put 20%+ down, conventional is usually the better play.\n\nThe Power Move: FHA Duplex:\nBuy a duplex with 3.5% down, live in one unit, rent the other. A $1M duplex requires just $35K down. If rent covers $2,000/mo of your $7,500 payment, your net housing cost is $5,500. For a million-dollar income-producing asset.\n\nFHA duplex limits are higher than single-family: up to $1,032,650 (standard) or $1,548,975 (high-cost areas like the Bay Area).\n\nOccupancy rule: You must live in one unit for at least 12 months. After that, you can move out and keep it as an investment." },
-    { title: "ARMs: Lower Rates for Strategic Buyers", icon: "", desc: "~0.50% lower starting rate, but have a game plan", body: "An Adjustable-Rate Mortgage (ARM) gives you a lower starting rate, typically about 0.50% below a 30-year fixed. On a $600K loan, that can save ~$300+/month.\n\nHow it works: Your rate is fixed for an initial period (3, 5, 7, or 10 years), then adjusts annually based on market conditions.\n\nARMs make sense when you:\n• Plan to sell before the adjustment period\n• Expect to refinance when rates drop\n• Want to maximize cash flow in the short term\n\nARMs do NOT make sense when:\n• This is your forever home\n• You have no exit strategy\n• You can't absorb a potential payment increase\n\nAvailable on Conventional, FHA, and VA loans. Always have a game plan before going adjustable." },
+    { title: "ARMs: Lower Rates for Strategic Buyers", icon: "activity", desc: "~0.50% lower starting rate, but have a game plan", body: "An Adjustable-Rate Mortgage (ARM) gives you a lower starting rate, typically about 0.50% below a 30-year fixed. On a $600K loan, that can save ~$300+/month.\n\nHow it works: Your rate is fixed for an initial period (3, 5, 7, or 10 years), then adjusts annually based on market conditions.\n\nARMs make sense when you:\n• Plan to sell before the adjustment period\n• Expect to refinance when rates drop\n• Want to maximize cash flow in the short term\n\nARMs do NOT make sense when:\n• This is your forever home\n• You have no exit strategy\n• You can't absorb a potential payment increase\n\nAvailable on Conventional, FHA, and VA loans. Always have a game plan before going adjustable." },
     { title: "1% Down Programs", icon: "info", desc: "Bring 1%, get a 2% grant. 3% total down from you", body: "Some lenders offer programs where you bring just 1% down and receive a 2% grant. Giving you 3% total down payment with only 1% out of pocket. The grant does not need to be repaid.\n\nWho qualifies:\n• First-time homebuyers\n• Income caps apply (varies by area. Check AMI limits)\n• Must be a primary residence\n• Conforming loan amounts\n\nThis is one of the most powerful affordability tools available right now for buyers who have income but limited savings." },
    ]},
    { cat: "Refinancing", items: [
-    { title: "The 3-Point Refi Test", icon: "", desc: "Only refinance if it passes all 3 checkpoints", body: "Before refinancing, run every scenario through the 3-Point Refi Test. Only move forward if the new loan:\n\n1. Saves at least 0.500% on your rate OR $300+/month on your payment\n2. Requires no points (keep upfront costs low)\n3. Shaves 1+ year off your loan if you keep the same monthly payment\n\nIf it checks all three boxes: it's a no-brainer.\n\nThink of refinancing like rock climbing down the mountain. Every time you can lock in a lower rate and shave 0.500% off your loan. Clip in. Secure the savings. Then keep climbing down." },
+    { title: "The 3-Point Refi Test", icon: "scale", desc: "Only refinance if it passes all 3 checkpoints", body: "Before refinancing, run every scenario through the 3-Point Refi Test. Only move forward if the new loan:\n\n1. Saves at least 0.500% on your rate OR $300+/month on your payment\n2. Requires no points (keep upfront costs low)\n3. Shaves 1+ year off your loan if you keep the same monthly payment\n\nIf it checks all three boxes: it's a no-brainer.\n\nThink of refinancing like rock climbing down the mountain. Every time you can lock in a lower rate and shave 0.500% off your loan. Clip in. Secure the savings. Then keep climbing down." },
     { title: "Rate & Term vs Cash-Out Refi", icon: "banknote", desc: "Different purposes, different rules, different rates", body: "Rate & Term Refi: You're refinancing to get a better rate, shorter term, or both. Small cash out is allowed (greater of $2,000 or 1% of loan amount). This gets the best pricing.\n\nCash-Out Refi: You're pulling equity from your home. To pay off debt, fund renovations, or invest. Higher rate (typically +0.25–0.50%) but more flexibility.\n\nKey refi facts:\n• You can refinance every 6 months (start the process around month 4)\n• Choose any term from 8–30 years. No need to reset to 30\n• You'll skip 1–2 mortgage payments at closing\n• You'll get an escrow refund from your old lender\n• Your payoff will be higher than your balance (lenders collect interest in arrears)\n\nNet Cash Out = Refi proceeds + skipped payments + escrow refund" },
-    { title: "How to Remove PMI", icon: "", desc: "Ditch the training wheels and save hundreds per month", body: "If you didn't put 20% down, you're likely paying Private Mortgage Insurance (PMI). It protects the lender, not you, and you want to remove it ASAP.\n\nWhen can you remove PMI?\n• Automatically removed at 78% LTV (based on original purchase price)\n• Request removal at 80% LTV (also based on original price)\n• Loan is 2+ years old: remove at 75% LTV using current appraised value\n• Loan is 5+ years old: remove at 80% LTV using current appraised value\n\nSteps: Contact your servicer, submit a written request with your loan number, may need an appraisal, and must show on-time payment history.\n\nImportant: FHA mortgage insurance (MIP) lasts for the life of the loan. The only way to remove FHA MIP is to refinance into a conventional loan once you have 20%+ equity." },
+    { title: "How to Remove PMI", icon: "unlock", desc: "Ditch the training wheels and save hundreds per month", body: "If you didn't put 20% down, you're likely paying Private Mortgage Insurance (PMI). It protects the lender, not you, and you want to remove it ASAP.\n\nWhen can you remove PMI?\n• Automatically removed at 78% LTV (based on original purchase price)\n• Request removal at 80% LTV (also based on original price)\n• Loan is 2+ years old: remove at 75% LTV using current appraised value\n• Loan is 5+ years old: remove at 80% LTV using current appraised value\n\nSteps: Contact your servicer, submit a written request with your loan number, may need an appraisal, and must show on-time payment history.\n\nImportant: FHA mortgage insurance (MIP) lasts for the life of the loan. The only way to remove FHA MIP is to refinance into a conventional loan once you have 20%+ equity." },
    ]},
    { cat: "Strategy & Wealth", items: [
     { title: "Buying Before Selling", icon: "home", desc: "Three financing structures to move up without moving twice", body: "The classic dilemma: you need to sell your current home to buy the next one. Here are three ways to buy first:\n\nOption 1: Conventional Loan: Works if you can qualify carrying two mortgage payments AND have cash for the down payment. Best pricing, but only fits a small slice of buyers.\n\nOption 2: Bridge Loan: Short-term (6–12 months) using your current home's equity. No sale contingency, you move once. But they're pricey: ~10% interest + 2–3 points, often $30–40K+ all-in.\n\nOption 3: Conventional-Bridge Hybrid (the sweet spot): Conventional pricing with bridge-like flexibility. You can exclude your current mortgage from qualifying if you have 30%+ equity in your departing home AND it's listed on the MLS.\n\nDown payment solutions: 401(k) loan (repaid after sale), gift funds, HELOC on departing home, or a 60-day retirement rollover." },
@@ -11126,7 +11158,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     { title: "Lowkey Homebuying Season", icon: "target", desc: "The Black Friday of housing that most buyers miss", body: "Spring and summer are the typical homebuying seasons. But deal hunters should circle November through February. Lowkey Homebuying SZN.\n\nWhy it works:\n• Less competition: many buyers pause for the holidays\n• More motivated sellers. Winter listings usually mean sellers need to move, not just want to. Carrying costs add up, and that's your leverage.\n• Real-time inspections: rainy season gives you an instant reality check on roofs, drainage, and leaks\n\nIf you could wait until spring, you would, but so would the seller. That mismatch is your opportunity." },
    ]},
    { cat: "Investor Corner", items: [
-    { title: "Fix & Flip Loans", icon: "", desc: "Short-term, asset-based loans for buy-renovate-resell", body: "Fix & Flip loans are short-term (6–18 months), interest-only loans for investors looking to buy, renovate, and resell.\n\nKey features:\n• Asset-based: approval is based on After-Repair Value (ARV), not your income or credit\n• Fast closings: often 5–7 days\n• Lenders typically fund 75–90% of purchase + 100% of rehab, capped at 75% of ARV\n\nThe 70% Rule: Don't pay more than 70% of ARV minus repair costs. If ARV = $1,000,000 and reno = $100,000, cap your purchase at $600,000.\n\nWhat lenders want to see: A detailed scope of work, realistic timeline, contractor bids, and your experience level.\n\nFirst-time flipper? Start small, partner with an experienced contractor, and expect the unexpected." },
+    { title: "Fix & Flip Loans", icon: "calculator", desc: "Short-term, asset-based loans for buy-renovate-resell", body: "Fix & Flip loans are short-term (6–18 months), interest-only loans for investors looking to buy, renovate, and resell.\n\nKey features:\n• Asset-based: approval is based on After-Repair Value (ARV), not your income or credit\n• Fast closings: often 5–7 days\n• Lenders typically fund 75–90% of purchase + 100% of rehab, capped at 75% of ARV\n\nThe 70% Rule: Don't pay more than 70% of ARV minus repair costs. If ARV = $1,000,000 and reno = $100,000, cap your purchase at $600,000.\n\nWhat lenders want to see: A detailed scope of work, realistic timeline, contractor bids, and your experience level.\n\nFirst-time flipper? Start small, partner with an experienced contractor, and expect the unexpected." },
     { title: "House Hacking with FHA", icon: "key", desc: "Live in one unit, rent the other. Build wealth from day one", body: "House hacking means buying a multi-unit property, living in one unit, and renting the others to offset your mortgage.\n\nWith an FHA loan, you can buy a duplex with just 3.5% down. The rental income from the other unit can dramatically reduce your effective housing cost.\n\nThe math: $1M duplex → $35K down → $7,500/mo PITI. Rent the other unit for $2,000/mo → your net cost is $5,500/mo for a million-dollar appreciating, income-producing asset.\n\nAfter 12 months of occupancy, you can move out and keep it as a full rental property. Then repeat with your next primary residence.\n\nThis is one of the most reliable paths to building a real estate portfolio starting from scratch." },
    ]},
   ].map((section, si) => <LearnSec key={si} cat={section.cat} items={section.items} />)}
@@ -11264,6 +11296,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   onAddOption={isBorrower && !borrowerCanCreate ? null : async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
 )}
 {tab === "settings" && (<>
+ {/* Two columns when the screen is wide (2026-10-31 settings rework); each
+     shell stays whole (SetShell breakInside: avoid). */}
+ <div style={{ columnWidth: 420, columnGap: 18, maxWidth: 1180, margin: "0 auto" }}>
  <SetShell title="Appearance">
    <SetRow title="Theme" sub={themeMode === 'dark' ? 'Dark mode' : 'Light mode'}
     right={
@@ -11305,50 +11340,45 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      Loan officer? Sign in with Google
     </button>
  </SetShell>}
- {!isBorrower && isCloud && <SetShell title="Loan Officer Info" meta="Shown on shared Blueprints and emails">
-   <div style={{ fontSize: 12, color: T.textTertiary, margin: "8px 0 12px", fontFamily: FONT }}>Set once. Applies to all scenarios.</div>
-   <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
-    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
-   </div>
-   <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
-    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
-   </div>
-   {/* Each LO's own 1003 portal — where every "Get Pre-Approved" button sends
-       borrowers. Blank hides those buttons entirely (better no CTA than the
-       wrong LO's application). */}
-   <Inp label="Application (1003) Link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
-   {/* ── Email Signature (Christo 2026-07-05): matches Homebase/Ops — used
-       at the bottom of worksheet emails sent from Blueprint. Device-level. ── */}
-   <div>
-    <SetSub title="Email Signature" />
-    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 8, fontFamily: FONT }}>
-     Appears at the bottom of worksheet emails. Plain text works, or paste your <strong>HTML signature</strong> (Gmail → Settings → copy your signature's HTML) for full formatting: same as Ops. Leave blank to use your name, company, NMLS, and phone from above.
+ {/* Your profile (2026-10-31, Christo: "why a separate signature? It should
+     just flow in from Ops"). Name, licensing, contact and signature are read
+     from Ops on every sign-in (marketing profile + roster + Signature Studio,
+     see the LO-identity effect) and shown here read-only, with one door back
+     to Ops. Only what Ops doesn't hold stays editable here. */}
+ {!isBorrower && isCloud && <SetShell title="Your profile" meta="From RealStack Ops">
+   {[["Name", loanOfficer], ["NMLS", loNmls ? `#${loNmls}` : ""], ["Phone", loPhone], ["Email", loEmail], ["Company", companyName]].map(([l, v]) => (
+    <div key={l} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 0", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT }}>
+     <span style={{ fontSize: 13, color: T.textSecondary }}>{l}</span>
+     <span style={{ fontSize: 13.5, fontWeight: 600, color: v ? T.text : T.textTertiary, textAlign: "right", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v || "Not set in Ops"}</span>
     </div>
-    <textarea
-     value={loSignature}
-     onChange={(e) => setLoSignature(e.target.value)}
-     rows={loSigIsHtml ? 6 : 4}
-     placeholder={"Chris Granger NMLS #952015\nXpert Home Lending, Inc. NMLS #2179191\n(415) 987-8489\n\n…or paste HTML, e.g.\n<div style=\"font-family:Arial;font-size:13px\"><strong>Chris Granger</strong> NMLS #952015<br/>Xpert Home Lending, Inc. NMLS #2179191</div>"}
-     spellCheck={false}
-     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: loSigIsHtml ? 12 : 13, outline: "none", fontFamily: loSigIsHtml ? MONO : FONT, resize: "vertical", lineHeight: 1.5 }}
-    />
-    {loSigIsHtml && (
-     <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 6 }}>Preview: how it renders in emails</div>
-      <div style={{ background: "#fff", border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "12px 14px", color: "#171717", overflowX: "auto" }}
-       dangerouslySetInnerHTML={{ __html: loSignature }} />
+   ))}
+   <div style={{ padding: "10px 0 4px" }}>
+    <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginBottom: 8 }}>Email signature</div>
+    {opsSigState === "ops" && loSigIsHtml ? (
+     <div style={{ background: "#fff", border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "12px 14px", color: "#171717", overflowX: "auto" }}
+      dangerouslySetInnerHTML={{ __html: loSignature }} />
+    ) : (
+     <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.5 }}>
+      {opsSigState === "loading" ? "Loading your signature from Ops…" : "No signature in Ops yet. Worksheet emails sign off with your name, company, NMLS and phone until you build one in Signature Studio."}
      </div>
     )}
    </div>
+   <a href={`${OPS_ORIGIN}/#account`} target={EMBED === "ops" ? "_top" : "_blank"} rel="noopener noreferrer"
+    style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, padding: "8px 14px", borderRadius: 9999, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, color: T.blue, fontSize: 13, fontWeight: 600, fontFamily: FONT, textDecoration: "none" }}>
+    <Icon name="edit" size={13} />Edit in Ops
+   </a>
+ </SetShell>}
+ {!isBorrower && isCloud && <SetShell title="Blueprint settings" meta="Not in Ops">
+   {/* Each LO's own 1003 portal — where every "Get Pre-Approved" button sends
+       borrowers. Blank hides those buttons entirely (better no CTA than the
+       wrong LO's application). */}
+   <Inp label="Application (1003) link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
+   <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
+   <SetSub title="Default fee sheet" />
    {/* ── My Default Fees (Christo 2026-07-05): snapshot the current Costs
        fee sheet (values + added/removed fees) as this LO's template — every
        new scenario starts from it. Device-level (localStorage). ── */}
    <div>
-    <SetSub title="My Default Fees" />
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 10, fontFamily: FONT }}>
      Set up the Costs tab the way you quote (edit amounts, add or remove fees), then save it as your default fee sheet. Every new scenario will start from it.
     </div>
@@ -11500,6 +11530,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5 }}>This app was shared via <strong>{realtorPartner.name}</strong>'s partner link. Source tracking is active. All pre-approval clicks attribute to <strong>{realtorPartnerSlug}</strong>.</div>
   </SetShell>
  )}
+ </div>
 </>)}
    </div>
    </ReadOnlyContext.Provider>

@@ -2,7 +2,6 @@ import { FONT, MONO } from "../lib/fonts.js";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "../Icon";
 import { fetchDealTeam, saveDealTeam, fetchAriveDealTeam, addPartnerToDirectory } from "../api";
-import ShareAccessCard from "../components/ShareAccessCard";
 
 
 // ─── Role model ──────────────────────────────────────────────────────────────
@@ -55,45 +54,44 @@ function ContactPill({ T, icon, href, label }) {
 
 // ─── One filled contact card ─────────────────────────────────────────────────
 function ContactCard({ T, entry, roleLabel, onEdit, onRemove, readOnly }) {
+  // One compact row (2026-10-31, "make Deal Team fit the screen"): who on the
+  // left, call / email / edit / remove as icon buttons on the right.
+  const iconBtn = { width: 30, height: 30, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 9999, flexShrink: 0, padding: 0, cursor: "pointer", textDecoration: "none" };
   return (
     <div style={{
-      background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14,
-      padding: "14px 16px", marginBottom: 10,
+      background: T.card, border: `1px solid ${T.separator}`, borderRadius: 12,
+      padding: "10px 12px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10,
     }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>
-            {roleLabel}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
-            {entry.name || <span style={{ color: T.textTertiary, fontWeight: 500 }}>Name pending</span>}
-          </div>
-          {entry.company && (
-            <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{entry.company}</div>
-          )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {roleLabel}
         </div>
-        {!readOnly && (
-          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-            <button onClick={onEdit} aria-label={`Edit ${roleLabel}`} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 6 }}>
-              <Icon name="edit" size={15} />
-            </button>
-            <button onClick={onRemove} aria-label={`Remove ${roleLabel}`} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 6 }}>
-              <Icon name="x" size={15} />
-            </button>
-          </div>
-        )}
+        <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text, fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {entry.name || <span style={{ color: T.textTertiary, fontWeight: 500 }}>Name pending</span>}
+          {entry.company && <span style={{ fontSize: 12.5, fontWeight: 500, color: T.textSecondary }}> · {entry.company}</span>}
+        </div>
       </div>
-      {(entry.phone || entry.email) && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-          {entry.phone && <ContactPill T={T} icon="phone" href={`tel:${String(entry.phone).replace(/[^\d+]/g, "")}`} label={fmtPhone(entry.phone)} />}
-          {entry.email && <ContactPill T={T} icon="mail" href={`mailto:${entry.email}`} label="Email" />}
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+        {entry.phone && (
+          <a href={`tel:${String(entry.phone).replace(/[^\d+]/g, "")}`} title={fmtPhone(entry.phone)} aria-label={`Call ${entry.name || roleLabel}`}
+            style={{ ...iconBtn, background: `${T.blue}14`, color: T.blue }}><Icon name="phone" size={14} /></a>
+        )}
+        {entry.email && (
+          <a href={`mailto:${entry.email}`} title={entry.email} aria-label={`Email ${entry.name || roleLabel}`}
+            style={{ ...iconBtn, background: `${T.blue}14`, color: T.blue }}><Icon name="mail" size={14} /></a>
+        )}
+        {!readOnly && (<>
+          <button onClick={onEdit} aria-label={`Edit ${roleLabel}`} style={{ ...iconBtn, background: "transparent", border: "none", color: T.textTertiary }}>
+            <Icon name="edit" size={14} />
+          </button>
+          <button onClick={onRemove} aria-label={`Remove ${roleLabel}`} style={{ ...iconBtn, background: "transparent", border: "none", color: T.textTertiary }}>
+            <Icon name="x" size={14} />
+          </button>
+        </>)}
+      </div>
     </div>
   );
 }
-
-// ─── Empty slot: directory picker + manual add ───────────────────────────────
 function EmptySlot({ T, role, candidates, onPick, onManual }) {
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState(false);
@@ -108,9 +106,9 @@ function EmptySlot({ T, role, candidates, onPick, onManual }) {
     return (
       <button onClick={() => setOpen(true)} style={{
         display: "flex", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box",
-        background: "transparent", border: `1.5px dashed ${T.separator}`, borderRadius: 14,
-        padding: "13px 16px", marginBottom: 10, cursor: "pointer", color: T.textSecondary,
-        fontSize: 14, fontWeight: 500, fontFamily: FONT, textAlign: "left",
+        background: T.cardGlass || "transparent", border: `1.5px dashed ${T.separator}`, borderRadius: 12,
+        padding: "10px 12px", marginBottom: 8, cursor: "pointer", color: T.textSecondary,
+        fontSize: 13.5, fontWeight: 500, fontFamily: FONT, textAlign: "left",
       }}>
         <Icon name="plus" size={15} /> Add {ROLE_LABEL[role]}
       </button>
@@ -362,7 +360,7 @@ export default function TeamContent({
     const order = ["lo", "loa", "processor", "buyers_agent", "buyers_agent_tc", "listing_agent", "listing_agent_tc", "escrow", "title", "insurance", "other"];
     const visible = order.map(r => ({ role: r, entry: getEntry(r) })).filter(x => x.entry);
     return (
-      <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", paddingTop: 10 }}>
         <Hero value="Your Deal Team" label="The people working on your home loan. One tap to reach any of them" />
         {visible.length === 0 ? (
           <Card>
@@ -372,13 +370,12 @@ export default function TeamContent({
             </div>
           </Card>
         ) : (
-          visible.map(({ role, entry }) => (
-            <ContactCard key={role} T={T} entry={entry} roleLabel={ROLE_LABEL[role]} readOnly />
-          ))
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", columnGap: 12 }}>
+            {visible.map(({ role, entry }) => (
+              <ContactCard key={role} T={T} entry={entry} roleLabel={ROLE_LABEL[role]} readOnly />
+            ))}
+          </div>
         )}
-        <Sec title="Sharing">
-          <ShareAccessCard T={T} Card={Card} isBorrower borrowerId={borrowerId} shareToken={borrowerMode?.shareToken} />
-        </Sec>
       </div>
     );
   }
@@ -396,7 +393,7 @@ export default function TeamContent({
   const statusText = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed: retrying on next change" : "";
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
+    <div style={{ maxWidth: 1240, margin: "0 auto", paddingTop: 10 }}>
       <Hero value="Deal Team" label={`Everyone working ${activeBorrower?.name ? `${activeBorrower.name}'s` : "this"} deal: shared with Ops and visible in the client's blueprint`} />
 
       {/* Arive auto-fill + save status row */}
@@ -422,6 +419,12 @@ export default function TeamContent({
         <Card><div style={{ textAlign: "center", padding: 20, color: T.textSecondary, fontFamily: FONT, fontSize: 14 }}>Loading deal team…</div></Card>
       ) : (
         <>
+          {/* Three columns when there's room, one on phones (2026-10-31: the
+              640px single column left most of the panel empty and ran five
+              screens tall). Who can open the share link moved to the Share
+              tab, next to the link itself. */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", columnGap: 18, alignItems: "start" }}>
+          <div>
           {/* ── Borrowers ── */}
           <Sec title="Borrowers">
             <Card>
@@ -452,15 +455,18 @@ export default function TeamContent({
                   )}
                 </div>
               )}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                {activeBorrower?.phone && <ContactPill T={T} icon="phone" href={`tel:${String(activeBorrower.phone).replace(/[^\d+]/g, "")}`} label={fmtPhone(activeBorrower.phone)} />}
-                {activeBorrower?.email && <ContactPill T={T} icon="mail" href={`mailto:${activeBorrower.email}`} label={activeBorrower.email} />}
-              </div>
+              {(activeBorrower?.phone || activeBorrower?.email) && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                  {activeBorrower?.phone && <ContactPill T={T} icon="phone" href={`tel:${String(activeBorrower.phone).replace(/[^\d+]/g, "")}`} label={fmtPhone(activeBorrower.phone)} />}
+                  {activeBorrower?.email && <ContactPill T={T} icon="mail" href={`mailto:${activeBorrower.email}`} label={activeBorrower.email} />}
+                </div>
+              )}
             </Card>
             <Card>
               <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 8 }}>Co-Borrower</div>
               <TextInp label="Name" value={getEntry("coborrower")?.name || ""} placeholder="Co-borrower's full name"
                 onChange={v => setRoleEntry("coborrower", { ...(getEntry("coborrower") || {}), name: v }, getEntry("coborrower")?.source || "manual")} sm />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", columnGap: 10 }}>
               <TextInp label="Email" value={coEmail || getEntry("coborrower")?.email || ""} placeholder="name@email.com" inputMode="email"
                 onChange={v => {
                   setCoEmail(v);
@@ -474,33 +480,35 @@ export default function TeamContent({
                 }} sm />
               <TextInp label="Phone" value={getEntry("coborrower")?.phone || ""} placeholder="(555) 555-5555" inputMode="tel"
                 onChange={v => setRoleEntry("coborrower", { ...(getEntry("coborrower") || {}), phone: v }, getEntry("coborrower")?.source || "manual")} sm />
+              </div>
               <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginTop: 6, lineHeight: 1.5 }}>
-                The co-borrower email links their sign-in to this blueprint. They'll co-edit the same file.
+                Their email links their sign-in to this blueprint, so they co-edit the same file.
               </div>
             </Card>
           </Sec>
+          </div>
 
-          {/* ── Who can open the share link ── */}
-          <Sec title="Sharing">
-            <ShareAccessCard key={borrowerId} T={T} Card={Card} isBorrower={false} borrowerId={borrowerId} shareToken={activeBorrower?.share_token || null} />
-          </Sec>
-
+          <div>
           {/* ── Loan Team ── */}
           <Sec title="Loan Team">
             {["lo", "loa", "processor"].map(renderSlot)}
           </Sec>
 
-          {/* ── Agents (purchase) ── */}
-          {!isRefi && (
-            <Sec title="Real Estate Agents">
-              {["buyers_agent", "buyers_agent_tc", "listing_agent", "listing_agent_tc"].map(renderSlot)}
-            </Sec>
-          )}
-
           {/* ── Escrow / Title / Insurance ── */}
           <Sec title="Escrow, Title & Insurance">
             {["escrow", "title", "insurance"].map(renderSlot)}
           </Sec>
+          </div>
+
+          {/* ── Agents (purchase) ── */}
+          {!isRefi && (
+            <div>
+            <Sec title="Real Estate Agents">
+              {["buyers_agent", "buyers_agent_tc", "listing_agent", "listing_agent_tc"].map(renderSlot)}
+            </Sec>
+            </div>
+          )}
+          </div>
         </>
       )}
     </div>

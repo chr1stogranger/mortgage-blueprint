@@ -71,8 +71,8 @@ It opens full-screen like any other app.
 | **Compare** | All your options side by side. |
 | **Workspace** (computer only) | Two or three calculators at once. Good for "sell this home, buy that one" or "refi vs. keep." |
 | **Learn** | Plain-English explainers. |
-| **Team** | Your deal team (loan officer, agent, escrow), with tap-to-call, plus who has access. |
-| **Share** | Email, copy, save as PDF, and Get Pre-Approved. |
+| **Team** | Your deal team (loan officer, agent, escrow), with tap-to-call and email. |
+| **Share** | Get pre-approved, keep a PDF copy, and choose who can open your Blueprint. |
 | **Settings** | Light/dark mode, privacy options, PIN lock. |
 
 Depending on your loan, your loan officer may also turn on sections like **Refi Summary**, **Seller Net** (what you'd walk away with from a sale), **Rent vs Buy**, **Investor** or **Prop 19**.
@@ -108,13 +108,13 @@ Tap any number to change it. Everything recalculates instantly.
 ## 7. Share, save and send
 
 From the **Share** tab:
-- **Email**: opens **Email Me This Worksheet**. Tap **Send to my email** to get a PDF copy in your inbox. Your loan officer is copied.
-- **Save Scenario as PDF**: download the worksheet (or the Refi Summary for a refinance).
-- **Copy Link**: copy your Blueprint link. Only people on your access list can open it (see the next section).
+- **Keep a copy → Email it to me**: opens **Email Me This Worksheet**. Tap **Send to my email** to get a PDF copy in your inbox. Your loan officer is copied.
+- **Keep a copy → Download PDF**: download the worksheet (or the Refi Summary for a refinance).
+- **Copy link** (on the **People with access** card): copy your Blueprint link. Only people on your access list can open it (see the next section).
 
 ## 8. Add your spouse, co-borrower or agent
 
-1. Go to **Team**, then the **Sharing** card (**People with access**).
+1. Go to **Share**, then the **People with access** card.
 2. Type their email and tap **Add**.
 3. Send them your link. They sign in with **that** email.
 
@@ -128,7 +128,7 @@ You can remove anyone you added with ×. People your loan officer added stay on 
 
 ## 10. Ready to move forward
 
-When the numbers look right, tap **Get Pre-Approved Now** on the Share tab (or **More → Get Pre-Approved** on a phone). Your loan officer gets your request with the scenario you were looking at, and will reach out with next steps and a secure application link.
+When the numbers look right, tap **Get pre-approved** on the Share tab (or **More → Get Pre-Approved** on a phone). Your loan officer gets your request with the scenario you were looking at, and will reach out with next steps and a secure application link.
 
 After you close, your loan officer may set up a **My Home** tab. There you can open your home report: your home's value, your equity, and when a refinance might make sense.
 
@@ -178,4 +178,4 @@ Open your link and sign in again with the same email.
 **Who do I contact?**
 Your loan officer. Their name, phone and email are on the **Team** tab and on every page you share.
 
-Last Changed: 2026-10-31 — Email me a code, verified sections, Settings → Your account.
+Last Changed: 2026-10-31 — Share tab redesign: Get pre-approved / Keep a copy / People with access (moved from Team).

@@ -66,11 +66,16 @@ export default function WorkspaceSelector({ T, isDesktop }) {
     groups[config.group].push({ key, ...config });
   });
 
+  // Compact on every width (Christo 2026-10-31: "right-size the workspace so
+  // it fits the screen"). The three groups sit side by side as columns when
+  // there's room and stack on phones, so all seven modes show without
+  // scrolling. Width comes from the container (auto-fit), not isDesktop:
+  // the Ops side panel can be narrow on a desktop screen.
   const PanePreview = ({ mode }) => {
     const panes = PANE_LAYOUTS[mode] || [];
     return (
       <div style={{
-        display: "flex", gap: 3, height: isDesktop ? 48 : 36, borderRadius: isDesktop ? 8 : 6,
+        display: "flex", height: 26, borderRadius: 7,
         overflow: "hidden", border: `1px solid ${T.separator}`,
       }}>
         {panes.map((p, i) => (
@@ -79,7 +84,7 @@ export default function WorkspaceSelector({ T, isDesktop }) {
             background: `${p.color}12`, borderRight: i < panes.length - 1 ? `1px solid ${T.separator}` : "none",
           }}>
             <span style={{
-              fontSize: isDesktop ? 11 : 9, fontWeight: 700, fontFamily: FONT,
+              fontSize: 9.5, fontWeight: 700, fontFamily: FONT,
               color: p.color, textTransform: "uppercase", letterSpacing: "0.5px",
             }}>
               {p.label}
@@ -92,57 +97,48 @@ export default function WorkspaceSelector({ T, isDesktop }) {
 
   return (
     <div style={{
-      padding: isDesktop ? "48px 40px" : "20px 16px",
-      // Wider + larger type on desktop so the picker fills the pane instead of
-      // needing browser zoom (Christo 2026-09-25).
-      maxWidth: isDesktop ? 1040 : 640, margin: "0 auto",
+      padding: isDesktop ? "24px 28px" : "16px 14px",
+      maxWidth: 1180, margin: "0 auto",
     }}>
       {/* Header */}
-      <div style={{ marginBottom: isDesktop ? 40 : 32 }}>
+      <div style={{ marginBottom: isDesktop ? 20 : 16 }}>
         <div style={{
-          fontSize: isDesktop ? 12 : 10, fontWeight: 600, fontFamily: FONT,
-          textTransform: "uppercase", letterSpacing: "2px",
-          color: T.accent, marginBottom: 8,
+          fontSize: isDesktop ? 26 : 22, fontWeight: 800, letterSpacing: "-0.04em",
+          color: T.text, lineHeight: 1.1,
         }}>
           Workspace
         </div>
         <div style={{
-          fontSize: isDesktop ? 32 : 22, fontWeight: 800, letterSpacing: "-0.04em",
-          color: T.text, lineHeight: 1.1,
+          fontSize: isDesktop ? 15 : 14, color: T.textSecondary, marginTop: 6, lineHeight: 1.45,
         }}>
-          Multi-Pane Calculator
-        </div>
-        <div style={{
-          fontSize: isDesktop ? 17 : 14, color: T.textSecondary, marginTop: isDesktop ? 10 : 8, lineHeight: 1.5,
-        }}>
-          Compare loan scenarios side by side or model complex life events like buying then selling.
+          Compare loan scenarios side by side, or model a life event like buying then selling.
         </div>
       </div>
 
-      {/* Mode groups */}
+      {/* Mode groups: one column each */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+        gap: isDesktop ? 18 : 14, alignItems: "start",
+      }}>
       {Object.entries(groups).map(([groupName, modes]) => (
-        <div key={groupName} style={{ marginBottom: isDesktop ? 36 : 28 }}>
+        <div key={groupName}>
           <div style={{
-            fontSize: isDesktop ? 13 : 11, fontWeight: 600, fontFamily: FONT,
-            textTransform: "uppercase", letterSpacing: "2px",
-            color: T.textTertiary, marginBottom: 12, paddingLeft: 2,
+            fontSize: 11, fontWeight: 600, fontFamily: FONT,
+            textTransform: "uppercase", letterSpacing: "1.5px",
+            color: T.textTertiary, marginBottom: 8, paddingLeft: 2,
           }}>
             {groupName}
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
-            gap: isDesktop ? 16 : 10,
-          }}>
+          <div style={{ display: "grid", gap: 10 }}>
             {modes.map((mode) => (
               <button
                 key={mode.key}
                 onClick={() => openWorkspace(mode.key)}
                 style={{
                   background: T.card, border: `1px solid ${T.cardBorder}`,
-                  borderRadius: isDesktop ? 16 : 12, padding: isDesktop ? 24 : 16, cursor: "pointer",
+                  borderRadius: 14, padding: "12px 14px", cursor: "pointer",
                   textAlign: "left", transition: "all 0.2s",
-                  boxShadow: T.cardShadow,
+                  boxShadow: T.cardShadow, width: "100%", boxSizing: "border-box",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = T.accent;
@@ -153,29 +149,26 @@ export default function WorkspaceSelector({ T, isDesktop }) {
                   e.currentTarget.style.background = T.card;
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: isDesktop ? 12 : 8, marginBottom: isDesktop ? 14 : 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                   <div style={{
-                    width: isDesktop ? 40 : 28, height: isDesktop ? 40 : 28, borderRadius: isDesktop ? 10 : 8,
+                    width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                     background: `${T.accent}12`, display: "flex",
                     alignItems: "center", justifyContent: "center",
                     color: T.accent,
                   }}>
-                    <Icon name={ICONS[mode.key] || "grid"} size={isDesktop ? 20 : 14} />
+                    <Icon name={ICONS[mode.key] || "grid"} size={15} />
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{
-                      fontSize: isDesktop ? 19 : 14, fontWeight: 700, color: T.text,
-                      letterSpacing: "-0.02em",
+                      fontSize: 15, fontWeight: 700, color: T.text,
+                      letterSpacing: "-0.02em", lineHeight: 1.2,
                     }}>
                       {mode.label}
                     </div>
+                    <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.35, marginTop: 1 }}>
+                      {mode.description}
+                    </div>
                   </div>
-                </div>
-                <div style={{
-                  fontSize: isDesktop ? 15 : 12, color: T.textSecondary, lineHeight: 1.4,
-                  marginBottom: isDesktop ? 18 : 12,
-                }}>
-                  {mode.description}
                 </div>
                 <PanePreview mode={mode.key} />
               </button>
@@ -183,6 +176,7 @@ export default function WorkspaceSelector({ T, isDesktop }) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
