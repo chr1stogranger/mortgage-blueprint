@@ -10623,7 +10623,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    showProp19, setShowProp19,
    showRateLadder, setShowRateLadder, rateLadder, setRateLadder,
    showVaResidual, setShowVaResidual, vaResidualOn, vaResidual, setVaResidual,
-   setDiscountPts, setLenderCredit,
    /* Refi fold-in sections (Christo 7.24) */
    renderRefiSummarySection: loanType === "HELOC" ? null : renderRefiSummarySection,
    renderRefi3Section: loanType === "HELOC" ? null : renderRefi3Section,
@@ -10724,7 +10723,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    invHoldYears, setInvHoldYears,
    invSellerComm, setInvSellerComm, invSellClosing, setInvSellClosing,
    /* Refi (for SetupContent) */
-   refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear,
+   refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride,
    refiOriginalAmount, setRefiOriginalAmount,
    refiOriginalTerm, setRefiOriginalTerm, setRefiCurrentRate,
    refiClosedDate, setRefiClosedDate,
