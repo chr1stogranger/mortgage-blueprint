@@ -109,6 +109,12 @@
   (`*_ON_COLOR` in MortgageBlueprint.jsx) so toggles stay readable.
 
 ## Gotchas
+- **`/assets/` must never fall through to the SPA rewrite** (2026-10-31).
+  `/assets/(.*)` carries `immutable, max-age=1y`, so a chunk requested a
+  moment before it reached the edge got `index.html` cached under its name
+  for a year: "Failed to fetch dynamically imported module" on every load
+  until the browser cache was cleared. The catch-all rewrite excludes
+  `assets/` so a missing chunk is an honest 404.
 - `email-templates/*.html` are pasted into Supabase Auth settings by hand —
   editing the files does NOT deploy them; remind Christo to re-paste.
 - **`migrations/*.sql` and `sql/*.sql` do NOT auto-apply** — they are pasted
