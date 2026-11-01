@@ -4046,7 +4046,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </select>
             </label>
             {!sold && (
-              <button onClick={() => setF(x => ({ ...x, newOnly: !x.newOnly }))}
+              <button onClick={() => setF(x => ({ ...x, newOnly: !x.newOnly }))} aria-pressed={!!f.newOnly}
                 style={{ gridColumn: isDesktop ? "auto" : "1 / -1", padding: "10px 14px", borderRadius: 9999, border: `1px solid ${f.newOnly ? accent : T.cardBorder}`, background: f.newOnly ? `${accent}1f` : T.card, color: f.newOnly ? accent : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
                 {f.newOnly ? "✓ " : ""}New this week
               </button>
