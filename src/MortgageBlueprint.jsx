@@ -5975,7 +5975,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   const saved = readGuideProgress(guideKey);
   guideLoadSkipRef.current = true;
-  if (saved) setGuideTouched(new Set(saved));
+  // Always replace: a scenario with no saved progress must not inherit the
+  // previous scenario's steps, and the skip flag below must be consumed.
+  setGuideTouched(new Set(saved || []));
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [guideKey]);
  useEffect(() => {
