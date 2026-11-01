@@ -124,12 +124,22 @@ window.addEventListener('online', () => {
   document.title = 'Mortgage Blueprint';
 });
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <Provider store={store}>
-        <App />
-      </Provider>
-    </ErrorBoundary>
-  </StrictMode>,
-)
+// Google sign-in popup opened by a framed Blueprint (signInWithGoogle):
+// store the session and close instead of booting the app.
+const AUTH_POPUP = new URLSearchParams(window.location.search).get('bp_popup') === '1';
+
+if (AUTH_POPUP) {
+  import('./lib/supabaseClient.js')
+    .then(({ finishAuthPopup }) => finishAuthPopup(document.getElementById('root')))
+    .catch(() => { /* noop */ });
+} else {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <Provider store={store}>
+          <App />
+        </Provider>
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+}

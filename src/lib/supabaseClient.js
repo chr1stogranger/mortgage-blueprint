@@ -15,6 +15,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
+import { EMBED } from './embed.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -31,6 +32,8 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const IS_NATIVE = Capacitor.isNativePlatform();
 const WEB_ORIGIN = 'https://blueprint.realstack.app';
 const NATIVE_AUTH_CALLBACK = 'com.xperthome.mortgageblueprint://auth-callback';
+
+const AUTH_STORAGE_KEY = 'bp_supabase_auth';
 
 function redirectOrigin() {
   return IS_NATIVE ? WEB_ORIGIN : window.location.origin;
@@ -85,7 +88,7 @@ export function getSupabaseClient() {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      storageKey: 'bp_supabase_auth',
+      storageKey: AUTH_STORAGE_KEY,
       detectSessionInUrl: true,   // handles the magic-link / OAuth redirect
       // Implicit flow (token in URL hash) rather than PKCE: borrowers routinely
       // request a magic link on one device and open it on another. PKCE needs
@@ -186,11 +189,81 @@ export async function signInWithGoogle({ shareToken = null } = {}) {
   const redirectTo = new URL(redirectOrigin());
   if (shareToken) redirectTo.searchParams.set('share', shareToken);
 
+  // Google refuses to load inside a frame ("This content is blocked"), so a
+  // framed Blueprint (the Ops side panel, the split-view pane, an LO website)
+  // signs in through a separate window instead of redirecting the frame.
+  // Ops and the pane are same-site with us, so the popup and the frame share
+  // localStorage: the popup (?bp_popup=1) saves the session and closes, and
+  // the frame reloads signed in. A cross-site frame can't see that storage,
+  // so it gets a normal signed-in Blueprint tab instead.
+  let framed = false;
+  try { framed = window.self !== window.top; } catch { framed = true; }
+  if (framed) {
+    const shared = EMBED === 'ops' || EMBED === 'pane';
+    if (shared) redirectTo.searchParams.set('bp_popup', '1');
+    // Open before any await — the popup blocker only allows it inside the click.
+    const win = window.open('', shared ? 'bp_google_signin' : '_blank', shared ? 'popup,width=520,height=680' : undefined);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: redirectTo.toString(), skipBrowserRedirect: true },
+    });
+    if (error) {
+      try { win?.close(); } catch { /* noop */ }
+      throw new Error(error.message);
+    }
+    if (win) win.location.href = data.url;
+    else window.open(data.url, '_blank');
+    if (shared) reloadWhenSessionArrives();
+    return;
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: redirectTo.toString() },
   });
   if (error) throw new Error(error.message);
+}
+
+
+// Framed sign-in: reload once the popup has written a session to the shared
+// localStorage. The storage event is the fast path; the poll covers browsers
+// that skip it. Gives up after 10 minutes (popup abandoned).
+function reloadWhenSessionArrives() {
+  let before = null;
+  try { before = localStorage.getItem(AUTH_STORAGE_KEY); } catch { /* noop */ }
+  const check = () => {
+    let now = null;
+    try { now = localStorage.getItem(AUTH_STORAGE_KEY); } catch { /* noop */ }
+    if (now && now !== before) { stop(); window.location.reload(); }
+  };
+  const onStorage = (e) => { if (e.key === AUTH_STORAGE_KEY) check(); };
+  const timer = setInterval(check, 1000);
+  const giveUp = setTimeout(() => stop(), 10 * 60 * 1000);
+  function stop() {
+    clearInterval(timer);
+    clearTimeout(giveUp);
+    window.removeEventListener('storage', onStorage);
+  }
+  window.addEventListener('storage', onStorage);
+}
+
+/**
+ * The Google sign-in popup a framed Blueprint opened (?bp_popup=1). Lets
+ * Supabase store the session from the URL hash, then closes — main.jsx calls
+ * this instead of booting the whole app in the popup.
+ */
+export async function finishAuthPopup(root) {
+  const say = (text) => {
+    root.textContent = text;
+    root.style.cssText = 'font: 15px/1.5 system-ui, sans-serif; padding: 48px 24px; text-align: center; color: #334155;';
+  };
+  say('Signing you in…');
+  const supabase = getSupabaseClient();
+  let session = null;
+  try { session = (await supabase?.auth.getSession())?.data?.session || null; } catch { /* noop */ }
+  if (!session) { say('Sign-in didn\'t finish. Close this window and try again.'); return; }
+  say('Signed in. You can close this window.');
+  setTimeout(() => { try { window.close(); } catch { /* noop */ } }, 400);
 }
 
 /**
