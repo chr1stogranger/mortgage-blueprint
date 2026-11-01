@@ -85,7 +85,7 @@ export default function OverviewTab(props) {
     showProp19, prop19, sellPrice,
     showRateLadder, vaResidualOn,
     salesPrice, creditScore, refiCurrentBalance, isTabFieldsComplete,
-    blueprintLoaded, activeScenarioId,
+    blueprintLoaded, activeScenarioId, shareLabel,
   } = props;
 
   const isGuided = skillLevel === "guided";
@@ -268,7 +268,15 @@ export default function OverviewTab(props) {
           built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
       {/* Phones: slimmer banners so the screenshot reaches from Quick Start
           through the pillars (Christo 2026-10-01). */}
-      {vis("new") && <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
+      {/* Share sits on the donut's banner (Christo 2026-11-01): the payment
+          is what gets sent. */}
+      {vis("new") && <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}
+        headerRight={setTab ? (
+          <button type="button" onClick={() => setTab("summary")}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: isDesktop ? "5px 12px" : "4px 10px", borderRadius: 9999, border: "none", background: "#fff", color: T.blue, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap" }}>
+            <Icon name="share" size={12} />{shareLabel || "Share"}
+          </button>
+        ) : null}>
         {isDesktop && <CalculatorContent {...props} loanStructureOnly={true} />}
         <CalculatorContent {...props} loanStructureInQuickStart={true} />
       </CollapsibleSection>}

@@ -1145,7 +1145,7 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
 // for MobileTabBar on every keystroke) ═══
 // Core destinations that stay PINNED above the section index. These are real
 // tab switches (not in-page scrolls), in the order Christo specified.
-const CORE_TAB_KEYS = ["overview", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
+const CORE_TAB_KEYS = ["overview", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "settings"];
 // ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
 // Five fixed slots, identical for every user and flow (no reflow, no dead
 // buttons). Everything else in TABS lives behind "More". Shared with the
@@ -9540,7 +9540,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        // The council flagged that letting guided users jump around the page
        // mid-wizard risks the known stale-closure soft-locks, so the "On this
        // page" jump index is a Standard-mode feature only. (2026-06-15)
-       if (skillLevel === "guided") return TABS.map(renderTabItem);
+       // Share isn't listed (2026-11-01): it's the header pill and the
+       // Overview payment banner's button.
+       if (skillLevel === "guided") return TABS.filter(([k]) => k !== "summary").map(renderTabItem);
        // STANDARD MODE: pinned core destinations, then a labeled "On this page"
        // index whose rows scroll-jump to Overview sections (single source of
        // truth: OVERVIEW_SECTIONS, mirroring OverviewTab.jsx order/conditions).
@@ -10567,6 +10569,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    T, isDesktop, darkMode, calc, fmt, fmt2, pct, paySegs, changedFields, loanNumber,
    onOpenApp: openApp, ppSeen,
    setTab, isCloud, auth, isBorrower,
+   shareLabel: (() => { const f = isCloud && !isBorrower ? (activeBorrower?.name || "").trim().split(/\s+/)[0] : ""; return f ? `Send to ${f}` : "Share"; })(),
    /* Scenario */
    scenarioName, scenarioList, switchScenario, onCompare: () => setTab("compare"),
    blueprintLoaded: loaded, activeScenarioId,

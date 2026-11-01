@@ -63,7 +63,7 @@ It opens full-screen like any other app.
 
 **On a phone**, the bottom bar has **Overview · Compare · PricePoint · Share · More**. **More** holds the rest, including **Get Pre-Approved**.
 
-**On a computer**, everything is in the left sidebar.
+**On a computer**, everything is in the left sidebar, except **Share**, which is the **Share** button at the top of the page and on the Monthly Payment bar.
 
 | Section | What it's for |
 |---|---|
@@ -72,7 +72,6 @@ It opens full-screen like any other app.
 | **Workspace** (computer only) | Two or three calculators at once. Good for "sell this home, buy that one" or "refi vs. keep." |
 | **Learn** | Plain-English explainers. |
 | **Team** | Your deal team (loan officer, agent, escrow), with tap-to-call and email. |
-| **Share** | Get pre-approved, keep a PDF copy, and choose who can open your Blueprint. |
 | **Settings** | Light/dark mode, privacy options, PIN lock. |
 
 Depending on your loan, your loan officer may also turn on sections like **Refi Summary**, **Seller Net** (what you'd walk away with from a sale), **Rent vs Buy**, **Investor** or **Prop 19**.
@@ -107,7 +106,7 @@ Tap any number to change it. Everything recalculates instantly.
 
 ## 7. Share, save and send
 
-From the **Share** tab:
+Tap **Share** (top of the page, or on the Monthly Payment bar; on a phone, the bottom bar):
 - **Keep a copy → Email it to me**: opens **Email Me This Worksheet**. Tap **Send to my email** to get a PDF copy in your inbox. Your loan officer is copied.
 - **Keep a copy → Download PDF**: download the worksheet (or the Refi Summary for a refinance).
 - **Copy link** (on the **People with access** card): copy your Blueprint link. Only people on your access list can open it (see the next section).
@@ -178,4 +177,4 @@ Open your link and sign in again with the same email.
 **Who do I contact?**
 Your loan officer. Their name, phone and email are on the **Team** tab and on every page you share.
 
-Last Changed: 2026-11-01 — adding someone under People with access now emails them the link.
+Last Changed: 2026-11-01 — Share moved out of the sidebar to the top bar and the Monthly Payment bar; adding someone under People with access emails them the link.

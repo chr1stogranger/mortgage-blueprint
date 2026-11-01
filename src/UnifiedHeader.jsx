@@ -347,11 +347,12 @@ export default function UnifiedHeader({
     )}
   </>);
 
-  // LO-only Share pill (2026-10-31, Christo: "too many places to click").
+  // Share pill (2026-10-31, Christo: "too many places to click").
   // One door: it opens the Share tab, where the live link, Preview, Email,
   // PDF and who-has-access all live. The old Share Link / Preview pills
-  // duplicated two of that tab's buttons.
-  const shareLinkPill = (isCloud && !isBorrower && activeBorrower) ? (
+  // duplicated two of that tab's buttons. Everyone gets it since Share left
+  // the sidebar (2026-11-01); phones keep the bottom bar's Share slot.
+  const shareLinkPill = setTab ? (
             <button
               onClick={() => setTab?.("summary")}
               aria-label="Share this blueprint"
