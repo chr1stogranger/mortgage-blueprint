@@ -7783,7 +7783,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Photographed statements over ~5MB get downscaled; smaller ones and PDFs
  // upload as-is (the 10MB cap is enforced server-side too).
  const compressStatementImage = async (file) => {
-  const bmp = await createImageBitmap(file);
+  let bmp;
+  try { bmp = await createImageBitmap(file); }
+  catch { throw new Error("That photo format can't be read here. Take a screenshot or export a PDF."); }
   const maxDim = 2400;
   const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
   const canvas = document.createElement('canvas');

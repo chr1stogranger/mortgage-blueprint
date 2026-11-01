@@ -88,7 +88,7 @@ export default function StatementIntake({
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/*"
+          accept="application/pdf,image/jpeg,image/png,image/webp,image/*"
           style={{ display: "none" }}
           onChange={(e) => { pick(e.target.files); e.target.value = ""; }}
         />
