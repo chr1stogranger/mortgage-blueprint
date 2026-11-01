@@ -114,7 +114,10 @@
   moment before it reached the edge got `index.html` cached under its name
   for a year: "Failed to fetch dynamically imported module" on every load
   until the browser cache was cleared. The catch-all rewrite excludes
-  `assets/` so a missing chunk is an honest 404.
+  `assets/` so a missing chunk is an honest 404, and there is no custom
+  immutable header on `/assets/` any more: Vercel attaches custom headers to
+  404s too, so a missed chunk would still stick for a year. Vercel's default
+  (revalidate, 304) costs little; the service worker precaches assets anyway.
 - `email-templates/*.html` are pasted into Supabase Auth settings by hand —
   editing the files does NOT deploy them; remind Christo to re-paste.
 - **`migrations/*.sql` and `sql/*.sql` do NOT auto-apply** — they are pasted
