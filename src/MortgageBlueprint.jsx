@@ -9967,8 +9967,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    loEmail={loEmail}
   />}
   {/* ═══ SHARE MODAL ═══ */}
-  {showEmailModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowEmailModal(false)}>
-   <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={e => e.stopPropagation()}>
+  {showEmailModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setShowEmailModal(false)}>
+   <div style={{ background: T.card, borderRadius: 20, maxWidth: 480, width: "100%", maxHeight: "calc(100vh - 32px)", overflowY: "auto", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }} onClick={e => e.stopPropagation()}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>Share {isRefi ? "Refi" : "Purchase"} Estimate</div>
      <button aria-label="Close" onClick={() => setShowEmailModal(false)} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 16, cursor: "pointer", color: T.textSecondary }}>✕</button>

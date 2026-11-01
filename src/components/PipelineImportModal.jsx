@@ -254,8 +254,8 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
   // trapped this modal under the docked live PDF preview (z 900) no matter its
   // own z-index. Rendering at the body puts it above every panel.
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={close}>
-      <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 500, width: "100%", maxHeight: "86vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={close}>
+      <div style={{ background: T.card, borderRadius: 20, maxWidth: 500, width: "100%", maxHeight: "calc(100vh - 32px)", overflowY: "auto", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text, display: "flex", alignItems: "center", gap: 8 }}>
             <Icon name="download" size={17} />

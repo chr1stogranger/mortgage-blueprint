@@ -179,9 +179,9 @@ export default function SendWorksheetModal({
   const labelStyle = { display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
       onClick={() => phase !== "sending" && onClose(false)}>
-      <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 520, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: "20px 18px 30px" }}
+      <div style={{ background: T.card, borderRadius: 20, maxWidth: 520, width: "100%", maxHeight: "calc(100vh - 32px)", overflowY: "auto", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }}
         onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Email Fees Worksheet</div>
@@ -206,7 +206,7 @@ export default function SendWorksheetModal({
             style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, minHeight: 150 }} />
           {signatureHtml ? (
             <div style={{ fontSize: 11.5, color: T?.textTertiary || "#888", marginTop: 6 }}>
-              ✓ Your HTML signature (Settings) is added below this message automatically
+              ✓ Your signature from Ops is added below this message automatically
             </div>
           ) : null}
         </div>
@@ -349,9 +349,9 @@ export function BorrowerSendModal({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
       onClick={() => phase !== "sending" && onClose(false)}>
-      <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 460, width: "100%", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ background: T.card, borderRadius: 20, maxWidth: 460, width: "100%", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Email Me This Worksheet</div>
           <button aria-label="Close" onClick={() => phase !== "sending" && onClose(false)}

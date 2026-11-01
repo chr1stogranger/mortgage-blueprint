@@ -39,6 +39,9 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
 
   if (!isOpen && !isClosing) return null;
 
+  // Phones get a bottom sheet; anything wider gets a centered dialog.
+  const wide = typeof window !== "undefined" && window.matchMedia?.("(min-width: 640px)").matches;
+
   return (
     <div
       onClick={handleBackdropClick}
@@ -46,7 +49,8 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
         position: "fixed", inset: 0, zIndex: 9999,
         background: "rgba(0,0,0,0.5)",
         backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        display: "flex", alignItems: wide ? "center" : "flex-end", justifyContent: "center",
+        padding: wide ? 16 : 0,
         animation: isClosing ? "sheetFadeOut 0.25s ease forwards" : "sheetFadeIn 0.25s ease",
       }}
     >
@@ -55,20 +59,20 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
         style={{
           width: "100%", maxWidth: 500, maxHeight: height,
           background: T.bg2 || T.elevated || "#0d1524",
-          borderRadius: "20px 20px 0 0",
+          borderRadius: wide ? 20 : "20px 20px 0 0",
           display: "flex", flexDirection: "column",
           animation: isClosing ? "sheetSlideDown 0.25s ease forwards" : "sheetSlideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
         {/* Drag handle */}
-        <div
+        {wide ? <div style={{ height: 12 }} /> : <div
           onTouchStart={handleDragStart}
           onTouchEnd={handleDragEnd}
           style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px", cursor: "grab" }}
         >
           <div style={{ width: 36, height: 4, borderRadius: 2, background: T.textTertiary || "#666" }} />
-        </div>
+        </div>}
 
         {/* Header — optional; the More sheet draws its own compact microline. */}
         {showHeader && <div style={{
