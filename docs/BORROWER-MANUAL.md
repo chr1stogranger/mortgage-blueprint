@@ -116,7 +116,7 @@ From the **Share** tab:
 
 1. Go to **Share**, then the **People with access** card.
 2. Type their email and tap **Add**.
-3. Send them your link. They sign in with **that** email.
+3. They get an email with your link right away. They sign in with **that** email to open it.
 
 You can remove anyone you added with ×. People your loan officer added stay on unless your loan officer removes them.
 
@@ -178,4 +178,4 @@ Open your link and sign in again with the same email.
 **Who do I contact?**
 Your loan officer. Their name, phone and email are on the **Team** tab and on every page you share.
 
-Last Changed: 2026-10-31 — Share tab redesign: Get pre-approved / Keep a copy / People with access (moved from Team).
+Last Changed: 2026-11-01 — adding someone under People with access now emails them the link.

@@ -22,6 +22,7 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const api = isBorrower
     ? { load: () => fetchShareAccessAsBorrower(shareToken), add: (e) => addShareAccessAsBorrower(shareToken, e), remove: (e) => removeShareAccessAsBorrower(shareToken, e) }
@@ -29,9 +30,9 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
   const ready = isBorrower ? !!shareToken : !!borrowerId;
 
   const run = useCallback(async (fn) => {
-    setBusy(true); setError("");
-    try { const r = await fn(); setList(r.emails || []); return true; }
-    catch (e) { setError(e.message || "Something went wrong"); return false; }
+    setBusy(true); setError(""); setNotice("");
+    try { const r = await fn(); setList(r.emails || []); return r; }
+    catch (e) { setError(e.message || "Something went wrong"); return null; }
     finally { setBusy(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBorrower, borrowerId, shareToken]);
@@ -46,7 +47,12 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
     const email = draft.trim().toLowerCase();
     if (!email) return;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Enter a valid email"); return; }
-    if (await run(() => api.add(email))) setDraft("");
+    const r = await run(() => api.add(email));
+    if (!r) return;
+    setDraft("");
+    // Ops emails new guests the link; `invited` is false when they were
+    // already on the list or the send didn't go out.
+    setNotice(r.invited ? `Emailed the link to ${email}.` : `${email} can open it now. Send them the link.`);
   };
 
   const copyLink = async () => {
@@ -75,8 +81,8 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
       </div>
       <div style={{ fontSize: 12.5, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 12 }}>
         {isBorrower
-          ? "Only these emails can open your blueprint. Add a parent, a partner, or another email you use, then send them the link."
-          : "The share link only opens for these emails (and your team). Add a parent, a partner, or a borrower's second email."}
+          ? "Only these emails can open your blueprint. Add a parent, a partner, or another email you use, and we'll email them the link."
+          : "The share link only opens for these emails (and your team). Anyone you add gets the link by email, with replies coming to you."}
       </div>
 
       {list === null ? (
@@ -121,7 +127,7 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
       )}
 
       <form onSubmit={e => { e.preventDefault(); add(); }} style={{ display: "flex", gap: 8 }}>
-        <input value={draft} onChange={e => { setDraft(e.target.value); setError(""); }}
+        <input value={draft} onChange={e => { setDraft(e.target.value); setError(""); setNotice(""); }}
           placeholder="name@email.com" inputMode="email" autoComplete="off" aria-label="Email to give access"
           style={{
             flex: 1, minWidth: 0, boxSizing: "border-box", background: T.inputBg || T.card, borderRadius: 9999,
@@ -137,6 +143,7 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
         </button>
       </form>
       {error && <div style={{ marginTop: 8, fontSize: 12.5, color: T.red, fontFamily: FONT }}>{error}</div>}
+      {notice && !error && <div role="status" style={{ marginTop: 8, fontSize: 12.5, color: T.green, fontFamily: FONT, display: "flex", alignItems: "center", gap: 6 }}><Icon name="check" size={13} />{notice}</div>}
     </Card>
   );
 }
