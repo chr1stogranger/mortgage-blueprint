@@ -12,6 +12,7 @@ import {
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeRentalTaxEffect,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
   computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateCapGainsRate, shortTermGainFedTax,
+  longTermGainFedTax, gainNIIT,
 } from "./finance.js";
 
 // ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
@@ -573,6 +574,57 @@ describe("shortTermGainFedTax", () => {
   it("is $0 with no gain", () => {
     expect(shortTermGainFedTax(0, 200000, "Single")).toBe(0);
     expect(shortTermGainFedTax(-5000, 200000, "Single")).toBe(0);
+  });
+});
+
+describe("longTermGainFedTax", () => {
+  it("fills the 0% bracket before charging 15%", () => {
+    // Single, $20,000 income → $3,900 taxable, $63,900 with the gain:
+    // (63,900 − 49,450) × 15%
+    expect(longTermGainFedTax(60000, 20000, "Single")).toBeCloseTo(2167.5, 2);
+  });
+  it("comes in under the short-term tax on the same sale", () => {
+    expect(longTermGainFedTax(60000, 20000, "Single")).toBeLessThan(shortTermGainFedTax(60000, 20000, "Single"));
+  });
+  it("charges a flat 15% when the whole gain sits in that bracket", () => {
+    // Single, $116,100 income → $100,000 to $150,000 taxable
+    expect(longTermGainFedTax(50000, 116100, "Single")).toBeCloseTo(7500, 2);
+  });
+  it("charges 20% only on the part above the top threshold", () => {
+    // Single, $516,100 income → $500,000 to $600,000 taxable:
+    // (545,500 − 500,000) × 15% + (600,000 − 545,500) × 20% = 6,825 + 10,900
+    expect(longTermGainFedTax(100000, 516100, "Single")).toBeCloseTo(17725, 2);
+  });
+  it("uses the filing status thresholds", () => {
+    // MFJ: $50,000 to $90,000 taxable stays under $98,900
+    expect(longTermGainFedTax(40000, 82200, "MFJ")).toBe(0);
+    // HOH: $0 to $70,000 taxable: (70,000 − 66,200) × 15%
+    expect(longTermGainFedTax(70000, 24150, "HOH")).toBeCloseTo(570, 2);
+    // MFS: $300,000 to $310,000 taxable: 6,850 × 15% + 3,150 × 20%
+    expect(longTermGainFedTax(10000, 316100, "MFS")).toBeCloseTo(1657.5, 2);
+  });
+  it("lets the standard deduction absorb the first dollars", () => {
+    // Single, $0 income → $43,900 taxable, all under $49,450
+    expect(longTermGainFedTax(60000, 0, "Single")).toBe(0);
+  });
+});
+
+describe("gainNIIT", () => {
+  it("taxes only the income above the threshold", () => {
+    // Single, $150,000 + $103,875 = $253,875: 3.8% of the $53,875 over $200,000
+    expect(gainNIIT(103875, 150000, "Single")).toBeCloseTo(2047.25, 2);
+  });
+  it("taxes the whole gain when other income is already over", () => {
+    expect(gainNIIT(50000, 300000, "Single")).toBeCloseTo(1900, 2);
+  });
+  it("is $0 when income plus the gain stays under", () => {
+    expect(gainNIIT(50000, 100000, "Single")).toBe(0);
+    expect(gainNIIT(0, 500000, "Single")).toBe(0);
+  });
+  it("uses the filing status thresholds", () => {
+    expect(gainNIIT(50000, 240000, "MFJ")).toBeCloseTo(1520, 2); // $40,000 over $250,000
+    expect(gainNIIT(50000, 120000, "MFS")).toBeCloseTo(1710, 2); // $45,000 over $125,000
+    expect(gainNIIT(20000, 190000, "HOH")).toBeCloseTo(380, 2); // $10,000 over $200,000
   });
 });
 

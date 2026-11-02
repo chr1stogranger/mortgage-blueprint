@@ -34,6 +34,8 @@ export default function SellContent(props) {
   const linkedReo = sellLinkedReoId ? reos.find(r => String(r.id) === sellLinkedReoId) : null;
   const net = calc.sellNetAfterTax;
   const tax = calc.sellTotalCapGainsTax;
+  const ltcgPct = (calc.fedLTCGRate || 0) * 100;
+  const ltcgBlended = Math.abs(ltcgPct - Math.round(ltcgPct)) >= 0.05;
   const netColor = net >= 0 ? T.green : T.red;
   const pctOf = n => (sellPrice > 0 ? (n / sellPrice * 100).toFixed(1) : "0.0");
   const taxLine = tax > 0 ? `after ${fmt(tax)} est. capital gains tax` : "no capital gains tax";
@@ -130,10 +132,10 @@ export default function SellContent(props) {
      <div style={{ ...overline, marginTop: 14 }}>How the tax is figured</div>
      <MRow label="Holding Period" value={<span style={{ whiteSpace: "nowrap" }}>{calc.sellIsLongTerm ? `${sellYearsOwned} yrs (Long-Term)` : `${sellYearsOwned} yr (Short-Term)`}</span>} sub={calc.sellIsLongTerm ? "Favorable LTCG rates" : "Taxed as ordinary income"} />
      {calc.sellIsLongTerm
-      ? <MRow label="Federal LTCG Rate" value={`${(calc.fedLTCGRate * 100).toFixed(0)}%`} />
+      ? <MRow label="Federal LTCG Rate" value={ltcgBlended ? `${ltcgPct.toFixed(1)}%` : `${ltcgPct.toFixed(0)}%`} sub={ltcgBlended ? "Average across the LTCG brackets" : undefined} />
       : <MRow label="Federal Rate" value="Ordinary" sub={`Averages ${((calc.sellFedCapGainsTax - calc.sellNIIT) / calc.sellTaxableGain * 100).toFixed(1)}% on top of your income`} />}
      <MRow label={calc.sellIsLongTerm ? "Federal Cap Gains Tax" : "Federal Income Tax"} value={fmt(calc.sellFedCapGainsTax - calc.sellNIIT)} />
-     {calc.sellNIIT > 0 && <MRow label="NIIT (3.8%)" value={fmt(calc.sellNIIT)} sub="Net Investment Income Tax" />}
+     {calc.sellNIIT > 0 && <MRow label="NIIT (3.8%)" value={fmt(calc.sellNIIT)} sub={`Net Investment Income Tax on ${fmt(calc.sellNIIT / 0.038)}`} />}
      <MRow label={`State Tax (${taxState})`} value={fmt(calc.sellStateCapGainsTax)} sub={`${(calc.sellStateCapGainsRate * 100).toFixed(2)}% marginal rate`} />
      <MRow label="Total Est. Tax" value={fmt(tax)} bold />
     </>}

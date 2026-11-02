@@ -446,20 +446,58 @@ export function progressiveTax(taxableIncome, brackets) {
  return tax;
 }
 
+/** 2026 long-term capital gains brackets by filing status. */
+export const LTCG_BRACKETS = {
+ Single: [{min:0,max:49450,rate:0},{min:49450,max:545500,rate:0.15},{min:545500,max:Infinity,rate:0.20}],
+ MFJ: [{min:0,max:98900,rate:0},{min:98900,max:613700,rate:0.15},{min:613700,max:Infinity,rate:0.20}],
+ MFS: [{min:0,max:49450,rate:0},{min:49450,max:306850,rate:0.15},{min:306850,max:Infinity,rate:0.20}],
+ HOH: [{min:0,max:66200,rate:0},{min:66200,max:579600,rate:0.15},{min:579600,max:Infinity,rate:0.20}],
+};
+
+/** A gain sits on top of other income: the tax with it minus the tax without it, both after the standard deduction. */
+function stackedGainTax(gain, income, married, table) {
+ if (!(gain > 0)) return 0;
+ const brackets = table[married] || table.Single;
+ const taxableBefore = (income || 0) - (FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single);
+ return progressiveTax(taxableBefore + gain, brackets) - progressiveTax(taxableBefore, brackets);
+}
+
 /**
- * Federal tax on a short-term gain. It is ordinary income, so it stacks on top
- * of the seller's other income and fills the brackets from there: the tax with
- * the gain minus the tax without it, both after the standard deduction.
+ * Federal tax on a short-term gain, taxed as ordinary income.
  * @param {number} gain taxable gain ($)
  * @param {number} income other annual income ($)
  * @param {string} married filing status
  * @returns {number} federal tax on the gain ($), before NIIT
  */
 export function shortTermGainFedTax(gain, income, married) {
+ return stackedGainTax(gain, income, married, FED_BRACKETS);
+}
+
+/**
+ * Federal tax on a long-term gain. Other income fills the 0% and 15% brackets
+ * first, so one gain can span all three rates.
+ * @param {number} gain taxable gain ($)
+ * @param {number} income other annual income ($)
+ * @param {string} married filing status
+ * @returns {number} federal tax on the gain ($), before NIIT
+ */
+export function longTermGainFedTax(gain, income, married) {
+ return stackedGainTax(gain, income, married, LTCG_BRACKETS);
+}
+
+/**
+ * Net Investment Income Tax on a gain: 3.8% of the smaller of the gain and the
+ * income above the threshold (IRC §1411). The thresholds are not indexed.
+ * Counts the gain as the only investment income.
+ * @param {number} gain taxable gain ($)
+ * @param {number} income other annual income ($)
+ * @param {string} married filing status
+ * @returns {number} NIIT on the gain ($)
+ */
+export function gainNIIT(gain, income, married) {
  if (!(gain > 0)) return 0;
- const brackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
- const taxableBefore = (income || 0) - (FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single);
- return progressiveTax(taxableBefore + gain, brackets) - progressiveTax(taxableBefore, brackets);
+ const threshold = married === "MFJ" ? 250000 : married === "MFS" ? 125000 : 200000;
+ return Math.max(0, Math.min(gain, (income || 0) + gain - threshold)) * 0.038;
 }
 
 /**

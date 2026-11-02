@@ -20,7 +20,7 @@ import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, isLumpSumIncome, progressiveTax,
  computeTaxSavings, computeRentalTaxEffect, computePassiveLossAllowance, buildAmortization, computeProp19,
- VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateCapGainsRate, shortTermGainFedTax,
+ VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateCapGainsRate, shortTermGainFedTax, longTermGainFedTax, gainNIIT,
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
@@ -7498,17 +7498,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sellExclusionLimit = (sellPrimaryRes && sellYearsOwned >= 2) ? (married === "MFJ" ? 500000 : 250000) : 0;
   const sellTaxableGain = Math.max(0, sellGrossGain - sellExclusionLimit);
   const sellIsLongTerm = sellYearsOwned >= 1;
-  const fedLTCGRate = (() => {
-   if (!sellIsLongTerm) return null;
-   const ltThresholds = married === "MFJ" ? [98900, 613700] : married === "HOH" ? [66200, 579600] : married === "MFS" ? [49450, 306850] : [49450, 545500];
-   const yearlyIncome = annualIncome || 0;
-   if (yearlyIncome + sellTaxableGain <= ltThresholds[0]) return 0;
-   if (yearlyIncome + sellTaxableGain <= ltThresholds[1]) return 0.15;
-   return 0.20;
-  })();
-  const niitThreshold = married === "MFJ" ? 250000 : married === "MFS" ? 125000 : 200000;
-  const sellNIIT = (annualIncome + sellTaxableGain > niitThreshold && sellTaxableGain > 0) ? sellTaxableGain * 0.038 : 0;
-  const sellFedCapGainsTax = sellTaxableGain > 0 ? (sellIsLongTerm ? sellTaxableGain * (fedLTCGRate || 0) : shortTermGainFedTax(sellTaxableGain, annualIncome, married)) + sellNIIT : 0;
+  const sellFedGainTax = sellIsLongTerm ? longTermGainFedTax(sellTaxableGain, annualIncome, married) : shortTermGainFedTax(sellTaxableGain, annualIncome, married);
+  const fedLTCGRate = sellIsLongTerm && sellTaxableGain > 0 ? sellFedGainTax / sellTaxableGain : null; // average: one gain can span brackets
+  const sellNIIT = gainNIIT(sellTaxableGain, annualIncome, married);
+  const sellFedCapGainsTax = sellFedGainTax + sellNIIT;
   const sellStateCapGainsRate = stateCapGainsRate(taxState, married, (annualIncome || 0) + sellTaxableGain);
   const sellStateCapGainsTax = sellTaxableGain * sellStateCapGainsRate;
   const sellTotalCapGainsTax = sellFedCapGainsTax + sellStateCapGainsTax;
