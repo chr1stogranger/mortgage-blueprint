@@ -6,6 +6,8 @@
 // carry &hk=<the Hunter row's key> so sending the refi can flip that row's
 // Refi Status to Offer Sent.
 
+import { getPMIRate, getFHAMipRate } from "./finance.js";
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The Hunter row key from ?hk=, or "" if it isn't a plain id. */
@@ -29,6 +31,23 @@ function termFromProduct(p) {
 }
 
 /**
+ * Estimated monthly MI on the loan being refinanced, from the original amount
+ * and the value at funding (Christo 2026-11-02). The new loan always prices MI,
+ * so leaving this at $0 charged the borrower on one side only: Daniel Da Mata
+ * Spada, 95% LTV, read -$122/mo. The statement's figure replaces it.
+ */
+export function estimateCurrentMi({ loanType, originalAmount, homeValue, creditScore }) {
+  const amount = Number(originalAmount) || 0;
+  const value = Number(homeValue) || 0;
+  if (amount <= 0) return 0;
+  const ltv = value > 0 ? amount / value : 0;
+  if (loanType === "FHA") return Math.round((amount * getFHAMipRate(amount, ltv)) / 12);
+  if (loanType === "USDA") return Math.round((amount * 0.0035) / 12);
+  if (loanType !== "Conventional" || ltv <= 0.8 || ltv > 1.05) return 0;
+  return Math.round((amount * getPMIRate(ltv, creditScore)) / 12);
+}
+
+/**
  * Ops refi-handoff payload → Blueprint refi state. The closed loan becomes the
  * loan being refinanced; with no statement the balance is rebuilt from the
  * funding date (refiHasStatement false → the Estimate label). The new loan
@@ -39,6 +58,7 @@ export function refiPrefillFromHandoff(h, { rateDrop = 0.5 } = {}) {
   const amount = Number(h?.loan_amount) || 0;
   const term = termFromProduct(h?.product);
   const type = blueprintLoanType(h?.loan_type);
+  const currentMi = estimateCurrentMi({ loanType: type, originalAmount: amount }); // no value here, so FHA/USDA only
   return {
     isRefi: true,
     loanPurpose: "Refi Rate/Term",
@@ -49,6 +69,8 @@ export function refiPrefillFromHandoff(h, { rateDrop = 0.5 } = {}) {
     refiOriginalTerm: term,
     refiCurrentRate: rate,
     refiHasStatement: false,
+    refiCurrentMI: currentMi,
+    refiCurrentMIEstimated: currentMi > 0,
     ...(DATE_RE.test(String(h?.funding_date || "")) ? { refiClosedDate: h.funding_date } : {}),
     loanType: type,
     rate: Math.max(0, Number((rate - rateDrop).toFixed(3))),

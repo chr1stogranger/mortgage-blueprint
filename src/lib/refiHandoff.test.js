@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanHunterKey, refiPrefillFromHandoff, canMarkOfferSent } from "./refiHandoff.js";
+import { cleanHunterKey, refiPrefillFromHandoff, canMarkOfferSent, estimateCurrentMi } from "./refiHandoff.js";
 
 describe("cleanHunterKey", () => {
   it("keeps plain ids and drops anything else", () => {
@@ -39,5 +39,30 @@ describe("canMarkOfferSent", () => {
     expect(canMarkOfferSent(undefined)).toBe(true);
     expect(canMarkOfferSent("prospecting")).toBe(true);
     for (const s of ["offer_sent", "in_process", "won", "lost", "ineligible"]) expect(canMarkOfferSent(s)).toBe(false);
+  });
+});
+
+describe("estimateCurrentMi", () => {
+  const daniel = { loanType: "Conventional", originalAmount: 532000, homeValue: 560000, creditScore: 686 };
+  it("prices conventional PMI off the LTV at funding", () => {
+    expect(estimateCurrentMi(daniel)).toBe(386);
+    expect(estimateCurrentMi({ ...daniel, creditScore: 0 })).toBe(301); // a missing score prices at 700
+  });
+  it("is $0 at 80% or under, on a value that can't be right, or with no value", () => {
+    expect(estimateCurrentMi({ ...daniel, homeValue: 665000 })).toBe(0);
+    expect(estimateCurrentMi({ ...daniel, homeValue: 400000 })).toBe(0);
+    expect(estimateCurrentMi({ ...daniel, homeValue: 0 })).toBe(0);
+  });
+  it("uses FHA's schedule and USDA's fee, and VA and jumbo carry none", () => {
+    expect(estimateCurrentMi({ loanType: "FHA", originalAmount: 600000, homeValue: 620000 })).toBe(275);
+    expect(estimateCurrentMi({ loanType: "FHA", originalAmount: 600000 })).toBe(250);
+    expect(estimateCurrentMi({ loanType: "USDA", originalAmount: 300000 })).toBe(88);
+    expect(estimateCurrentMi({ ...daniel, loanType: "VA" })).toBe(0);
+    expect(estimateCurrentMi({ ...daniel, loanType: "Jumbo" })).toBe(0);
+  });
+  it("is on the handoff, marked as an estimate", () => {
+    const h = { rate: 6, loan_amount: 600000, loan_type: "FHA" };
+    expect(refiPrefillFromHandoff(h)).toMatchObject({ refiCurrentMI: 250, refiCurrentMIEstimated: true });
+    expect(refiPrefillFromHandoff({ ...h, loan_type: "Conventional" })).toMatchObject({ refiCurrentMI: 0, refiCurrentMIEstimated: false });
   });
 });

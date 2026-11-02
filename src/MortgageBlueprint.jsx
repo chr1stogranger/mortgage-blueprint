@@ -73,7 +73,7 @@ import MyHomeTab from "./components/MyHomeTab";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import StatementIntake from "./components/StatementIntake.jsx";
-import { cleanHunterKey, refiPrefillFromHandoff, canMarkOfferSent } from "./lib/refiHandoff.js";
+import { cleanHunterKey, refiPrefillFromHandoff, canMarkOfferSent, estimateCurrentMi } from "./lib/refiHandoff.js";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, fetchBorrowerById, createBorrower, updateBorrower, deleteBorrower,
@@ -2235,6 +2235,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [refiCashOut, setRefiCashOut] = useState(0);
  const [refiCurrentEscrow, setRefiCurrentEscrow] = useState(0);
  const [refiCurrentMI, setRefiCurrentMI] = useState(0);
+ const [refiCurrentMIEstimated, setRefiCurrentMIEstimated] = useState(false); // prefilled from the LTV at funding, until a statement or the LO replaces it
  const [refiCurrentLoanType, setRefiCurrentLoanType] = useState("Conventional");
  const [refiHomeValue, setRefiHomeValue] = useState(0);
  const [refiOriginalAmount, setRefiOriginalAmount] = useState(0);
@@ -2525,7 +2526,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, showRefi3, borrowerEmail,
-  refiHasStatement, refiHunterKey, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
+  refiHasStatement, refiHunterKey, refiCurrentMIEstimated, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
@@ -2731,6 +2732,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiCashOut !== undefined) setRefiCashOut(s.refiCashOut);
   if (s.refiCurrentEscrow !== undefined) setRefiCurrentEscrow(s.refiCurrentEscrow);
   if (s.refiCurrentMI !== undefined) setRefiCurrentMI(s.refiCurrentMI);
+  setRefiCurrentMIEstimated(!!s.refiCurrentMIEstimated);
   if (s.refiCurrentLoanType) setRefiCurrentLoanType(s.refiCurrentLoanType);
   if (s.refiHomeValue !== undefined) setRefiHomeValue(s.refiHomeValue);
   if (s.refiOriginalAmount !== undefined) setRefiOriginalAmount(s.refiOriginalAmount);
@@ -3654,7 +3656,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiTaxAssessedMode, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, borrowerEmail,
   // These were missing from the autosave deps — a lien-only (or statement/
   // maturity-only) edit never triggered a save until some other field moved.
-  refiHasStatement, refiHunterKey, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
+  refiHasStatement, refiHunterKey, refiCurrentMIEstimated, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
@@ -3781,6 +3783,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Today's value. We have no AVM here, so the purchase price is the honest
   // starting point — the LO overwrites Home Value with an actual estimate.
   const homeValue = Number(p.refiHomeValue) > 0 ? Number(p.refiHomeValue) : salesPrice;
+  const currentMi = estimateCurrentMi({ loanType: p.loanType || 'Conventional', originalAmount, homeValue, creditScore: p.creditScore });
   return {
    ...p,
    isRefi: true,
@@ -3792,6 +3795,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiOriginalTerm: currentTerm,
    refiCurrentRate: currentRate,
    refiHomeValue: homeValue,
+   refiCurrentMI: currentMi,
+   refiCurrentMIEstimated: currentMi > 0,
    salesPrice: homeValue, // the refi flow labels this field "Home Value"
    // ── the proposed new loan ──
    // Ops now sends the funding date (loan.funded_date, Refi Hunter Phase 2).
@@ -7868,7 +7873,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     setRefiCurEscrowIns(true);
     lines.push(`Escrow (tax & ins) ${money(f.escrow_amount)}/mo`);
    }
-   if (num(f.mortgage_insurance_amount)) { setRefiCurrentMI(f.mortgage_insurance_amount); lines.push(`Mortgage insurance ${money(f.mortgage_insurance_amount)}/mo`); }
+   if (num(f.mortgage_insurance_amount)) { setRefiCurrentMI(f.mortgage_insurance_amount); setRefiCurrentMIEstimated(false); lines.push(`Mortgage insurance ${money(f.mortgage_insurance_amount)}/mo`); }
+   else if (refiCurrentMIEstimated && (num(f.regular_payment_total) || num(f.principal_balance))) { setRefiCurrentMI(0); setRefiCurrentMIEstimated(false); lines.push('No mortgage insurance on the statement'); }
    if (num(f.escrow_balance)) { setRefiEscrowBalance(f.escrow_balance); lines.push(`Escrow balance ${money(f.escrow_balance)}`); }
    if (typeof f.maturity_date === 'string' && /^\d{4}-\d{2}$/.test(f.maturity_date)) {
     setRefiHasMaturity('yes');
@@ -10794,7 +10800,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore: setCreditScoreUi, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiStatementNode, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore: setCreditScoreUi, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCurrentMIEstimated, setRefiCurrentMIEstimated, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiStatementNode, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}
