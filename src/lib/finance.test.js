@@ -11,7 +11,7 @@ import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeRentalTaxEffect,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
-  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateCapGainsRate,
+  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateCapGainsRate, shortTermGainFedTax,
 } from "./finance.js";
 
 // ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
@@ -551,6 +551,28 @@ describe("rate ladder", () => {
     expect(s.map(r => r.rate)).toEqual([6.875, 6.75, 6.625, 6.5, 6.375, 6.25, 6.125]);
     expect(s[3].pts).toBe(0); // par in the middle
     expect(s[0].pts).toBeLessThan(0);
+  });
+});
+
+describe("shortTermGainFedTax", () => {
+  it("stacks the gain on top of other income", () => {
+    // Single, $116,100 income → $100,000 taxable. The gain takes it to $150,000:
+    // (105,700 − 100,000) × 22% + (150,000 − 105,701) × 24% = 1,254 + 10,631.76
+    expect(shortTermGainFedTax(50000, 116100, "Single")).toBeCloseTo(11885.76, 2);
+  });
+  it("lets the standard deduction absorb the first dollars when there's no income", () => {
+    // Single, $0 income, $50,000 gain → $33,900 taxable:
+    // 12,400 × 10% + (33,900 − 12,401) × 12% = 1,240 + 2,579.88
+    expect(shortTermGainFedTax(50000, 0, "Single")).toBeCloseTo(3819.88, 2);
+  });
+  it("uses the filing status brackets", () => {
+    // MFJ, $232,200 income → $200,000 taxable, $250,000 with the gain:
+    // (211,400 − 200,000) × 22% + (250,000 − 211,401) × 24% = 2,508 + 9,263.76
+    expect(shortTermGainFedTax(50000, 232200, "MFJ")).toBeCloseTo(11771.76, 2);
+  });
+  it("is $0 with no gain", () => {
+    expect(shortTermGainFedTax(0, 200000, "Single")).toBe(0);
+    expect(shortTermGainFedTax(-5000, 200000, "Single")).toBe(0);
   });
 });
 

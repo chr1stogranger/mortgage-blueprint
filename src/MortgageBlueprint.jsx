@@ -20,7 +20,7 @@ import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, isLumpSumIncome, progressiveTax,
  computeTaxSavings, computeRentalTaxEffect, computePassiveLossAllowance, buildAmortization, computeProp19,
- VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateCapGainsRate,
+ VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateCapGainsRate, shortTermGainFedTax,
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
@@ -7508,7 +7508,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   })();
   const niitThreshold = married === "MFJ" ? 250000 : married === "MFS" ? 125000 : 200000;
   const sellNIIT = (annualIncome + sellTaxableGain > niitThreshold && sellTaxableGain > 0) ? sellTaxableGain * 0.038 : 0;
-  const sellFedCapGainsTax = sellTaxableGain > 0 ? (sellIsLongTerm ? sellTaxableGain * (fedLTCGRate || 0) : 0) + sellNIIT : 0;
+  const sellFedCapGainsTax = sellTaxableGain > 0 ? (sellIsLongTerm ? sellTaxableGain * (fedLTCGRate || 0) : shortTermGainFedTax(sellTaxableGain, annualIncome, married)) + sellNIIT : 0;
   const sellStateCapGainsRate = stateCapGainsRate(taxState, married, (annualIncome || 0) + sellTaxableGain);
   const sellStateCapGainsTax = sellTaxableGain * sellStateCapGainsRate;
   const sellTotalCapGainsTax = sellFedCapGainsTax + sellStateCapGainsTax;

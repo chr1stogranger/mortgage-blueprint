@@ -447,6 +447,22 @@ export function progressiveTax(taxableIncome, brackets) {
 }
 
 /**
+ * Federal tax on a short-term gain. It is ordinary income, so it stacks on top
+ * of the seller's other income and fills the brackets from there: the tax with
+ * the gain minus the tax without it, both after the standard deduction.
+ * @param {number} gain taxable gain ($)
+ * @param {number} income other annual income ($)
+ * @param {string} married filing status
+ * @returns {number} federal tax on the gain ($), before NIIT
+ */
+export function shortTermGainFedTax(gain, income, married) {
+ if (!(gain > 0)) return 0;
+ const brackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
+ const taxableBefore = (income || 0) - (FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single);
+ return progressiveTax(taxableBefore + gain, brackets) - progressiveTax(taxableBefore, brackets);
+}
+
+/**
  * Homeownership tax-savings analysis: itemized-vs-standard differential across
  * full federal + state brackets, with the $750k mortgage-interest cap and the
  * 2026 SALT cap/phase-out. IMPORTANT: interest is YEAR-1 interest on the full

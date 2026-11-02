@@ -129,8 +129,10 @@ export default function SellContent(props) {
     {calc.sellTaxableGain > 0 && <>
      <div style={{ ...overline, marginTop: 14 }}>How the tax is figured</div>
      <MRow label="Holding Period" value={<span style={{ whiteSpace: "nowrap" }}>{calc.sellIsLongTerm ? `${sellYearsOwned} yrs (Long-Term)` : `${sellYearsOwned} yr (Short-Term)`}</span>} sub={calc.sellIsLongTerm ? "Favorable LTCG rates" : "Taxed as ordinary income"} />
-     <MRow label="Federal LTCG Rate" value={calc.fedLTCGRate !== null ? `${(calc.fedLTCGRate * 100).toFixed(0)}%` : "Ordinary"} />
-     <MRow label="Federal Cap Gains Tax" value={fmt(calc.sellFedCapGainsTax - calc.sellNIIT)} />
+     {calc.sellIsLongTerm
+      ? <MRow label="Federal LTCG Rate" value={`${(calc.fedLTCGRate * 100).toFixed(0)}%`} />
+      : <MRow label="Federal Rate" value="Ordinary" sub={`Averages ${((calc.sellFedCapGainsTax - calc.sellNIIT) / calc.sellTaxableGain * 100).toFixed(1)}% on top of your income`} />}
+     <MRow label={calc.sellIsLongTerm ? "Federal Cap Gains Tax" : "Federal Income Tax"} value={fmt(calc.sellFedCapGainsTax - calc.sellNIIT)} />
      {calc.sellNIIT > 0 && <MRow label="NIIT (3.8%)" value={fmt(calc.sellNIIT)} sub="Net Investment Income Tax" />}
      <MRow label={`State Tax (${taxState})`} value={fmt(calc.sellStateCapGainsTax)} sub={`${(calc.sellStateCapGainsRate * 100).toFixed(2)}% marginal rate`} />
      <MRow label="Total Est. Tax" value={fmt(tax)} bold />
