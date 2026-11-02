@@ -416,21 +416,27 @@ export function computeIncomeMethods({ ytd, py1, py2, monthsElapsed, lumpSum = f
 }
 
 /**
- * Marginal state rate on a capital gain stacked on top of income. Gains are
- * ordinary income to most states, so the top bracket reached is the rate.
+ * State tax on a gain. Most states tax gains as ordinary income, so it stacks on
+ * top of other income through the state's own brackets, after its standard
+ * deduction. Flat states charge the rate on the whole gain, plus any surtax on
+ * the part above its threshold. Not modeled: state capital gains breaks.
+ * @param {number} gain taxable gain ($)
+ * @param {number} income other annual income ($)
  * @param {string} stateName key into STATE_TAX
- * @param {string} married filing status (MFJ / HOH / anything else = single)
- * @param {number} totalIncome annual income plus the taxable gain
- * @returns {number} rate as a fraction (0.093 = 9.3%)
+ * @param {string} married filing status
+ * @returns {number} state tax on the gain ($)
  */
-export function stateCapGainsRate(stateName, married, totalIncome) {
+export function stateGainTax(gain, income, stateName, married) {
  const st = STATE_TAX[stateName];
- if (!st || st.type === "none") return 0;
- if (st.type === "flat") return st.rate;
+ if (!(gain > 0) || !st || st.type === "none") return 0;
+ const other = income || 0;
+ if (st.type === "flat") {
+  const over = (amt) => Math.max(0, amt - (st.surtax?.threshold || 0));
+  return gain * st.rate + (st.surtax ? (over(other + gain) - over(other)) * st.surtax.rate : 0);
+ }
  const brackets = (married === "HOH" && st.h) || st[married === "MFJ" ? "m" : "s"] || [];
- let rate = 0;
- for (const b of brackets) { if (totalIncome > b.min) rate = b.rate; }
- return rate;
+ const std = st.std ? (st.std[married === "MFJ" ? "m" : married === "HOH" ? "h" : "s"] || st.std.s || 0) : 0;
+ return progressiveTax(other - std + gain, brackets) - progressiveTax(other - std, brackets);
 }
 
 /**

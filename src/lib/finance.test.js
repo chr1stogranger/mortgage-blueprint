@@ -11,7 +11,7 @@ import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeRentalTaxEffect,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
-  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateCapGainsRate, shortTermGainFedTax,
+  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateGainTax, shortTermGainFedTax,
   longTermGainFedTax, gainNIIT,
 } from "./finance.js";
 
@@ -628,16 +628,38 @@ describe("gainNIIT", () => {
   });
 });
 
-describe("stateCapGainsRate", () => {
-  it("reads the bracket reached by income plus the gain", () => {
-    expect(stateCapGainsRate("California", "Single", 300000)).toBe(0.093);
-    expect(stateCapGainsRate("California", "MFJ", 300000)).toBe(0.093);
-    expect(stateCapGainsRate("California", "Single", 1000000)).toBe(0.123);
-    expect(stateCapGainsRate("California", "Single", 5000)).toBe(0.01);
+describe("stateGainTax", () => {
+  it("stacks the gain through the state brackets", () => {
+    // CA Single, $20,000 income − $5,706 deduction = $14,294 taxable, $74,294 with the gain:
+    // at $74,294: 110.79 + 303.68 + 607.48 + 965.34 + 1,214.48 + 145.92 = 3,347.69
+    // at $14,294: 110.79 + 64.28 = 175.07
+    expect(stateGainTax(60000, 20000, "California", "Single")).toBeCloseTo(3172.62, 2);
   });
-  it("handles flat, no-tax and unknown states", () => {
-    expect(stateCapGainsRate("Colorado", "Single", 300000)).toBe(0.044);
-    expect(stateCapGainsRate("Alaska", "Single", 300000)).toBe(0);
-    expect(stateCapGainsRate("Nowhere", "Single", 300000)).toBe(0);
+  it("matches the bracket rate when the whole gain sits in one bracket", () => {
+    expect(stateGainTax(103875, 150000, "California", "Single")).toBeCloseTo(9660.375, 2);
+  });
+  it("uses the filing status brackets and deduction", () => {
+    // CA MFJ, $111,412 income → $100,000 to $200,000 taxable:
+    // (115,084 − 100,000) × 6% + (145,448 − 115,085) × 8% + (200,000 − 145,449) × 9.3%
+    expect(stateGainTax(100000, 111412, "California", "MFJ")).toBeCloseTo(8407.32, 2);
+    // CA HOH uses the single brackets with its own deduction: $0 to $11,079 at 1%
+    expect(stateGainTax(11079, 11412, "California", "HOH")).toBeCloseTo(110.79, 2);
+  });
+  it("lets the state deduction absorb the first dollars", () => {
+    expect(stateGainTax(5000, 0, "California", "Single")).toBe(0);
+  });
+  it("charges flat states on the whole gain, whatever the income", () => {
+    expect(stateGainTax(100000, 300000, "Colorado", "Single")).toBeCloseTo(4400, 2);
+  });
+  it("adds a surtax only on the part above its threshold", () => {
+    expect(stateGainTax(100000, 100000, "Massachusetts", "Single")).toBeCloseTo(5000, 2);
+    // $900,000 + $200,000: 5% of $200,000 + 4% of the $100,000 over $1M
+    expect(stateGainTax(200000, 900000, "Massachusetts", "Single")).toBeCloseTo(14000, 2);
+    expect(stateGainTax(100000, 1100000, "Massachusetts", "Single")).toBeCloseTo(9000, 2);
+  });
+  it("is $0 with no state tax, an unknown state or no gain", () => {
+    expect(stateGainTax(100000, 300000, "Alaska", "Single")).toBe(0);
+    expect(stateGainTax(100000, 300000, "Nowhere", "Single")).toBe(0);
+    expect(stateGainTax(0, 300000, "California", "Single")).toBe(0);
   });
 });
