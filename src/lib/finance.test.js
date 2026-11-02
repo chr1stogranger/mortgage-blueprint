@@ -11,7 +11,7 @@ import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeRentalTaxEffect,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
-  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateGainTax, shortTermGainFedTax,
+  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateGainTax, stateGainBreakNote, shortTermGainFedTax,
   longTermGainFedTax, gainNIIT,
 } from "./finance.js";
 
@@ -625,6 +625,50 @@ describe("gainNIIT", () => {
     expect(gainNIIT(50000, 240000, "MFJ")).toBeCloseTo(1520, 2); // $40,000 over $250,000
     expect(gainNIIT(50000, 120000, "MFS")).toBeCloseTo(1710, 2); // $45,000 over $125,000
     expect(gainNIIT(20000, 190000, "HOH")).toBeCloseTo(380, 2); // $10,000 over $200,000
+  });
+});
+
+describe("stateGainTax long-term breaks", () => {
+  const lt = { longTerm: true, acquiredYear: 2020 };
+  it("Arizona subtracts 25% of a long-term gain on a post-2011 purchase", () => {
+    expect(stateGainTax(100000, 80000, "Arizona", "Single", lt)).toBeCloseTo(1875, 2); // $75,000 × 2.5%
+    expect(stateGainTax(100000, 80000, "Arizona", "Single", { longTerm: true, acquiredYear: 2012 })).toBeCloseTo(1875, 2);
+  });
+  it("Arizona gives no subtraction on a pre-2012 purchase or a short-term gain", () => {
+    expect(stateGainTax(100000, 80000, "Arizona", "Single", { longTerm: true, acquiredYear: 2011 })).toBeCloseTo(2500, 2);
+    expect(stateGainTax(100000, 80000, "Arizona", "Single", { longTerm: false, acquiredYear: 2025 })).toBeCloseTo(2500, 2);
+    expect(stateGainTax(100000, 80000, "Arizona", "Single")).toBeCloseTo(2500, 2);
+  });
+  it("Hawaii charges 7.25% when the gain sits above the ordinary part", () => {
+    // Single, $108,000 income − $8,000 deduction = $100,000 taxable, $200,000 with the gain
+    expect(stateGainTax(100000, 108000, "Hawaii", "Single", lt)).toBeCloseTo(7250, 2);
+  });
+  it("Hawaii taxes a short-term gain through the brackets", () => {
+    // 25,000 × 7.6% + 49,999 × 7.9% + 24,999 × 8.25% = 1,900 + 3,949.92 + 2,062.42
+    expect(stateGainTax(100000, 108000, "Hawaii", "Single", { longTerm: false })).toBeCloseTo(7912.34, 2);
+  });
+  it("Hawaii's worksheet keeps the first $24,000 at ordinary rates, then 7.25%", () => {
+    // Single, $0 taxable before, $120,000 after. Tax on $24,000 = 859.05, plus $96,000 × 7.25%.
+    // Ordinary on $120,000 would be 8,010.83, so the cap wins.
+    expect(stateGainTax(120000, 8000, "Hawaii", "Single", lt)).toBeCloseTo(7819.05, 2);
+  });
+  it("Hawaii's worksheet stays with ordinary tax when that comes out smaller", () => {
+    // Single, $0 to $50,000 taxable. Worksheet: 859.05 + $26,000 × 7.25% = 2,744.05. Ordinary: 2,690.83.
+    expect(stateGainTax(50000, 8000, "Hawaii", "Single", lt)).toBeCloseTo(2690.83, 2);
+  });
+  it("Hawaii uses the filing status schedule, deduction and floor", () => {
+    // MFJ, $16,000 income, $240,000 gain: 1,718.25 + $192,000 × 7.25%
+    expect(stateGainTax(240000, 16000, "Hawaii", "MFJ", lt)).toBeCloseTo(15638.25, 2);
+    // HOH, $12,000 income, $180,000 gain: 1,288.65 + $144,000 × 7.25%
+    expect(stateGainTax(180000, 12000, "Hawaii", "HOH", lt)).toBeCloseTo(11728.65, 2);
+  });
+  it("describes the break that applied", () => {
+    expect(stateGainBreakNote(100000, 80000, "Arizona", "Single", lt)).toBe("after Arizona's 25% long-term subtraction");
+    expect(stateGainBreakNote(100000, 80000, "Arizona", "Single", { longTerm: true, acquiredYear: 2011 })).toBe("with no 25% subtraction on a purchase before 2012");
+    expect(stateGainBreakNote(100000, 108000, "Hawaii", "Single", lt)).toBe("with Hawaii's 7.25% long-term cap");
+    expect(stateGainBreakNote(50000, 8000, "Hawaii", "Single", lt)).toBeNull();
+    expect(stateGainBreakNote(100000, 108000, "Hawaii", "Single", { longTerm: false })).toBeNull();
+    expect(stateGainBreakNote(100000, 80000, "California", "Single", lt)).toBeNull();
   });
 });
 

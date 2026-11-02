@@ -136,7 +136,7 @@ export default function SellContent(props) {
       : <MRow label="Federal Rate" value="Ordinary" sub={`Averages ${((calc.sellFedCapGainsTax - calc.sellNIIT) / calc.sellTaxableGain * 100).toFixed(1)}% on top of your income`} />}
      <MRow label={calc.sellIsLongTerm ? "Federal Cap Gains Tax" : "Federal Income Tax"} value={fmt(calc.sellFedCapGainsTax - calc.sellNIIT)} />
      {calc.sellNIIT > 0 && <MRow label="NIIT (3.8%)" value={fmt(calc.sellNIIT)} sub={`Net Investment Income Tax on ${fmt(calc.sellNIIT / 0.038)}`} />}
-     <MRow label={`State Tax (${taxState})`} value={fmt(calc.sellStateCapGainsTax)} sub={calc.sellStateCapGainsTax > 0 ? `Averages ${(calc.sellStateCapGainsRate * 100).toFixed(1)}% on top of your income` : undefined} />
+     <MRow label={`State Tax (${taxState})`} value={fmt(calc.sellStateCapGainsTax)} sub={calc.sellStateCapGainsTax > 0 ? `Averages ${(calc.sellStateCapGainsRate * 100).toFixed(2)}% ${calc.sellStateGainNote || "on top of your income"}` : undefined} />
      <MRow label="Total Est. Tax" value={fmt(tax)} bold />
     </>}
    </div>}

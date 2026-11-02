@@ -168,7 +168,7 @@ export default function TaxContent(props) {
  let stateBefore = { rows: [], total: 0 };
  let stateAfter = { rows: [], total: 0 };
  if (stateInfo.type === "progressive") {
-  const sb = stateInfo[married === "MFJ" ? "m" : "s"] || [];
+  const sb = (married === "HOH" && stateInfo.h) || stateInfo[married === "MFJ" ? "m" : "s"] || [];
   stateBefore = taxByBracket(stateTaxableBefore, sb);
   stateAfter = taxByBracket(stateTaxableAfter, sb);
  } else if (stateInfo.type === "flat") {

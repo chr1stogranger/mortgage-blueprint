@@ -20,7 +20,7 @@ import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, isLumpSumIncome, progressiveTax,
  computeTaxSavings, computeRentalTaxEffect, computePassiveLossAllowance, buildAmortization, computeProp19,
- VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateGainTax, shortTermGainFedTax, longTermGainFedTax, gainNIIT,
+ VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateGainTax, stateGainBreakNote, shortTermGainFedTax, longTermGainFedTax, gainNIIT,
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
@@ -7502,7 +7502,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const fedLTCGRate = sellIsLongTerm && sellTaxableGain > 0 ? sellFedGainTax / sellTaxableGain : null; // average: one gain can span brackets
   const sellNIIT = gainNIIT(sellTaxableGain, annualIncome, married);
   const sellFedCapGainsTax = sellFedGainTax + sellNIIT;
-  const sellStateCapGainsTax = stateGainTax(sellTaxableGain, annualIncome, taxState, married);
+  const sellStateSale = { longTerm: sellIsLongTerm, acquiredYear: new Date().getFullYear() - sellYearsOwned };
+  const sellStateCapGainsTax = stateGainTax(sellTaxableGain, annualIncome, taxState, married, sellStateSale);
+  const sellStateGainNote = stateGainBreakNote(sellTaxableGain, annualIncome, taxState, married, sellStateSale);
   const sellStateCapGainsRate = sellTaxableGain > 0 ? sellStateCapGainsTax / sellTaxableGain : 0; // average: one gain can span brackets
   const sellTotalCapGainsTax = sellFedCapGainsTax + sellStateCapGainsTax;
   const sellNetAfterTax = sellNetProceeds - sellTotalCapGainsTax;
@@ -7634,7 +7636,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    reoTotalValue, reoTotalDebt, reoTotalEquity, reoTotalPayments, reoTotalIncome, reoNetCashFlow,
    sellTTEntry, sellCountyTT, sellCityTTShare, sellTotalTT, sellFixedFees, sellCommAmt, sellTotalCosts, sellNetProceeds,
    sellAdjBasis, sellGrossGain, sellExclusionLimit, sellTaxableGain, sellIsLongTerm,
-   fedLTCGRate, sellNIIT, sellFedCapGainsTax, sellStateCapGainsRate, sellStateCapGainsTax,
+   fedLTCGRate, sellNIIT, sellFedCapGainsTax, sellStateCapGainsRate, sellStateCapGainsTax, sellStateGainNote,
    sellTotalCapGainsTax, sellNetAfterTax,
    apr, aprFinanceCharges, buydown,
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,

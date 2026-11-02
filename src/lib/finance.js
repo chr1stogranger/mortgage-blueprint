@@ -42,7 +42,9 @@ export const STATE_TAX = {
  "Alabama": { type:"progressive", std:{s:2500,m:7500,h:4700},
   s:B([[500,0.02],[3000,0.04],[Infinity,0.05]]), m:B([[1000,0.02],[6000,0.04],[Infinity,0.05]]) },
  "Alaska": { type:"none" },
- "Arizona": { type:"flat", rate:0.025 },
+ // ltGainSubtraction: A.R.S. §43-1022(22) lets individuals subtract 25% of a net
+ // long-term gain on an asset acquired after 2011.
+ "Arizona": { type:"flat", rate:0.025, ltGainSubtraction:{ share:0.25, acquiredAfter:2011 } },
  "Arkansas": { type:"progressive", std:{s:2340,m:4680,h:2340},
   s:B([[4300,0.02],[8500,0.04],[Infinity,0.044]]), m:B([[4300,0.02],[8500,0.04],[Infinity,0.044]]) },
  // California — 2025 tax year (latest official, FTB Tax News Oct 2025; 2026
@@ -66,9 +68,17 @@ export const STATE_TAX = {
  "Georgia": { type:"progressive", std:{s:5400,m:7100,h:5400},
   s:B([[750,0.01],[2250,0.02],[3750,0.03],[5250,0.04],[7000,0.05],[Infinity,0.055]]),
   m:B([[1000,0.01],[3000,0.02],[5000,0.03],[7000,0.04],[10000,0.05],[Infinity,0.055]]) },
- "Hawaii": { type:"progressive", std:{s:2200,m:4400,h:3212},
-  s:B([[2400,0.014],[4800,0.032],[9600,0.055],[14400,0.064],[19200,0.068],[24000,0.072],[36000,0.076],[48000,0.079],[150000,0.0825],[175000,0.09],[200000,0.10],[Infinity,0.11]]),
-  m:B([[4800,0.014],[9600,0.032],[19200,0.055],[28800,0.064],[38400,0.068],[48000,0.072],[72000,0.076],[96000,0.079],[300000,0.0825],[350000,0.09],[400000,0.10],[Infinity,0.11]]) },
+ // Hawaii — 2026. Brackets are the 2025 Form N-11 schedules, unchanged for 2026
+ // under Act 46 (SLH 2024); standard deduction per DOTAX. Not modeled: the $1,144
+ // personal exemption. Act 24 (SLH 2026) changes rates and brackets from 2027,
+ // and the deduction steps up in 2028, so refresh every January.
+ // ltGainCap: HRS §235-51(f) as run by the N-11 Tax on Capital Gains Worksheet;
+ // floor is its line 12 (2025 form, the latest published).
+ "Hawaii": { type:"progressive", year:2026, std:{s:8000,m:16000,h:12000},
+  ltGainCap:{ rate:0.0725, floor:{s:24000,m:48000,h:36000} },
+  s:B([[9600,0.014],[14400,0.032],[19200,0.055],[24000,0.064],[36000,0.068],[48000,0.072],[125000,0.076],[175000,0.079],[225000,0.0825],[275000,0.09],[325000,0.10],[Infinity,0.11]]),
+  m:B([[19200,0.014],[28800,0.032],[38400,0.055],[48000,0.064],[72000,0.068],[96000,0.072],[250000,0.076],[350000,0.079],[450000,0.0825],[550000,0.09],[650000,0.10],[Infinity,0.11]]),
+  h:B([[14400,0.014],[21600,0.032],[28800,0.055],[36000,0.064],[54000,0.068],[72000,0.072],[187500,0.076],[262500,0.079],[337500,0.0825],[412500,0.09],[487500,0.10],[Infinity,0.11]]) },
  "Idaho": { type:"flat", rate:0.058 },
  "Illinois": { type:"flat", rate:0.0495 },
  "Indiana": { type:"flat", rate:0.0305 },
@@ -419,24 +429,54 @@ export function computeIncomeMethods({ ytd, py1, py2, monthsElapsed, lumpSum = f
  * State tax on a gain. Most states tax gains as ordinary income, so it stacks on
  * top of other income through the state's own brackets, after its standard
  * deduction. Flat states charge the rate on the whole gain, plus any surtax on
- * the part above its threshold. Not modeled: state capital gains breaks.
+ * the part above its threshold. Long-term breaks are modeled for Arizona and
+ * Hawaii only (see STATE_TAX); other states' breaks are not.
  * @param {number} gain taxable gain ($)
  * @param {number} income other annual income ($)
  * @param {string} stateName key into STATE_TAX
  * @param {string} married filing status
+ * @param {{longTerm?:boolean, acquiredYear?:number}} [sale] holding period and purchase year
  * @returns {number} state tax on the gain ($)
  */
-export function stateGainTax(gain, income, stateName, married) {
+export function stateGainTax(gain, income, stateName, married, { longTerm = false, acquiredYear } = {}) {
  const st = STATE_TAX[stateName];
  if (!(gain > 0) || !st || st.type === "none") return 0;
  const other = income || 0;
  if (st.type === "flat") {
+  const sub = st.ltGainSubtraction;
+  const taxed = longTerm && sub && acquiredYear > sub.acquiredAfter ? gain * (1 - sub.share) : gain;
   const over = (amt) => Math.max(0, amt - (st.surtax?.threshold || 0));
-  return gain * st.rate + (st.surtax ? (over(other + gain) - over(other)) * st.surtax.rate : 0);
+  return taxed * st.rate + (st.surtax ? (over(other + gain) - over(other)) * st.surtax.rate : 0);
  }
+ const key = married === "MFJ" ? "m" : married === "HOH" ? "h" : "s";
  const brackets = (married === "HOH" && st.h) || st[married === "MFJ" ? "m" : "s"] || [];
- const std = st.std ? (st.std[married === "MFJ" ? "m" : married === "HOH" ? "h" : "s"] || st.std.s || 0) : 0;
- return progressiveTax(other - std + gain, brackets) - progressiveTax(other - std, brackets);
+ const std = st.std ? (st.std[key] || st.std.s || 0) : 0;
+ const before = other - std;
+ const after = before + gain;
+ let taxAfter = progressiveTax(after, brackets);
+ if (longTerm && st.ltGainCap) {
+  const ordinaryPart = Math.max(before, st.ltGainCap.floor[key] || st.ltGainCap.floor.s);
+  if (after > ordinaryPart) taxAfter = Math.min(taxAfter, progressiveTax(ordinaryPart, brackets) + (after - ordinaryPart) * st.ltGainCap.rate);
+ }
+ return taxAfter - progressiveTax(before, brackets);
+}
+
+/**
+ * What a state's long-term break did to this sale, in words for the state tax line.
+ * @returns {string|null} null when the state has no modeled break or the sale is short-term
+ */
+export function stateGainBreakNote(gain, income, stateName, married, sale = {}) {
+ const st = STATE_TAX[stateName];
+ if (!(gain > 0) || !st || !sale.longTerm) return null;
+ if (st.ltGainSubtraction) {
+  return sale.acquiredYear > st.ltGainSubtraction.acquiredAfter
+   ? "after Arizona's 25% long-term subtraction"
+   : "with no 25% subtraction on a purchase before 2012";
+ }
+ if (st.ltGainCap) {
+  return stateGainTax(gain, income, stateName, married, sale) < stateGainTax(gain, income, stateName, married) ? "with Hawaii's 7.25% long-term cap" : null;
+ }
+ return null;
 }
 
 /**
