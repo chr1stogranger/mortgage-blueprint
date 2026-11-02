@@ -20,7 +20,7 @@ import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, isLumpSumIncome, progressiveTax,
  computeTaxSavings, computeRentalTaxEffect, computePassiveLossAllowance, buildAmortization, computeProp19,
- VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
+ VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES, stateCapGainsRate,
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
@@ -526,7 +526,7 @@ function Sec({ title, color, children, action, onAction, hero }) {
  </>);
 }
 function MRow({ label, value, sub, color, bold, indent, tip }) {
- return (<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: indent ? "8px 0 8px 16px" : "10px 0", borderBottom: `1px solid ${T.separator}` }}>
+ return (<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, padding: indent ? "8px 0 8px 16px" : "10px 0", borderBottom: `1px solid ${T.separator}` }}>
   <span style={{ fontSize: bold ? 15 : 14, fontWeight: bold ? 600 : 400, color: bold ? T.text : T.textSecondary, fontFamily: FONT }}>
    {label}{tip && <InfoTip text={tip} />}{sub && <span style={{ color: T.textTertiary, fontSize: 12, marginLeft: 6 }}>{sub}</span>}
   </span>
@@ -7487,9 +7487,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sellIsSF = sellTTEntry.sfSeller === true;
   const sellCityTT = sellTTEntry.amount;
   const sellCountyTT = sellPrice / 1000 * (sellIsSF ? 0 : 1.1); // SF tiers already include the county piece
-  const sellTotalTT = sellCountyTT + (sellIsSF ? sellCityTT : sellCityTT * 0.5);
+  const sellCityTTShare = sellIsSF ? sellCityTT : sellCityTT * 0.5; // the seller pays half of a non-SF city tax
+  const sellTotalTT = sellCountyTT + sellCityTTShare;
   const sellCommAmt = sellPrice * (sellCommission / 100);
-  const sellTotalCosts = sellCommAmt + sellTotalTT + sellEscrow + sellTitle + sellOther + sellSellerCredit + 525;
+  const sellFixedFees = 525;
+  const sellTotalCosts = sellCommAmt + sellTotalTT + sellEscrow + sellTitle + sellOther + sellSellerCredit + sellFixedFees;
   const sellNetProceeds = sellPrice - sellMortgagePayoff - sellTotalCosts - sellProration;
   const sellAdjBasis = sellCostBasis + sellImprovements;
   const sellGrossGain = sellPrice - sellAdjBasis - sellTotalCosts;
@@ -7507,16 +7509,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const niitThreshold = married === "MFJ" ? 250000 : married === "MFS" ? 125000 : 200000;
   const sellNIIT = (annualIncome + sellTaxableGain > niitThreshold && sellTaxableGain > 0) ? sellTaxableGain * 0.038 : 0;
   const sellFedCapGainsTax = sellTaxableGain > 0 ? (sellIsLongTerm ? sellTaxableGain * (fedLTCGRate || 0) : 0) + sellNIIT : 0;
-  const sellStateCapGainsRate = (() => {
-   const st = STATE_TAX[taxState];
-   if (!st || st.type === "none") return 0;
-   if (st.type === "flat") return st.rate;
-   const totalInc = (annualIncome || 0) + sellTaxableGain;
-   const brackets = st[married === "MFJ" ? "m" : "s"] || [];
-   let margRate = 0;
-   for (const b of brackets) { if (totalInc > b.from) margRate = b.rate; }
-   return margRate;
-  })();
+  const sellStateCapGainsRate = stateCapGainsRate(taxState, married, (annualIncome || 0) + sellTaxableGain);
   const sellStateCapGainsTax = sellTaxableGain * sellStateCapGainsRate;
   const sellTotalCapGainsTax = sellFedCapGainsTax + sellStateCapGainsTax;
   const sellNetAfterTax = sellNetProceeds - sellTotalCapGainsTax;
@@ -7646,7 +7639,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
    refiRateDrop, refiTest1Pass, refiTest2Pass, refiTest3Pass, refiAccelPayoff, refiTestScore,
    reoTotalValue, reoTotalDebt, reoTotalEquity, reoTotalPayments, reoTotalIncome, reoNetCashFlow,
-   sellTTEntry, sellTotalTT, sellCommAmt, sellTotalCosts, sellNetProceeds,
+   sellTTEntry, sellCountyTT, sellCityTTShare, sellTotalTT, sellFixedFees, sellCommAmt, sellTotalCosts, sellNetProceeds,
    sellAdjBasis, sellGrossGain, sellExclusionLimit, sellTaxableGain, sellIsLongTerm,
    fedLTCGRate, sellNIIT, sellFedCapGainsTax, sellStateCapGainsRate, sellStateCapGainsTax,
    sellTotalCapGainsTax, sellNetAfterTax,

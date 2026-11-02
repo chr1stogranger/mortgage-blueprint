@@ -11,7 +11,7 @@ import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeRentalTaxEffect,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
-  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance,
+  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance, stateCapGainsRate,
 } from "./finance.js";
 
 // ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
@@ -551,5 +551,19 @@ describe("rate ladder", () => {
     expect(s.map(r => r.rate)).toEqual([6.875, 6.75, 6.625, 6.5, 6.375, 6.25, 6.125]);
     expect(s[3].pts).toBe(0); // par in the middle
     expect(s[0].pts).toBeLessThan(0);
+  });
+});
+
+describe("stateCapGainsRate", () => {
+  it("reads the bracket reached by income plus the gain", () => {
+    expect(stateCapGainsRate("California", "Single", 300000)).toBe(0.093);
+    expect(stateCapGainsRate("California", "MFJ", 300000)).toBe(0.093);
+    expect(stateCapGainsRate("California", "Single", 1000000)).toBe(0.123);
+    expect(stateCapGainsRate("California", "Single", 5000)).toBe(0.01);
+  });
+  it("handles flat, no-tax and unknown states", () => {
+    expect(stateCapGainsRate("Colorado", "Single", 300000)).toBe(0.044);
+    expect(stateCapGainsRate("Alaska", "Single", 300000)).toBe(0);
+    expect(stateCapGainsRate("Nowhere", "Single", 300000)).toBe(0);
   });
 });

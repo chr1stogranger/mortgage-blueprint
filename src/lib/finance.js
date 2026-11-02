@@ -416,6 +416,24 @@ export function computeIncomeMethods({ ytd, py1, py2, monthsElapsed, lumpSum = f
 }
 
 /**
+ * Marginal state rate on a capital gain stacked on top of income. Gains are
+ * ordinary income to most states, so the top bracket reached is the rate.
+ * @param {string} stateName key into STATE_TAX
+ * @param {string} married filing status (MFJ / HOH / anything else = single)
+ * @param {number} totalIncome annual income plus the taxable gain
+ * @returns {number} rate as a fraction (0.093 = 9.3%)
+ */
+export function stateCapGainsRate(stateName, married, totalIncome) {
+ const st = STATE_TAX[stateName];
+ if (!st || st.type === "none") return 0;
+ if (st.type === "flat") return st.rate;
+ const brackets = (married === "HOH" && st.h) || st[married === "MFJ" ? "m" : "s"] || [];
+ let rate = 0;
+ for (const b of brackets) { if (totalIncome > b.min) rate = b.rate; }
+ return rate;
+}
+
+/**
  * Progressive tax on taxable income given a bracket table.
  * @param {number} taxableIncome
  * @param {{min:number,max:number,rate:number}[]} brackets
