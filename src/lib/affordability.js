@@ -25,6 +25,7 @@
  * @property {number} effTaxRate      annual property tax as a fraction of price
  * @property {number|null} [insMonthly] null → max($1,200, 0.35% of price)/12
  * @property {number} [hoaMonthly]
+ * @property {number|null} [maxDtiPct] LO's max DTI (percent) for this file; null → program default
  */
 
 /**
@@ -46,6 +47,21 @@ export function programMaxDTI(loanType) {
   return loanType === "FHA" ? 56.99 : loanType === "VA" ? 60 : loanType === "Jumbo" ? 43 : 50;
 }
 
+// The LO can replace a program's max DTI on a scenario when AUS caps the file
+// differently (a 45% DU finding on a Conventional loan). Stored per loan type
+// as percents ({ Conventional: 45 }), so a 45 set on Conventional doesn't
+// follow the scenario to FHA. DSCR and Asset Qualifier don't qualify on DTI;
+// HELOC's cap is part of its program rules.
+export const MAX_DTI_EDITABLE_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "USDA"];
+export const MAX_DTI_INPUT_RANGE = { min: 10, max: 70 };
+
+/** The LO's max DTI (percent) for this loan type, or null for the program default. */
+export function maxDtiOverrideFor(overrides, loanType) {
+  if (!MAX_DTI_EDITABLE_TYPES.includes(loanType)) return null;
+  const pct = Number(overrides?.[loanType]);
+  return pct > 0 ? pct : null;
+}
+
 /**
  * Build the price → payment model the solver searches over.
  * @param {AffordInputs} p
@@ -60,17 +76,20 @@ export function affordabilityModel(p) {
   const effTaxRate = p.effTaxRate;
   const insMo = p.insMonthly ?? null;
   const hoaMo = p.hoaMonthly || 0;
-  const programDTI = programMaxDTI(affordLoanType);
+  const maxOverride = p.maxDtiPct > 0 ? p.maxDtiPct : null;
+  const programDTI = maxOverride ?? programMaxDTI(affordLoanType);
   const r = (p.rate / 100) / 12;
   const n = p.termYears * 12;
   // Dynamic loan program: if loan > conforming limit, switch to Jumbo rules
   const getProgram = (price, dpAmt) => {
    const loan = price - dpAmt;
    const isJumbo = loan > confLimit && affordLoanType !== "Jumbo";
-   if (isJumbo || affordLoanType === "Jumbo") return { type: "Jumbo", minDPpct: 20, maxDTI: 43, fhaUp: 0, vaFF: 0, miRate: 0 };
-   if (affordLoanType === "FHA") return { type: "FHA", minDPpct: 3.5, maxDTI: 56.99, fhaUp: 0.0175, vaFF: 0, miRate: 0.0055 };
-   if (affordLoanType === "VA") return { type: "VA", minDPpct: 0, maxDTI: 60, fhaUp: 0, vaFF: 0.023, miRate: 0 };
-   return { type: "Conventional", minDPpct: 5, maxDTI: 50, fhaUp: 0, vaFF: 0, miRate: 0 };
+   // A loan that crosses into Jumbo keeps Jumbo's 43% unless the LO set this file lower.
+   if (isJumbo) return { type: "Jumbo", minDPpct: 20, maxDTI: Math.min(43, maxOverride ?? 43), fhaUp: 0, vaFF: 0, miRate: 0 };
+   if (affordLoanType === "Jumbo") return { type: "Jumbo", minDPpct: 20, maxDTI: programDTI, fhaUp: 0, vaFF: 0, miRate: 0 };
+   if (affordLoanType === "FHA") return { type: "FHA", minDPpct: 3.5, maxDTI: programDTI, fhaUp: 0.0175, vaFF: 0, miRate: 0.0055 };
+   if (affordLoanType === "VA") return { type: "VA", minDPpct: 0, maxDTI: programDTI, fhaUp: 0, vaFF: 0.023, miRate: 0 };
+   return { type: "Conventional", minDPpct: 5, maxDTI: programDTI, fhaUp: 0, vaFF: 0, miRate: 0 };
   };
   const calcPmt = (price) => {
    // First pass: estimate DP with base program
@@ -180,7 +199,7 @@ export function solveScenarioPrice(p, scenarioDTI) {
    const mid = Math.round((qLo + qHi) / 2);
    const pmt = calcPmt(mid);
    // Use the lower of scenario DTI and program max DTI
-   const effMaxPmt = affordIncome * (Math.min(sc.dti, pmt ? (pmt.prog.type === "Jumbo" ? 43 : sc.dti) : sc.dti) / 100) - affordDebts;
+   const effMaxPmt = affordIncome * (Math.min(sc.dti, pmt ? (pmt.prog.type === "Jumbo" ? pmt.prog.maxDTI : sc.dti) : sc.dti) / 100) - affordDebts;
    if (!pmt || pmt.total > effMaxPmt) qHi = mid;
    else qLo = mid;
    if (qHi - qLo < 500) break;

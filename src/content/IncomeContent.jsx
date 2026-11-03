@@ -1312,7 +1312,7 @@ export default function IncomeContent(props) {
   const backDTI = qualifyingIncome > 0 ? totalPayment / qualifyingIncome : null;
   const frontDTI = qualifyingIncome > 0 ? housingForDTI / qualifyingIncome : null;
   const isFHA = loanType === "FHA";
-  const backMax = isFHA ? 0.5699 : (calc.maxDTI || 0.50);
+  const backMax = isFHA && !calc.maxDTIOverridden ? 0.5699 : (calc.maxDTI || 0.50);
   const frontMax = 0.47;
   const backOk = backDTI !== null && backDTI <= backMax;
   const headroom = qualifyingIncome * backMax - totalPayment;

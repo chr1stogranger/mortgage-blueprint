@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { solveMaxPrice, solveScenarioPrice } from "./affordability.js";
+import { solveMaxPrice, solveScenarioPrice, maxDtiOverrideFor } from "./affordability.js";
 import FIX from "./fixtures/affordability.parity.json";
 
 // Parity fixtures: outputs captured on 2026-10-21 by running the
@@ -75,5 +75,44 @@ describe("solveMaxPrice — spec numbers (BLUEPRINT-CHATGPT-MCP-PROMPT A3)", () 
     expect(r.isJumbo).toBe(true);
     expect(r.program.type).toBe("Jumbo");
     expect(r.maxConfPrice).toBe(1532000);
+  });
+});
+
+describe("LO max DTI override", () => {
+  const conv = { ...base, monthlyIncome: 12500, cashAvailable: 60000, loanType: "Conventional" };
+
+  it("caps the solver at the LO's number and reports it", () => {
+    const def = solveMaxPrice(conv);
+    const capped = solveMaxPrice({ ...conv, maxDtiPct: 45 });
+    expect(capped.program.maxDTI).toBe(45);
+    expect(capped.maxPrice).toBeLessThan(def.maxPrice);
+    expect(capped.dti).toBeLessThanOrEqual(0.45);
+  });
+
+  it("can raise a program's cap too, and null means the default", () => {
+    const jumbo = { ...base, monthlyIncome: 40000, cashAvailable: 700000, loanType: "Jumbo" };
+    expect(solveMaxPrice({ ...jumbo, maxDtiPct: 45 }).program.maxDTI).toBe(45);
+    expect(solveMaxPrice({ ...conv, maxDtiPct: null })).toEqual(solveMaxPrice(conv));
+  });
+
+  it("uses Jumbo's 43% when a capped loan crosses into Jumbo, unless the LO set it lower", () => {
+    const big = { ...base, monthlyIncome: 40000, cashAvailable: 700000, loanType: "Conventional" };
+    expect(solveMaxPrice({ ...big, maxDtiPct: 45 }).program.maxDTI).toBe(43);
+    expect(solveMaxPrice({ ...big, maxDtiPct: 40 }).program.maxDTI).toBe(40);
+  });
+
+  it("flags debts that clear the default but not the LO's cap", () => {
+    const tight = { ...conv, monthlyIncome: 4000, monthlyDebts: 1900 };
+    expect(solveMaxPrice(tight).reason).not.toBe("debts-exceed");
+    expect(solveMaxPrice({ ...tight, maxDtiPct: 45 }).reason).toBe("debts-exceed");
+  });
+
+  it("reads overrides per loan type and ignores non-DTI programs", () => {
+    const o = { Conventional: 45, DSCR: 30, HELOC: 40 };
+    expect(maxDtiOverrideFor(o, "Conventional")).toBe(45);
+    expect(maxDtiOverrideFor(o, "FHA")).toBeNull();
+    expect(maxDtiOverrideFor(o, "DSCR")).toBeNull();
+    expect(maxDtiOverrideFor(o, "HELOC")).toBeNull();
+    expect(maxDtiOverrideFor(undefined, "Conventional")).toBeNull();
   });
 });

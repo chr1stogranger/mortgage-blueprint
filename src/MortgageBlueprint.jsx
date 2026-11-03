@@ -29,6 +29,7 @@ import { readListingToken, listingScenarioPlans } from "./lib/listingPrefill.js"
 import { readPlanToken, planToPrefill, planScenarioName, planLanding, planClientLabel, planLicensed } from "./lib/planPrefill.js";
 import { readPlaceParams, placeToPrefill, placeScenarioName, placeNoteText, PLACE_PARAMS } from "./lib/placePrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
+import { maxDtiOverrideFor } from "./lib/affordability.js";
 import { evaluateAssetPrograms, summarizeAssetPrograms, repayPillar, computeDscr, computeHelocPayments, computePiggyback, computeStandaloneLine, DSCR_RULES, HELOC_RULES, AQ_MIN_FICO } from "./lib/nonQm.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
@@ -1941,6 +1942,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // LO-edited PMI chart: { [ltvBucket 97|95|90|85]: annual % }. Overrides the
  // Radian matrix for that LTV bucket (Christo 2026-07-05, PMI advanced chart).
  const [pmiChartOverrides, setPmiChartOverrides] = useState({});
+ // LO's max DTI per loan type on this scenario, as percents (AUS caps a file lower).
+ const [maxDtiOverrides, setMaxDtiOverrides] = useState({});
  const [vaFundingFeeLocked, setVaFundingFeeLocked] = useState(true);
  const [vaFundingFeeOverride, setVaFundingFeeOverride] = useState(0);
  const [extraPayment, setExtraPayment] = useState(0);
@@ -2517,7 +2520,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
-  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra: extraPayment > 0, debtFree, autoJumboSwitch,
+  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, maxDtiOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra: extraPayment > 0, debtFree, autoJumboSwitch,
   // Borrower roster travels with the scenario so a 2-borrower file (Arive
   // import, or a manually added co-borrower) reopens with both cards.
   numBorrowers, borrowerNames, otherIncomeItems,
@@ -2693,6 +2696,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.pmiRateLocked !== undefined) setPmiRateLocked(s.pmiRateLocked);
   if (s.pmiRateOverride !== undefined) setPmiRateOverride(s.pmiRateOverride);
   if (s.pmiChartOverrides !== undefined) setPmiChartOverrides(s.pmiChartOverrides || {});
+  // Always set: a scenario saved without one must not inherit the last scenario's cap.
+  setMaxDtiOverrides(s.maxDtiOverrides || {});
   if (s.vaFundingFeeLocked !== undefined) setVaFundingFeeLocked(s.vaFundingFeeLocked);
   if (s.vaFundingFeeOverride !== undefined) setVaFundingFeeOverride(s.vaFundingFeeOverride);
   if (s.extraPayment !== undefined) setExtraPayment(s.extraPayment);
@@ -3648,7 +3653,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, otherIncome2, otherIncomeItems, assets, creditScore, extraPayment, payExtra,
+  incomes, otherIncome, otherIncome2, otherIncomeItems, assets, creditScore, extraPayment, payExtra, maxDtiOverrides,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
@@ -6666,7 +6671,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // NEW loan, not the purchase-shaped baseLoan. Same root cause as the
   // auto-Jumbo bug: baseLoan is homeValue×(1−downPct) on a refi, which is
   // meaningless (Christo 2026-07-22).
-  const maxDTI = MAX_DTI[loanType] || 0.50;
+  const maxDTIDefault = MAX_DTI[loanType] || 0.50;
+  const maxDtiOverride = maxDtiOverrideFor(maxDtiOverrides, loanType);
+  const maxDTI = maxDtiOverride != null ? maxDtiOverride / 100 : maxDTIDefault;
   const yourDTI = computeDTI(totalPayment, qualifyingIncome); // fraction (0.43 = 43%) or null
   // ── Refi current-loan math — moved ABOVE the fee section (2026-07-05) so
   //    refiNewLoanAmt exists when points + prepaid interest are computed.
@@ -7585,7 +7592,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    housingPayment, displayPayment: finalDisplayPayment, escrowAmount, purchEscTax, purchEscIns, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue: totalAssetValueAll, totalForClosing: totalForClosingAll, totalReserves, saleProceedsAsset,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary, isRentalPrimary, rentalUnits,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment: finalTotalPayment, addDebt, updateDebt, removeDebt,
-   confLimit, highBalLimit, countyLimit, limitYear: LIMIT_YEAR, loanCategory, maxDTI, yourDTI: finalYourDTI,
+   confLimit, highBalLimit, countyLimit, limitYear: LIMIT_YEAR, loanCategory, maxDTI, maxDTIDefault, maxDTIOverridden: maxDtiOverride != null, yourDTI: finalYourDTI,
    qualMethod, dscr, aqResults, aqSummary, piggyHelocPmt,
    heloc: { piggy: helocPiggy, standalone: helocStandalone, split: piggy, piggyPmts: piggyHeloc, rate: helocRate, rateEstimated: helocRateEstimated,
             line: standaloneLine, pmts: standaloneHeloc, firstPiti: standaloneFirstPiti, firstBalance: helocStandalone ? refiEffBalance : 0 },
@@ -7656,7 +7663,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride,
+  incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, maxDtiOverrides, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, refiCurPrinOverride, refiCurIntOverride,
@@ -10239,7 +10246,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ REO (Real Estate Owned) ═══ */}
 {tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, MRow, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
-{tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore: setCreditScoreUi, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
+{tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, maxDtiOverrides, setMaxDtiOverrides, canEditMaxDti: isCloud && !isBorrower, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore: setCreditScoreUi, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
 {tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, occupiedUnits, setOccupiedUnits, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, InfoTip, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
@@ -10605,6 +10612,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    allGood, someGood, purchPillarCount, refiPillarCount, dpOk, refiLtvCheck,
    affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType,
    affordTargetDTI, setAffordTargetDTI, confirmAffordApply, setConfirmAffordApply,
+   maxDtiOverrides, setMaxDtiOverrides, canEditMaxDti: isCloud && !isBorrower,
    handlePillarClick, isTabUnlocked, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch,
    getHighBalLimit: getCountyHighBal,
    /* Debts */

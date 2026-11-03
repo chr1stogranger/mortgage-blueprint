@@ -3,7 +3,7 @@ import React from "react";
 import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { getApplyUrl } from "../lib/applyUrl.js";
-import { solveMaxPrice, solveScenarioPrice } from "../lib/affordability.js";
+import { solveMaxPrice, solveScenarioPrice, maxDtiOverrideFor, MAX_DTI_EDITABLE_TYPES, MAX_DTI_INPUT_RANGE } from "../lib/affordability.js";
 import { repayPillar, HELOC_RULES } from "../lib/nonQm.js";
 import { DscrPanel, AssetProgramTable } from "../components/NonQmPanels.jsx";
 // AMI lookup is no longer rendered in the Debt to Income Summary card. The
@@ -25,9 +25,49 @@ import { DscrPanel, AssetProgramTable } from "../components/NonQmPanels.jsx";
 // HTI Max:  47% for FHA only — other programs (Conv/VA/Jumbo) have no front-end cap.
 // DTI Max:  pulled from calc.maxDTI (program-specific).
 // ─────────────────────────────────────────────────────────────────────────
+// Max DTI cell in Qualifying Ratios. LOs click it to enter what AUS allows on
+// this file. Blank or the program default clears the override; an out-of-range
+// number is a typo, so the current value stays.
+function MaxDtiEdit({ T, valuePct, defaultPct, loanType, onSet, onClear }) {
+  const [draft, setDraft] = React.useState(null);
+  const commit = () => {
+    const n = parseFloat(draft);
+    setDraft(null);
+    if (isNaN(n) || Math.abs(n - defaultPct) < 0.005) onClear();
+    else if (n >= MAX_DTI_INPUT_RANGE.min && n <= MAX_DTI_INPUT_RANGE.max) onSet(Math.round(n * 100) / 100);
+  };
+  const shared = { fontSize: 12, fontWeight: 600, color: T.blue, textAlign: "right", fontFamily: FONT };
+  if (draft !== null) return (
+    <input
+      autoFocus
+      type="text"
+      inputMode="decimal"
+      aria-label={`Max DTI for ${loanType}, percent`}
+      value={draft}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => { const raw = e.target.value.replace(/[^0-9.]/g, ""); if (/^\d*\.?\d*$/.test(raw)) setDraft(raw); }}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setDraft(null); }}
+      style={{ ...shared, width: 56, justifySelf: "end", background: "transparent", border: `1px solid ${T.blue}`, borderRadius: 6, padding: "1px 4px", outline: "none" }}
+    />
+  );
+  return (
+    <button
+      type="button"
+      aria-label={`Change max DTI for ${loanType}, now ${valuePct.toFixed(2)} percent`}
+      title="Change this when AUS caps the file differently"
+      onClick={() => setDraft(String(valuePct))}
+      style={{ ...shared, justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+    >
+      <Icon name="edit" size={11} />{valuePct.toFixed(2)}%
+    </button>
+  );
+}
+
 function DebtToIncomeSummary({
   T, fmt, pct, isDesktop = true,
   calc, loanType,
+  canEditMaxDti = false, maxDtiOverrides, setMaxDtiOverrides,
   incomes = [], subjectRentalIncome = 0, otherIncome = 0, otherIncome2 = 0,
   reos = [], debts = [], debtFree = false,
   propertyCounty = "", propertyState = "California",
@@ -63,6 +103,9 @@ function DebtToIncomeSummary({
   const maxDTI = Number(calc?.maxDTI) || 0.5;
   const isFHA = loanType === "FHA";
   const maxHTI = isFHA ? 0.47 : null;                  // FHA front-end cap
+  const defaultMaxPct = (Number(calc?.maxDTIDefault) || 0.5) * 100;
+  const maxDtiEditable = canEditMaxDti && !!setMaxDtiOverrides && MAX_DTI_EDITABLE_TYPES.includes(loanType);
+  const clearMaxDti = () => { const next = { ...(maxDtiOverrides || {}) }; delete next[loanType]; setMaxDtiOverrides(next); };
 
   const incomeMin = totalDebts > 0 ? totalDebts / maxDTI : 0;
   const incomeDelta = totalMonthlyIncome - incomeMin;
@@ -226,15 +269,23 @@ function DebtToIncomeSummary({
         {/* DTI row */}
         <div style={{ fontSize: 12, color: T.textSecondary }}>Total Debt-to-Income (DTI)</div>
         <div style={{ fontSize: 12, fontWeight: 600, color: personalDTI > maxDTI ? T.red : T.text, textAlign: "right", fontFamily: FONT }}>{(personalDTI * 100).toFixed(2)}%</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "right", fontFamily: FONT }}>{(maxDTI * 100).toFixed(2)}%</div>
+        {maxDtiEditable
+          ? <MaxDtiEdit T={T} valuePct={maxDTI * 100} defaultPct={defaultMaxPct} loanType={loanType} onSet={(v) => setMaxDtiOverrides({ ...(maxDtiOverrides || {}), [loanType]: v })} onClear={clearMaxDti} />
+          : <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "right", fontFamily: FONT }}>{(maxDTI * 100).toFixed(2)}%</div>}
       </div>
+      {maxDtiEditable && calc?.maxDTIOverridden && (
+        <div style={{ padding: "0 16px 10px", fontSize: 11, color: T.textTertiary, textAlign: "right" }}>
+          Set for this scenario. {loanType} default is {defaultMaxPct.toFixed(defaultMaxPct % 1 ? 2 : 0)}%.{" "}
+          <button type="button" onClick={clearMaxDti} style={{ background: "none", border: "none", padding: 0, color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Reset</button>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function QualifyContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("QualifyContent", props, ["T", "isDesktop", "calc", "fmt", "pct", "isRefi", "loanType", "firstTimeBuyer", "downPct", "setDownPct", "creditScore", "setCreditScore", "refiPurpose", "refiLtvCheck", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "setTab", "handlePillarClick", "isPulse", "isTabUnlocked", "markTouched", "affordIncome", "affordDebts", "affordDown", "affordTerm", "affordRate", "affordLoanType", "affordTargetDTI", "setAffordTargetDTI", "debts", "debtFree", "salesPrice", "setSalesPrice", "rate", "setRate", "term", "setTerm", "setLoanType", "userLoanTypeRef", "setAutoJumboSwitch", "confirmAffordApply", "setConfirmAffordApply", "getHighBalLimit", "propType", "StopLight", "Card", "Sec", "Inp", "Note", "Progress", "Hero", "MRow", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("QualifyContent", props, ["T", "maxDtiOverrides", "setMaxDtiOverrides", "canEditMaxDti", "isDesktop", "calc", "fmt", "pct", "isRefi", "loanType", "firstTimeBuyer", "downPct", "setDownPct", "creditScore", "setCreditScore", "refiPurpose", "refiLtvCheck", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "setTab", "handlePillarClick", "isPulse", "isTabUnlocked", "markTouched", "affordIncome", "affordDebts", "affordDown", "affordTerm", "affordRate", "affordLoanType", "affordTargetDTI", "setAffordTargetDTI", "debts", "debtFree", "salesPrice", "setSalesPrice", "rate", "setRate", "term", "setTerm", "setLoanType", "userLoanTypeRef", "setAutoJumboSwitch", "confirmAffordApply", "setConfirmAffordApply", "getHighBalLimit", "propType", "StopLight", "Card", "Sec", "Inp", "Note", "Progress", "Hero", "MRow", "GuidedNextButton"]);
   const {
   T, isDesktop, calc, fmt, pct,
   isRefi, loanType, firstTimeBuyer, downPct, setDownPct,
@@ -256,6 +307,7 @@ export default function QualifyContent(props) {
   reos = [], propertyCounty = "", propertyState = "California",
   StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow,
   GuidedNextButton,
+  maxDtiOverrides, setMaxDtiOverrides, canEditMaxDti = false,
 } = props;
 
   // Affordability inputs: prefer the synced state (when user lands on Qualify/Overview the parent's
@@ -363,6 +415,7 @@ export default function QualifyContent(props) {
   <DebtToIncomeSummary
     T={T} fmt={fmt} pct={pct} isDesktop={isDesktop}
     calc={calc} loanType={loanType}
+    canEditMaxDti={canEditMaxDti} maxDtiOverrides={maxDtiOverrides} setMaxDtiOverrides={setMaxDtiOverrides}
     incomes={incomes}
     subjectRentalIncome={subjectRentalIncome}
     otherIncome={otherIncome}
@@ -447,7 +500,7 @@ export default function QualifyContent(props) {
   const insMo = calc.ins > 0 ? calc.ins : null;
   const hoaMo = Math.max(0, (calc.housingPayment || 0) - (calc.pi || 0) - (calc.monthlyTax || 0) - (calc.ins || 0) - (calc.monthlyMI || 0));
   // Solver math lives in lib/affordability.js (shared with the MCP server).
-  const affordInputs = { monthlyIncome: affordIncome, monthlyDebts: affordDebts, cashAvailable: affordDown, rate: affordRate, termYears: affordTerm, loanType: affordLoanType, confLimit, effTaxRate, insMonthly: insMo, hoaMonthly: hoaMo };
+  const affordInputs = { monthlyIncome: affordIncome, monthlyDebts: affordDebts, cashAvailable: affordDown, rate: affordRate, termYears: affordTerm, loanType: affordLoanType, confLimit, effTaxRate, insMonthly: insMo, hoaMonthly: hoaMo, maxDtiPct: maxDtiOverrideFor(maxDtiOverrides, affordLoanType) };
   const solved = solveMaxPrice(affordInputs);
   // No income entered: point to the Income tab (same card style as the
   // "Add income to see DTI" prompt) instead of the debts-exceed warning.
@@ -498,17 +551,24 @@ export default function QualifyContent(props) {
        Summary at the top of Qualify covers the same data with the spreadsheet layout. */}
    <Sec title="Quick Scenarios">
     <Card>
-     {[
-      { label: "Conservative (36% DTI)", dti: 36 },
-      { label: "Standard (43% DTI)", dti: 43 },
-      { label: "Stretch (50% DTI)", dti: 50 },
-     ].map((sc, si) => {
+     {(() => {
+      // An LO's cap replaces any row above it, so "Stretch (50%)" can't outrun a 45% AUS finding.
+      const rows = [
+       { label: "Conservative (36% DTI)", dti: 36 },
+       { label: "Standard (43% DTI)", dti: 43 },
+       { label: "Stretch (50% DTI)", dti: 50 },
+      ];
+      const cap = affordInputs.maxDtiPct;
+      if (!cap || cap >= 50) return rows;
+      const kept = rows.filter(r => r.dti < cap);
+      return [...kept, { label: `Your max (${cap}% DTI)`, dti: cap }];
+     })().map((sc, si, list) => {
       const q = solveScenarioPrice(affordInputs, sc.dti);
       if (!q) return null;
       const { price: qPrice, payment: qResult, maxHousing: mhp } = q;
       const isQJumbo = qResult.isJumbo;
       return (
-       <div key={si} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: si < 2 ? `1px solid ${T.separator}` : "none" }}>
+       <div key={si} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: si < list.length - 1 ? `1px solid ${T.separator}` : "none" }}>
         <div>
          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{sc.label}</div>
          <div style={{ fontSize: 11, color: T.textTertiary }}>Max housing: {fmt(mhp)}/mo · Pmt: {fmt(qResult.total)}/mo{isQJumbo ? " · Jumbo" : ""}</div>
