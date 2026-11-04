@@ -1384,10 +1384,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark' || saved === 'light') return saved; } catch {}
   return 'light';
  });
- const [darkMode, setDarkMode] = useState(() => {
-  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark') return true; } catch {}
-  return false;
- });
+ const [darkMode, setDarkMode] = useState(themeMode === 'dark');
  // Phone "On this page" pill: hideable so it never covers numbers in a
  // screenshot (Christo 2026-10-01). Hide from the sheet header; Settings →
  // Appearance brings it back. Device-local presentation pref.
@@ -3446,8 +3443,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   document.addEventListener("visibilitychange", onVis);
   return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVis); };
  }, []);
- // Set status bar / theme-color meta tag to match theme
+ // Set status bar / theme-color meta tag and index.css's data-theme to match theme
  useEffect(() => {
+  if (darkMode) document.documentElement.dataset.theme = 'dark';
+  else delete document.documentElement.dataset.theme;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', darkMode ? '#0a1120' : '#f4f9fc');
   else {

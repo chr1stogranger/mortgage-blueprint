@@ -44,6 +44,10 @@
   control lives in Settings → Appearance; the canvas honors
   `prefers-reduced-motion`.
 - Pill buttons (`border-radius: 9999px`); no emojis in UI (shared `Icon`).
+- **Light is the default (2026-11-04)**, whatever the OS is set to. Dark only
+  from a saved choice (`bp_theme_mode`), `?theme=dark`, or Match Ops inside the
+  Ops panel. Pre-React CSS keys off `html[data-theme="dark"]`, never
+  `prefers-color-scheme`.
 - **Background setting (2026-10-31):** Settings → Appearance → Background =
   Blueprint default (the per-mode canvas above) / Match Ops / any of Ops'
   backgrounds (`src/lib/backgrounds.js`, VENDORED from loan-pipeline

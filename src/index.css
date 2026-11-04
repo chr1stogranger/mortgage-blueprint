@@ -3,9 +3,11 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: #EDEDED;
-  background-color: #0a1120;
+  /* Light unless the app says dark (data-theme, see below) — the OS setting
+     has no say, or a dark-mode OS would paint a light-mode app navy. */
+  color-scheme: light;
+  color: #171717;
+  background-color: #f4f9fc;
 
   /* Brand Kit: digits align via tabular figures (Inter tnum), not a mono face */
   font-variant-numeric: tabular-nums;
@@ -21,19 +23,19 @@ a {
   text-decoration: inherit;
 }
 a:hover {
-  color: #6E90FF;
+  color: #3B6BF5;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #0a1120;
+  background-color: #f4f9fc;
 }
 
 /* Prevent white overscroll flash on iOS PWA */
 html {
-  background-color: #0a1120;
+  background-color: #f4f9fc;
   overscroll-behavior-y: none;
 }
 
@@ -66,7 +68,7 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #162034;
+  background-color: #F0F0F0;
   cursor: pointer;
   transition: border-color 0.25s;
 }
@@ -108,20 +110,22 @@ button:focus:not(:focus-visible) {
 .pac-icon { display: none; }
 .pac-logo::after { display: none; }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #171717;
-    background-color: #f4f9fc;
-  }
-  html, body {
-    background-color: #f4f9fc;
-  }
-  a:hover {
-    color: #3B6BF5;
-  }
-  button {
-    background-color: #F0F0F0;
-  }
+/* :where() keeps these at the specificity of the rules they override, so a
+   class-styled button still beats the bare button default in dark mode. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #EDEDED;
+  background-color: #0a1120;
+}
+:where(:root[data-theme="dark"]),
+:where(:root[data-theme="dark"]) body {
+  background-color: #0a1120;
+}
+:where(:root[data-theme="dark"]) a:hover {
+  color: #6E90FF;
+}
+:where(:root[data-theme="dark"]) button {
+  background-color: #162034;
 }
 
 /* Markets search/filter inputs — readable placeholder text that adapts to

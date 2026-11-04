@@ -10,8 +10,7 @@
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link href="/fonts/fonts.css" rel="stylesheet" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
-    <meta name="theme-color" content="#0a1120" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f4f9fc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#f4f9fc" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Blueprint" />
@@ -33,16 +32,29 @@
          underneath, so shared challenge links stay instant to play. -->
     <meta name="apple-itunes-app" content="app-id=6773117288" />
     <title>Mortgage Blueprint — powered by RealStack</title>
+    <!-- Light is the default whatever the OS is set to (2026-11-04); dark only
+         for someone who chose it. Runs before first paint so that choice
+         doesn't flash light. MortgageBlueprint keeps data-theme in sync. -->
+    <script>
+      try {
+        var bpTheme = new URLSearchParams(location.search).get('theme') || localStorage.getItem('bp_theme_mode');
+        if (bpTheme === 'dark') {
+          document.documentElement.dataset.theme = 'dark';
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a1120');
+        }
+      } catch (e) { /* private mode: stay light */ }
+    </script>
     <!-- Static boot shell (2026-10-27): painted before the JS bundle arrives so
          slow connections don't sit on a blank white page. Lives inside #root,
          so createRoot().render() replaces it — no cleanup needed. -->
     <style>
-      .bp-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#0a1120;color:#EDEDED;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+      .bp-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#f4f9fc;color:#171717;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
       .bp-boot-mark{font-size:22px;font-weight:700;letter-spacing:-0.01em}
-      .bp-boot-badge{font-family:"Geist Mono","SF Mono",ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#8A8A8A}
+      .bp-boot-badge{font-family:"Geist Mono","SF Mono",ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#6B7280}
       .bp-boot-bar{width:48px;height:2px;margin-top:18px;border-radius:9999px;background:#3B6BF5;animation:bp-boot-pulse 1.4s ease-in-out infinite}
       @keyframes bp-boot-pulse{0%,100%{opacity:.25}50%{opacity:1}}
-      @media (prefers-color-scheme: light){.bp-boot{background:#f4f9fc;color:#171717}.bp-boot-badge{color:#6B7280}}
+      html[data-theme="dark"] .bp-boot{background:#0a1120;color:#EDEDED}
+      html[data-theme="dark"] .bp-boot-badge{color:#8A8A8A}
       @media (prefers-reduced-motion: reduce){.bp-boot-bar{animation:none;opacity:.6}}
     </style>
     <!-- Google Places API: disabled (key moved to server-side proxy) -->
