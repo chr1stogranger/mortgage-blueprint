@@ -11345,7 +11345,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  {!isBorrower && !isCloud && <SetShell title="Loan officers">
     <button onClick={() => rawAuth?.requestLogin?.()}
      style={{ width: "100%", boxSizing: "border-box", padding: 12, marginTop: 8, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
-     Loan officer? Sign in with Google
+     Loan officer? Sign in
     </button>
  </SetShell>}
  {/* Your profile (2026-10-31, Christo: "why a separate signature? It should

@@ -83,6 +83,11 @@
    would go to Google; CSP no longer allows it). The SW precaches them with
    revision hashes, so font changes ship with the next build.
 
+## Microsoft sign-in and Outlook sending (2026-11-03)
+- `src/lib/microsoftAuth.js` (MSAL 4 popup flow, redirect page `public/msal-redirect.html`); hidden until `VITE_MICROSOFT_CLIENT_ID` is set. Sign-in posts the ID token to Ops' session exchange, which only accepts an email Microsoft vouches for (see loan-pipeline CLAUDE.md).
+- `gmailAuth.js` returns an `ms:`-prefixed Graph token for these LOs, and Ops' `/api/gmail` sends it through Outlook. Tokens stay under separate keys, so a leftover Gmail token can't send for an Outlook sign-in.
+- Live co-editing needs a Supabase session, which needs the Azure provider switched on in Supabase. Without it, sign-in and sending still work.
+
 ## Compliance (2026-10-28)
 - Users must be 18+ (Terms §1, first-run consent line, AccountSheet checkbox).
   Markets is play money only — keep that stated wherever balances appear.

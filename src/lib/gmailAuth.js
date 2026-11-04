@@ -15,8 +15,10 @@
 // tokens.
 
 import { Capacitor } from "@capacitor/core";
+import { usesOutlook, outlookSendToken } from "./microsoftAuth.js";
 
-const TOKEN_KEY = "bp_gmail_token";
+// Separate keys, so a Gmail token left in this browser can't send for an Outlook sign-in.
+const tokenKey = () => (usesOutlook() ? "bp_outlook_token" : "bp_gmail_token");
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 const SCOPES =
   "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send";
@@ -27,19 +29,19 @@ export const GMAIL_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 // Capacitor WebView, and the native app ships localMode. Callers fall back
 // to the mailto: path when this is false.
 export function gmailSendAvailable() {
-  return !!GMAIL_CLIENT_ID && !Capacitor.isNativePlatform();
+  return (usesOutlook() || !!GMAIL_CLIENT_ID) && !Capacitor.isNativePlatform();
 }
 
 export function getStoredGmailToken() {
-  try { return localStorage.getItem(TOKEN_KEY) || null; } catch { return null; }
+  try { return localStorage.getItem(tokenKey()) || null; } catch { return null; }
 }
 
 export function storeGmailToken(token) {
-  try { localStorage.setItem(TOKEN_KEY, token); } catch { /* private mode */ }
+  try { localStorage.setItem(tokenKey(), token); } catch { /* private mode */ }
 }
 
 export function clearGmailToken() {
-  try { localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ }
+  try { localStorage.removeItem(tokenKey()); } catch { /* private mode */ }
 }
 
 let gisLoadPromise = null;
@@ -65,6 +67,11 @@ function loadGis() {
  */
 export async function requestGmailToken({ silent = false } = {}) {
   if (!gmailSendAvailable()) throw new Error("Gmail send not available here");
+  if (usesOutlook()) {
+    const token = await outlookSendToken({ silent });
+    storeGmailToken(token);
+    return token;
+  }
   await loadGis();
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -113,6 +120,10 @@ let warmAttempted = false;
 export function warmGmailToken(email) {
   if (warmAttempted || !gmailSendAvailable() || getStoredGmailToken()) return;
   warmAttempted = true;
+  if (usesOutlook()) {
+    outlookSendToken({ silent: true }).then(storeGmailToken).catch(() => { /* the send button will ask */ });
+    return;
+  }
   loadGis()
     .then(() => new Promise((resolve, reject) => {
       const client = window.google.accounts.oauth2.initTokenClient({

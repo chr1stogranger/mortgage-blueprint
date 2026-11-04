@@ -15,6 +15,7 @@ import {
   gmailSendAvailable, getStoredGmailToken, clearGmailToken,
   requestGmailToken, ensureGmailToken,
 } from "../lib/gmailAuth.js";
+import { mailName } from "../lib/microsoftAuth.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 // Ops caps attachments at ~700KB of base64 (fits its 1MB body limit).
@@ -140,7 +141,7 @@ export default function SendWorksheetModal({
           borrowerName: logMeta?.borrowerName || borrowerName || "",
           scenarioName: logMeta?.scenarioName || scenarioName || "",
           loEmail: loEmail || "",
-          sentVia: "gmail",
+          sentVia: mailName().toLowerCase(),
           ccRealtor: !!(ccRealtor && realtorPartner?.email),
         },
       };
@@ -155,7 +156,7 @@ export default function SendWorksheetModal({
       if (res.status === 403) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error === "Email not authorized"
-          ? "This Google account isn't authorized to send. Link one of your work Gmail accounts."
+          ? `This ${mailName() === "Outlook" ? "Microsoft" : "Google"} account isn't authorized to send. Link one of your work ${mailName()} accounts.`
           : (j.error || "Not authorized"));
       }
       if (!res.ok) {
@@ -252,7 +253,7 @@ export default function SendWorksheetModal({
         )}
         {phase === "sent" ? (
           <div style={{ textAlign: "center", padding: "14px 0", fontSize: 15, fontWeight: 700, color: T.green || "#12a150", fontFamily: FONT }}>
-            ✓ Sent from your Gmail
+            ✓ Sent from your {mailName()}
           </div>
         ) : (
           <button onClick={handleSend} disabled={!emailValid || phase === "sending"}
@@ -263,13 +264,13 @@ export default function SendWorksheetModal({
               cursor: !emailValid || phase === "sending" ? "default" : "pointer", fontFamily: FONT,
               boxShadow: emailValid ? "0 0 20px rgba(59,107,245,0.3)" : "none",
             }}>
-            {phase === "sending" ? "Sending…" : linked ? "Send from my Gmail" : "Connect Gmail & Send"}
+            {phase === "sending" ? "Sending…" : linked ? `Send from my ${mailName()}` : `Connect ${mailName()} & Send`}
           </button>
         )}
 
         {gmailSendAvailable() && !linked && phase !== "sent" && (
           <div style={{ fontSize: 11.5, color: T.textTertiary, textAlign: "center", marginTop: 10, fontFamily: FONT }}>
-            A Google window will ask permission to send email on your behalf. One time per browser.
+            A {mailName() === "Outlook" ? "Microsoft" : "Google"} window will ask permission to send email on your behalf. One time per browser.
           </div>
         )}
         {onFallbackMailto && phase !== "sent" && (

@@ -8,7 +8,8 @@
  * backward compatibility for the public calculator.
  */
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
-import { getSession, onAuthStateChange, signOut as supabaseSignOut, signInWithGoogleIdToken } from "./lib/supabaseClient";
+import { getSession, onAuthStateChange, signOut as supabaseSignOut, signInWithGoogleIdToken, signInWithMicrosoftIdToken } from "./lib/supabaseClient";
+import { microsoftEnabled, preloadMicrosoft, signInWithMicrosoft, silentMicrosoftIdToken, clearMicrosoftSession, isMicrosoftUser, isPopupClosed } from "./lib/microsoftAuth.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 
@@ -103,6 +104,15 @@ const styles = {
   },
 };
 
+const MicrosoftIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 21 21">
+    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+  </svg>
+);
+
 export default function BlueprintAuth({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -117,6 +127,7 @@ export default function BlueprintAuth({ children }) {
   // sign-out via the bp_signed_out flag.
   const [wantSilentReauth, setWantSilentReauth] = useState(false);
   const silentPromptedRef = useRef(false);
+  const lapsedMicrosoftRef = useRef(false);
 
   // Check for existing session
   useEffect(() => {
@@ -134,7 +145,8 @@ export default function BlueprintAuth({ children }) {
         // Token lapsed but this browser WAS an LO — re-auth silently below
         // unless they explicitly signed out.
         if (parsed?.email && localStorage.getItem("bp_signed_out") !== "1") {
-          setWantSilentReauth(true);
+          if (isMicrosoftUser(parsed)) lapsedMicrosoftRef.current = true;
+          else setWantSilentReauth(true);
         }
       } catch { /* fall through */ }
       localStorage.removeItem("bp_user");
@@ -167,7 +179,7 @@ export default function BlueprintAuth({ children }) {
       // The SERVER decides membership (shared team_members table) — exchange
       // for a 12h session token with role. Legacy hardcoded list only as a
       // network-failure fallback.
-      let userData = { email, name, picture };
+      let userData = { email, name, picture, ...(response.provider ? { provider: response.provider } : {}) };
       let sessionToken = null;
       try {
         const res = await fetch(`${API_BASE}/api/collab?resource=session`, {
@@ -202,11 +214,22 @@ export default function BlueprintAuth({ children }) {
       // Also open a Supabase session with the same Google credential so the
       // Realtime socket is authenticated — an anon socket sees no scenario
       // rows, so the LO never received a borrower's live edits.
-      signInWithGoogleIdToken(response.credential);
+      if (response.provider === "microsoft") signInWithMicrosoftIdToken(response.credential, response.nonce);
+      else signInWithGoogleIdToken(response.credential);
     } catch {
       setError("Sign-in failed. Please try again.");
     }
   }, []);
+
+  // A lapsed Microsoft session heals itself, like One Tap does for Google below.
+  useEffect(() => {
+    if (!lapsedMicrosoftRef.current || !microsoftEnabled()) return;
+    lapsedMicrosoftRef.current = false;
+    silentMicrosoftIdToken()
+      .then((credential) => handleCredentialResponse({ credential, provider: "microsoft" }))
+      .catch(() => { /* manual Sign in remains */ });
+  }, [handleCredentialResponse]);
+  useEffect(() => { if (showLogin) preloadMicrosoft(); }, [showLogin]);
 
   // ── Auto-elevate to LO mode ────────────────────────────────────────────────
   // If the person is already signed into the calculator's account system with
@@ -230,10 +253,12 @@ export default function BlueprintAuth({ children }) {
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (!data?.token || !data?.user) return;
-        localStorage.setItem("bp_user", JSON.stringify(data.user));
+        // Keep the mail provider: it decides whether Send goes through Outlook or Gmail.
+        const elevated = s.user.app_metadata?.provider === "azure" ? { ...data.user, provider: "microsoft" } : data.user;
+        localStorage.setItem("bp_user", JSON.stringify(elevated));
         localStorage.setItem("bp_token", data.token);
         localStorage.removeItem("bp_signed_out");
-        setUser(data.user);
+        setUser(elevated);
         setToken(data.token);
         setLocalMode(false);
         setShowLogin(false);
@@ -269,7 +294,7 @@ export default function BlueprintAuth({ children }) {
   // Google credential silently at most daily and trade it for a Supabase
   // session. auto_select means no UI for a returning account.
   useEffect(() => {
-    if (!scriptLoaded || !window.google || !user || localMode) return;
+    if (!scriptLoaded || !window.google || !user || localMode || isMicrosoftUser(user)) return;
     if (localStorage.getItem("bp_signed_out")) return;
     // At most once a day — if Supabase rejects the Google token (client ID not
     // authorized on the Google provider) we must not nag every tab.
@@ -306,6 +331,16 @@ export default function BlueprintAuth({ children }) {
     });
   };
 
+  const handleMicrosoftClick = async () => {
+    setError("");
+    try {
+      const { idToken, nonce } = await signInWithMicrosoft();
+      await handleCredentialResponse({ credential: idToken, nonce, provider: "microsoft" });
+    } catch (e) {
+      if (!isPopupClosed(e)) setError("Microsoft sign-in failed. Please try again.");
+    }
+  };
+
   const handleSignOut = async () => {
     // End the Supabase session FIRST and await it — the auto-elevate effect
     // re-exchanges any live session for a fresh LO token the moment `user`
@@ -313,6 +348,10 @@ export default function BlueprintAuth({ children }) {
     // (Christo hit this 2026-07-07). With the session gone, tryElevate's
     // getSession() returns null and the sign-out sticks.
     try { await supabaseSignOut(); } catch { /* still clear local state below */ }
+    if (isMicrosoftUser(user)) {
+      clearMicrosoftSession();
+      localStorage.removeItem("bp_outlook_token");
+    }
     localStorage.removeItem("bp_user");
     localStorage.removeItem("bp_token");
     // Explicit sign-out must stick: blocks the silent One Tap re-auth AND
@@ -338,6 +377,11 @@ export default function BlueprintAuth({ children }) {
         <button style={styles.googleBtn} onClick={handleGoogleClick}>
           <GoogleIcon /> Sign in with Google
         </button>
+        {microsoftEnabled() && (
+          <button style={{ ...styles.googleBtn, marginTop: 10 }} onClick={handleMicrosoftClick}>
+            <MicrosoftIcon /> Sign in with Microsoft
+          </button>
+        )}
         <button style={styles.skipBtn} onClick={handleSkip}>
           Continue without signing in
         </button>

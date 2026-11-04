@@ -590,6 +590,19 @@ export async function signInWithGoogleIdToken(idToken) {
   } catch { return null; }
 }
 
+/** Supabase session from a Microsoft ID token, same purpose as the Google one above. Needs the Azure provider on. */
+export async function signInWithMicrosoftIdToken(idToken, nonce) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !idToken) return null;
+  try {
+    const { data: existing } = await supabase.auth.getSession();
+    if (existing?.session) return existing.session;
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'azure', token: idToken, nonce });
+    if (error) { console.warn('[Supabase] Microsoft ID-token sign-in failed:', error.message); return null; }
+    return data?.session || null;
+  } catch { return null; }
+}
+
 /**
  * Broadcast channel for ephemeral messages (typing indicators, etc.)
  * These are NOT persisted — fire and forget.

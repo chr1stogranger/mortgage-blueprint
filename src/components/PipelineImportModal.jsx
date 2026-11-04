@@ -36,6 +36,7 @@ import {
   gmailSendAvailable, getStoredGmailToken, clearGmailToken,
   requestGmailToken, ensureGmailToken,
 } from "../lib/gmailAuth.js";
+import { mailName } from "../lib/microsoftAuth.js";
 import { normalizeArivePrefill, summarizePrefill } from "../lib/arivePrefill.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
@@ -170,7 +171,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
           borrowerName: payload?.borrower?.name || "",
           scenarioName: "Blueprint invite (Arive import)",
           loEmail: loInfo.loEmail || "",
-          sentVia: "gmail",
+          sentVia: mailName().toLowerCase(),
         },
       };
       const post = (token) => fetch(`${API_BASE}/api/gmail?action=send`, {
@@ -189,7 +190,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
       if (res.status === 403) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error === "Email not authorized"
-          ? "This Google account isn't authorized to send. Link one of your work Gmail accounts."
+          ? `This ${mailName() === "Outlook" ? "Microsoft" : "Google"} account isn't authorized to send. Link one of your work ${mailName()} accounts.`
           : (j.error || "Not authorized"));
       }
       if (!res.ok) {
@@ -345,7 +346,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
             {error && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10, fontFamily: FONT, lineHeight: 1.5 }}>{error}</div>}
             <button onClick={handleSend} disabled={!emailValid || phase === "sending"} style={primaryBtn(emailValid && phase !== "sending")}>
               {phase === "sending" ? "Sending…"
-                : gmailPath ? (getStoredGmailToken() ? "Send email" : "Connect Gmail & send") : "Open in my mail app"}
+                : gmailPath ? (getStoredGmailToken() ? "Send email" : `Connect ${mailName()} & send`) : "Open in my mail app"}
             </button>
             <button onClick={() => onClose({ borrowerId: borrower?.id })} style={ghostBtn}>Skip for now</button>
           </>
