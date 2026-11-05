@@ -211,12 +211,56 @@ describe("property tax calculator", () => {
       expect(html.includes('<script type="module" src="/seo/tax-calc.js"></script>'), p.path).toBe(hasCalc);
     }
     const fremont = renderPage(byPath.get("/property-tax/california/fremont/"), font);
-    expect(fremont).toContain('<option value="Fremont" selected>Fremont</option>');
+    expect(fremont).toContain('name="city" role="combobox"');
+    expect(fremont).toContain('value="Fremont"');
     // (1,000,000 - 7,000) x rate, rendered at build time
     const pct = CA_CITY_TAX_RATES.Fremont * 100;
     const base = ((1000000 - 7000) * pct) / 100;
     expect(fremont).toContain(`data-out="base">$${base.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<`);
     expect(fremont).toContain("propertytax.alamedacountyca.gov");
+  });
+
+  it("puts the map on the hub only", () => {
+    const font = { fontHref: "/fonts/fonts.css" };
+    for (const p of site.pages) {
+      expect(renderPage(p, font).includes("data-taxmap"), p.path).toBe(p.path === "/property-tax/california/");
+    }
+  });
+
+  it("has a map position for every sourced city, and none it doesn't list", () => {
+    const geo = JSON.parse(readFileSync(new URL("./ca-map-geo.json", import.meta.url), "utf8"));
+    expect(geo.cities.map((c) => c.city).sort()).toEqual(Object.keys(CA_CITY_COUNTY).sort());
+    for (const c of geo.cities) {
+      expect(c.x, c.city).toBeGreaterThanOrEqual(0);
+      expect(c.x, c.city).toBeLessThanOrEqual(geo.width);
+      expect(c.y, c.city).toBeGreaterThanOrEqual(0);
+      expect(c.y, c.city).toBeLessThanOrEqual(geo.height);
+    }
+    expect(geo.counties).toHaveLength(58);
+  });
+
+  it("finds cities by name, then by county, ignoring accents and case", async () => {
+    const { searchCities } = await import("./tax-calc.client.js");
+    const list = site.taxData.cities;
+    const names = (q) => searchCities(list, q).map((c) => c.city);
+    expect(names("fremont")[0]).toBe("Fremont");
+    expect(names("san jo")[0]).toBe("San Jose");
+    expect(names("WALNUT CR")[0]).toBe("Walnut Creek");
+    expect(names("creek")).toContain("Walnut Creek");
+    expect(names("marin county")).toContain("San Rafael");
+    expect(names("marin county").every((n) => list.find((c) => c.city === n).county === "Marin" || /marin/i.test(n))).toBe(true);
+    expect(names("zzzz")).toEqual([]);
+    expect(names("  ")).toEqual([]);
+  });
+
+  it("buckets rates into legend steps", async () => {
+    const { rateBreaks, bucketOf } = await import("./tax-map.client.js");
+    const breaks = rateBreaks(site.taxData.cities.map((c) => c.pct));
+    expect(breaks).toHaveLength(4);
+    expect([...breaks].sort((a, b) => a - b)).toEqual(breaks);
+    expect(bucketOf(0.5, breaks)).toBe(0);
+    expect(bucketOf(breaks[1], breaks)).toBe(2);
+    expect(bucketOf(99, breaks)).toBe(4);
   });
 
   it("ships every sourced city and county bill link to the live calculator", () => {

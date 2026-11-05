@@ -264,12 +264,12 @@ export function buildSite({ now, limitSource }) {
   );
   const citiesIn = (short) => cities.filter((x) => normalizeCounty(x.county) === normalizeCounty(short));
   // Property-tax calculator (render.js + tax-calc.client.js), pre-filled for one city.
-  const calcSection = (x) => ({
+  const calcSection = (x, { map = false } = {}) => ({
     heading: "Property tax calculator",
     blocks: [
-      p("Change the city, price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown."),
+      p(`${map ? "Search for a city or pick one on the map, then change" : "Search for a city, then change"} the price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown.`),
       {
-        type: "taxcalc", city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
+        type: "taxcalc", map, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
         billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
       },
     ],
@@ -489,7 +489,7 @@ export function buildSite({ now, limitSource }) {
           p(DUE_DATES),
         ],
       },
-      calcSection(cities.find((x) => x.city === "Los Angeles") || cities[0]),
+      calcSection(cities.find((x) => x.city === "Los Angeles") || cities[0], { map: true }),
       {
         heading: "Rates by county",
         blocks: [{
@@ -521,7 +521,7 @@ export function buildSite({ now, limitSource }) {
       },
       {
         heading: "Source",
-        blocks: [p("Each county's published tax rate book or rate schedule (San Francisco: the Treasurer's secured rate), linked on each county's page. Each rate is the total ad valorem rate for the city's primary or most common tax rate area; other areas in the same city can differ.")],
+        blocks: [p("Each county's published tax rate book or rate schedule (San Francisco: the Treasurer's secured rate), linked on each county's page. Each rate is the total ad valorem rate for the city's primary or most common tax rate area; other areas in the same city can differ. Map boundaries are from the U.S. Census Bureau's 2024 cartographic boundary files.")],
       },
     ],
   }));
@@ -646,9 +646,10 @@ export function buildSite({ now, limitSource }) {
   const order = (k) => (BAY_AREA_COUNTIES.includes(k) ? BAY_AREA_COUNTIES.indexOf(k) : BAY_AREA_COUNTIES.length);
   const taxData = {
     cities: cities
-      .map((x) => ({ city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy }))
+      .map((x) => ({ city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, path: cityPath(x) }))
       .sort((a, b) => order(a.county) - order(b.county) || a.county.localeCompare(b.county) || a.city.localeCompare(b.city)),
     bills: Object.fromEntries(Object.entries(CA_TAX_BILL_LOOKUP).filter(([, v]) => v?.url).map(([k, v]) => [k, v.url])),
+    countyPaths: Object.fromEntries([...caByCounty.keys()].map((k) => [k, taxCountyPath(k)])),
   };
   return { pages, sitemap: pages.map((pg) => ({ loc: pg.url, lastmod: now })), taxData };
 }
