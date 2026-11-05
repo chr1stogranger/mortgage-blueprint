@@ -3,7 +3,7 @@
 // its lookup/pay page). Every URL was taken from the county's own site,
 // including vendor portals the county links to (Megabyte mptsweb,
 // PublicAccessNow, county-taxes, County Tax Retriever). Researched
-// 2026-10-22; never guess one.
+// 2026-10-22, re-checked 2026-11-04; never guess one.
 
 export const CA_TAX_BILL_LOOKUP = {
  "Alameda": { office: "Alameda County Treasurer-Tax Collector", url: "https://propertytax.alamedacountyca.gov/search" },
@@ -39,19 +39,19 @@ export const CA_TAX_BILL_LOOKUP = {
  "Placer": { office: "Placer County Treasurer-Tax Collector", url: "https://common3.mptsweb.com/mbc/placer/tax/search" },
  "Plumas": { office: "Plumas County Treasurer/Tax Collector", url: "https://common1.mptsweb.com/MBC/plumas/tax/search" },
  "Riverside": { office: "Riverside County Treasurer-Tax Collector", url: "https://ca-riverside-ttc.publicaccessnow.com/Home.aspx" },
- "Sacramento": { office: "Sacramento County Department of Finance - Tax Collection", url: "https://eproptax.saccounty.gov/" },
+ "Sacramento": { office: "Sacramento County Department of Finance - Tax Collection", url: "https://county-taxes.net/sacramento/property-tax" },
  "San Benito": { office: "San Benito County Treasurer, Tax Collector and Public Administrator", url: "https://common2.mptsweb.com/mbc/sanbenito/tax/search" },
  "San Bernardino": { office: "San Bernardino County Auditor-Controller/Treasurer/Tax Collector", url: "https://www.sbcountyatc.gov/tax-services/property-tax" },
  "San Diego": { office: "San Diego County Treasurer-Tax Collector", url: "https://wps.sdttc.com/WebPayments/CoSDTreasurer2/search" },
- "San Francisco": { office: "San Francisco Office of the Treasurer & Tax Collector", url: "https://sanfrancisco-ca.county-taxes.com/public/search/gsgx_property_tax" },
+ "San Francisco": { office: "San Francisco Office of the Treasurer & Tax Collector", url: "https://county-taxes.net/ca-sanfrancisco/property-tax" },
  "San Joaquin": { office: "San Joaquin County Treasurer-Tax Collector", url: "https://common3.mptsweb.com/MBC/sanjoaquin/tax/search" },
  "San Luis Obispo": { office: "San Luis Obispo County Auditor-Controller-Treasurer-Tax Collector-Public Administrator", url: "https://services.slocountytax.org/" },
  "San Mateo": { office: "San Mateo County Tax Collector", url: "https://county-taxes.net/ca-sanmateo/services/property-tax" },
  "Santa Barbara": { office: "Santa Barbara County Treasurer-Tax Collector-Public Administrator-Public Guardian", url: "https://mytaxes.sbtaxes.org/" },
- "Santa Clara": { office: "County of Santa Clara Department of Tax and Collections", url: "https://payments.sccgov.org/propertytax/" },
+ "Santa Clara": { office: "County of Santa Clara Department of Tax and Collections", url: "https://santaclaracounty.telleronline.net/search/1/PropertyAddress" },
  "Santa Cruz": { office: "Santa Cruz County Tax Collector", url: "https://ttc.co.santa-cruz.ca.us/TaxBills/" },
  "Shasta": { office: "Shasta County Tax Collector", url: "https://common2.mptsweb.com/mbc/shasta/tax/search" },
- "Sierra": { office: "Sierra County Treasurer-Tax Collector", url: "https://countytaxretriever.com/" },
+ "Sierra": { office: "Sierra County Treasurer-Tax Collector", url: "https://countytaxretriever.com/counties/county/15" },
  "Siskiyou": { office: "Siskiyou County Treasurer-Tax Collector", url: "https://common1.mptsweb.com/mbc/siskiyou/tax/search" },
  "Solano": { office: "Solano County Treasurer - Tax Collector - County Clerk", url: "https://ca-solano.publicaccessnow.com/TaxCollector.aspx" },
  "Sonoma": { office: "Sonoma County Auditor-Controller-Treasurer-Tax Collector", url: "https://common3.mptsweb.com/mbc/sonoma/tax/search" },

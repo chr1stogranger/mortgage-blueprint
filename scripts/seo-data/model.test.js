@@ -30,7 +30,7 @@ describe("generated data files", () => {
 
   it("maps only sourced CA cities (never the 1.25% default block or Amador Valley)", () => {
     const cities = Object.keys(CA_CITY_COUNTY);
-    expect(cities.length).toBe(600);
+    expect(cities.length).toBe(607);
     for (const c of cities) expect(CA_CITY_TAX_RATES[c], c).not.toBe(0.0125);
     expect(CA_CITY_COUNTY["Amador Valley"]).toBeUndefined();
     const counties = new Set(Object.values(CA_CITY_COUNTY));

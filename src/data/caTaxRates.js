@@ -203,6 +203,14 @@ export const CA_TAX_COUNTIES = [
   },
  },
  {
+  county: "Inyo", fy: "2025-26",
+  source: "Inyo County Tax Rates By TAG, Tax Year 2025 (= FY 2025-26; printed 10/17/2025). TRA 001 is the City of Bishop per the county's GIS layers 'Bishop Boundary' and 'Parcels by Tax Rate Area'",
+  url: "https://www.inyocounty.us/sites/default/files/2025-11/PROPERTY%20TAX%20RATES%202025-2026.pdf",
+  rates: {
+   "Bishop": 1.12953974,
+  },
+ },
+ {
   county: "Kern", fy: "2025-26",
   source: "County of Kern Tax Rates and Assessed Valuations 2025-2026 (Auditor-Controller-County Clerk)",
   url: "https://www.auditor.co.kern.ca.us/RateBook/TaxRates2526.pdf",
@@ -270,11 +278,11 @@ export const CA_TAX_COUNTIES = [
   },
  },
  {
-  county: "Madera", fy: "2025-26",
-  source: "County of Madera 2025-26 Multi-Year Tax Rates (Auditor-Controller, dated 9/2/2025)",
-  url: "https://www.maderacounty.com/home/showpublisheddocument/46601/639005479334030000",
+  county: "Madera", fy: "2026-27",
+  source: "County of Madera Multi-Year Tax Rates, Tax Year 2026 (AUD70-2360-020, Auditor-Controller, run 8/27/2026)",
+  url: "https://www.maderacounty.com/home/showpublisheddocument/49651/639282824602070000",
   rates: {
-   "Chowchilla": 1.092939, "Madera": 1.144041,
+   "Chowchilla": 1.091396, "Madera": 1.211515,
   },
  },
  {
@@ -286,11 +294,11 @@ export const CA_TAX_COUNTIES = [
   },
  },
  {
-  county: "Mendocino", fy: "2025-26",
-  source: "Mendocino County Tax Rates By TAG, Tax Year 2025 (= FY 2025-26; printed 9/23/2025)",
-  url: "https://www.mendocinocounty.gov/files/3928c133-141e-41a7-9c4a-b57f8f50d432/2025-Tax-Rates-by-TAG.pdf",
+  county: "Mendocino", fy: "2026-27",
+  source: "Mendocino County Tax Rates By TAG, Tax Year 2026 (= FY 2026-27; printed 9/22/2026)",
+  url: "https://www.mendocinocounty.gov/files/7e32ea18-f62c-48bc-87a6-ccbee1d76ad3/26-27-TaxRatesByTag.pdf",
   rates: {
-   "Fort Bragg": 1.157, "Point Arena": 1.0295, "Ukiah": 1.21, "Willits": 1.086,
+   "Fort Bragg": 1.174, "Point Arena": 1.027, "Ukiah": 1.199, "Willits": 1.067,
   },
  },
  {
@@ -342,14 +350,14 @@ export const CA_TAX_COUNTIES = [
   },
  },
  {
-  county: "Placer", fy: "2025-26",
-  source: "Placer County Property Tax Rates for 2025/26 (Resolution Nos. 2025-181 and 2025-189), Tax Rate Schedule",
-  url: "https://www.placer.ca.gov/Archive.aspx?ADID=1011",
+  county: "Placer", fy: "2026-27",
+  source: "Placer County Property Tax Rates for 2026/27 (Resolution Nos. 2026-186 and 2026-198), Tax Rate Schedule",
+  url: "https://www.placer.ca.gov/Archive.aspx?ADID=1045",
   rates: {
-   "Auburn": 1.024754, "Colfax": 1.007522, "Foresthill": 1.007522, "Granite Bay": 1.021232,
-   "Lincoln": 1.040201, "Loomis": 1.025591, "Meadow Vista": 1.007522, "Newcastle": 1.025591,
-   "North Auburn": 1.024754, "Penryn": 1.025591, "Rocklin": 1.087306, "Roseville": 1.029901,
-   "Sheridan": 1.040201,
+   "Auburn": 1.074317, "Colfax": 1.057426, "Foresthill": 1.057426, "Granite Bay": 1.024342,
+   "Lincoln": 1.041615, "Loomis": 1.072543, "Meadow Vista": 1.057426, "Newcastle": 1.072543,
+   "North Auburn": 1.074317, "Penryn": 1.072543, "Rocklin": 1.090933, "Roseville": 1.032846,
+   "Sheridan": 1.041615,
   },
  },
  {
@@ -470,7 +478,8 @@ export const CA_TAX_COUNTIES = [
   source: "Sierra County Property Tax Rates and Special Assessments 2025-26",
   url: "https://www.sierracounty.ca.gov/DocumentCenter/View/11483/tax-rates-2025-26",
   rates: {
-   "Downieville": 1.0315, "Loyalton": 1,
+   "Alleghany": 1, "Calpine": 1, "Downieville": 1.0315, "Goodyears Bar": 1, "Loyalton": 1,
+   "Sierra Brooks": 1, "Sierra City": 1, "Sierraville": 1,
   },
  },
  {
