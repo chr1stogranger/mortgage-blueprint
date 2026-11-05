@@ -264,12 +264,12 @@ export function buildSite({ now, limitSource }) {
   );
   const citiesIn = (short) => cities.filter((x) => normalizeCounty(x.county) === normalizeCounty(short));
   // Property-tax calculator (render.js + tax-calc.client.js), pre-filled for one city.
-  const calcSection = (x, { map = false } = {}) => ({
+  const calcSection = (x, { map = false, mapCounty = null } = {}) => ({
     heading: "Property tax calculator",
     blocks: [
       p(`${map ? "Search for a city or pick one on the map, then change" : "Search for a city, then change"} the price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown.`),
       {
-        type: "taxcalc", map, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
+        type: "taxcalc", map, mapCounty, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
         billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
       },
     ],
@@ -553,7 +553,7 @@ export function buildSite({ now, limitSource }) {
       breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: label, path: taxCountyPath(county) }),
       sections: [
         { heading: "Rates by city", blocks: [cityRateTable(cs, `Property tax rates, ${label} (FY ${fy})`)] },
-        calcSection([...cs].sort((a, b) => a.city.localeCompare(b.city))[0]),
+        calcSection([...cs].sort((a, b) => a.city.localeCompare(b.city))[0], { map: true, mapCounty: county }),
         { heading: "Your property tax bill", blocks: billBlocks },
         { heading: "Loan limits", blocks: [p(link(llPath(cc), `${cc.name} ${year} conforming loan limit: ${money(cc.limits[0])}`))] },
         { heading: "Source", blocks: [p("Rates from ", link(cs[0].url, cs[0].source), ". Each rate is for the city's primary or most common tax rate area; other areas in the same city can differ.")] },

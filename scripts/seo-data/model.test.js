@@ -220,11 +220,15 @@ describe("property tax calculator", () => {
     expect(fremont).toContain("propertytax.alamedacountyca.gov");
   });
 
-  it("puts the map on the hub only", () => {
+  it("puts the map on the hub and county pages, opened on the county; never on city pages", () => {
     const font = { fontHref: "/fonts/fonts.css" };
     for (const p of site.pages) {
-      expect(renderPage(p, font).includes("data-taxmap"), p.path).toBe(p.path === "/property-tax/california/");
+      const onMapPage = p.path === "/property-tax/california/" || /^\/property-tax\/california\/[^/]+-county\/$/.test(p.path);
+      expect(renderPage(p, font).includes("data-taxmap"), p.path).toBe(onMapPage);
     }
+    expect(renderPage(byPath.get("/property-tax/california/"), font)).not.toContain("data-county");
+    expect(renderPage(byPath.get("/property-tax/california/marin-county/"), font)).toContain('data-county="Marin"');
+    expect(renderPage(byPath.get("/property-tax/california/san-francisco-county/"), font)).toContain('data-county="San Francisco"');
   });
 
   it("has a map position for every sourced city, and none it doesn't list", () => {

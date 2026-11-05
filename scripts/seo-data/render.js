@@ -2,7 +2,7 @@
 // stylesheet. No app bundle: these pages must read in full for crawlers that
 // never run JS. The CA tax pages' calculator is the one script, and only an
 // enhancement: its numbers are pre-rendered here (taxcalc block) and
-// /seo/tax-calc.js makes them live, adding the map on the hub. Every
+// /seo/tax-calc.js makes them live, adding the map on the hub and county pages. Every
 // interpolated string goes through esc().
 
 import { LIGHT, DARK } from "../../src/lib/theme.js";
@@ -68,7 +68,7 @@ function taxCalc(b) {
 <ul id="tax-city-list" class="city-list" role="listbox" aria-label="Matching cities" data-citylist hidden></ul>
 </div>
 </div>
-${b.map ? `<div class="taxmap" data-taxmap data-js="${TAX_MAP_JS}" data-src="${TAX_MAP_JSON}" hidden></div>\n` : ""}<label class="f"><span>Home price</span><span class="box"><i>$</i><input name="price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span></label>
+${b.map ? `<div class="taxmap" data-taxmap data-js="${TAX_MAP_JS}" data-src="${TAX_MAP_JSON}"${b.mapCounty ? ` data-county="${esc(b.mapCounty)}"` : ""} hidden></div>\n` : ""}<label class="f"><span>Home price</span><span class="box"><i>$</i><input name="price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span></label>
 <label class="f"><span>Tax rate <em data-fy>FY ${esc(b.fy)}</em></span><span class="box"><input name="rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span></label>
 <label class="f"><span>Fixed assessments</span><span class="box"><i>$</i><input name="fixed" inputmode="numeric" autocomplete="off" value="0" /><i>/yr</i></span></label>
 <label class="chk"><input type="checkbox" name="primary" checked /> Primary residence (${esc(`$${HOMEOWNERS_EXEMPTION.toLocaleString("en-US")}`)} homeowners' exemption)</label>
@@ -271,6 +271,7 @@ tr:target { outline: 2px solid var(--accent); outline-offset: -2px; }
 .m-frame .q4, .m-key .q4 { fill: var(--q4); background: var(--q4); }
 .m-hover, .m-sel, .m-county-hover { fill: none; vector-effect: non-scaling-stroke; pointer-events: none; }
 .m-county-hover { stroke: var(--text3); stroke-width: 1.25px; }
+.m-focus { fill: none; stroke: var(--text2); stroke-width: 1.5px; vector-effect: non-scaling-stroke; pointer-events: none; }
 .m-hover { stroke: var(--text); stroke-width: 1.5px; }
 .m-sel { stroke: var(--text); stroke-width: 2.25px; }
 .m-sel-dot { fill: none; stroke: var(--text); stroke-width: 2px; vector-effect: non-scaling-stroke; pointer-events: none; }

@@ -1,6 +1,7 @@
-// Clickable California map for the CA tax hub, served as /seo/tax-map.js (an ES
-// module, copied as-is by scripts/seo-data-pages.mjs). tax-calc.client.js loads
-// it only when the page has a [data-taxmap] element.
+// Clickable California map for the CA tax hub and county pages, served as
+// /seo/tax-map.js (an ES module, copied as-is by scripts/seo-data-pages.mjs).
+// tax-calc.client.js loads it only when the page has a [data-taxmap] element;
+// a data-county attribute on that element opens the map framed on that county.
 //
 // Geometry comes from /seo/ca-tax-map.json (see build-ca-map.mjs), already
 // projected to map units, so this file draws SVG and handles the pointer. Rates
@@ -24,6 +25,7 @@ const LABEL_MIN_PX = 34; // a shape this wide on screen earns a name
 const CITY_FRAME_UNITS = 600; // 60 km across when zooming to a small city
 const MAX_LABELS = 40;
 const AUTO_FRAME_BELOW = 0.25; // screen px per map unit
+const MIN_CITIES_TO_FRAME = 4; // below this, frame the county's lines instead of its few cities
 
 /** Quantile cut points, rounded for the legend: rates cluster, so even steps would paint nearly everything one shade. */
 export function rateBreaks(pcts, n = 5) {
@@ -67,6 +69,7 @@ export async function initTaxMap(el, { data, onPick }) {
   if (!res.ok) throw new Error(`tax map: ${res.status}`);
   const geo = await res.json();
 
+  const focus = el.dataset.county || null;
   const byName = new Map(data.cities.map((c) => [c.city, c]));
   const breaks = rateBreaks(data.cities.map((c) => c.pct));
   const rows = geo.cities.filter((g) => byName.has(g.city)).map((g) => ({ ...g, ...byName.get(g.city) }));
@@ -94,7 +97,7 @@ export async function initTaxMap(el, { data, onPick }) {
     `<g class="m-cities">${rows.map((r, i) => (r.d ? `<path data-i="${i}" class="q${bucketOf(r.pct, breaks)}" d="${r.d}"/>` : "")).join("")}</g>` +
     `<path class="m-lines" d="${geo.counties.map((c) => c.d).join("")}"/>` +
     `<g class="m-dots">${rows.map((r, i) => `<circle data-i="${i}" class="q${bucketOf(r.pct, breaks)}" cx="${r.x}" cy="${r.y}"/>`).join("")}</g>` +
-    `<path class="m-county-hover"/><path class="m-hover"/><path class="m-sel"/><circle class="m-sel-dot" hidden/><g class="m-labels"></g>`;
+    `<path class="m-focus" d="${geo.counties.find((c) => c.county === focus)?.d || ""}"/><path class="m-county-hover"/><path class="m-hover"/><path class="m-sel"/><circle class="m-sel-dot" hidden/><g class="m-labels"></g>`;
   const [countyHover, hover, sel, selDot, labels] = [".m-county-hover", ".m-hover", ".m-sel", ".m-sel-dot", ".m-labels"].map((s) => svg.querySelector(s));
   const tip = h("div", "m-tip");
   tip.hidden = true;
@@ -225,9 +228,27 @@ export async function initTaxMap(el, { data, onPick }) {
     anim = requestAnimationFrame(step);
   };
 
-  const fitBox = (x, y, w, ht) => {
-    const k = Math.min(vpW / (w * 1.15), vpH / (ht * 1.15)) / base;
-    animateTo(x + w / 2, y + ht / 2, k);
+  const boxView = ([x, y, w, ht]) => ({ x: x + w / 2, y: y + ht / 2, k: Math.min(vpW / (w * 1.15), vpH / (ht * 1.15)) / base });
+  const fitBox = (box) => {
+    const v = boxView(box);
+    animateTo(v.x, v.y, v.k);
+  };
+
+  // Frame the cities, not the county lines: LA County's offshore islands would
+  // double the view, and most of San Bernardino County is empty desert. With
+  // only a city or two, the county's own outline makes the better frame.
+  const frameOf = (list) => {
+    const inRegion = rows.filter((r) => list.includes(r.county));
+    if (inRegion.length < MIN_CITIES_TO_FRAME) {
+      const boxes = geo.counties.filter((c) => list.includes(c.county)).map((c) => c.box);
+      const x0 = Math.min(...boxes.map((b) => b[0])), y0 = Math.min(...boxes.map((b) => b[1]));
+      return [x0, y0, Math.max(...boxes.map((b) => b[0] + b[2])) - x0, Math.max(...boxes.map((b) => b[1] + b[3])) - y0];
+    }
+    const trim = Math.floor(inRegion.length * 0.02);
+    const xs = inRegion.map((r) => r.x).sort((a, b) => a - b).slice(trim, inRegion.length - trim);
+    const ys = inRegion.map((r) => r.y).sort((a, b) => a - b).slice(trim, inRegion.length - trim);
+    const pad = 150;
+    return [xs[0] - pad, ys[0] - pad, xs[xs.length - 1] - xs[0] + pad * 2, ys[ys.length - 1] - ys[0] + pad * 2];
   };
 
   // ── readouts ──
@@ -293,7 +314,7 @@ export async function initTaxMap(el, { data, onPick }) {
     if (doFrame === "auto" ? scale() < AUTO_FRAME_BELOW : doFrame) {
       markChip(null);
       const side = Math.max(CITY_FRAME_UNITS, (selected.side || 0) * 2.2);
-      fitBox(selected.x - side / 2, selected.y - side / 2, side, side);
+      fitBox([selected.x - side / 2, selected.y - side / 2, side, side]);
     } else {
       drawLabels();
     }
@@ -391,7 +412,7 @@ export async function initTaxMap(el, { data, onPick }) {
     if (county) {
       markChip(null);
       showCountyStrip(county.county);
-      fitBox(...county.box);
+      fitBox(county.box);
     }
   };
   svg.addEventListener("pointerup", endPointer);
@@ -446,7 +467,9 @@ export async function initTaxMap(el, { data, onPick }) {
   }
 
   // ── region chips ──
-  const chipEls = REGIONS.map(([label, list]) => {
+  // A county page only needs the way back to its county and the way out to the state.
+  const regions = focus ? [[countyLabel(focus), [focus]], ["California", null]] : REGIONS;
+  const chipEls = regions.map(([label, list]) => {
     const b = h("button", "m-chip", label);
     b.type = "button";
     b.setAttribute("aria-pressed", "false");
@@ -458,13 +481,7 @@ export async function initTaxMap(el, { data, onPick }) {
         else showPrompt();
         return;
       }
-      // Frame the cities, not the county lines: LA County's offshore islands would double the view.
-      const inRegion = rows.filter((r) => list.includes(r.county));
-      const trim = Math.floor(inRegion.length * 0.02);
-      const xs = inRegion.map((r) => r.x).sort((a, b) => a - b).slice(trim, inRegion.length - trim);
-      const ys = inRegion.map((r) => r.y).sort((a, b) => a - b).slice(trim, inRegion.length - trim);
-      const pad = 150;
-      fitBox(xs[0] - pad, ys[0] - pad, xs[xs.length - 1] - xs[0] + pad * 2, ys[ys.length - 1] - ys[0] + pad * 2);
+      fitBox(frameOf(list));
     });
     chips.append(b);
     return b;
@@ -482,6 +499,7 @@ export async function initTaxMap(el, { data, onPick }) {
     vpW = f.width; vpH = f.height;
     base = Math.min(vpW / geo.width, vpH / geo.height) * 0.97;
     measure();
+    if (first && focus) Object.assign(view, boxView(frameOf([focus])));
     applyView();
     drawLabels();
     if (first && selected) select(selected.city);
