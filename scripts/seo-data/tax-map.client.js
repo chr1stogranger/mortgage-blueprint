@@ -270,13 +270,16 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
     const who = h("span", "m-who");
     who.append(h("strong", null, c.city), h("span", null, countyLabel(c.county)));
     const rate = h("span", "m-rate");
-    rate.append(h("strong", null, pct4(c.pct)), h("span", null, `FY ${c.fy}`));
-    const est = h("span", "m-rate");
-    // The calculator keeps every data-out="annual" current; start from its figure.
-    const annual = h("strong", null, el.closest("form")?.querySelector('.calc-out [data-out="annual"]')?.textContent || "");
-    annual.dataset.out = "annual";
-    est.append(annual, h("span", null, "a year at this price"));
-    strip.replaceChildren(who, rate, est, link(c.path, `${c.city} rate page`));
+    rate.append(h("strong", null, pct4(c.pct)), h("span", null, `city rate, FY ${c.fy}`));
+    // The calculator keeps every data-out figure current; start from its numbers.
+    const outStat = (key, label) => {
+      const stat = h("span", "m-rate");
+      const value = h("strong", null, el.closest("form")?.querySelector(`.calc-hero [data-out="${key}"]`)?.textContent || "");
+      value.dataset.out = key;
+      stat.append(value, h("span", null, label));
+      return stat;
+    };
+    strip.replaceChildren(who, rate, outStat("annual", "annual tax"), outStat("effective", "true tax rate"), link(c.path, `${c.city} rate page`));
   };
   const showCountyStrip = (county) => {
     const stats = countyStats.get(county);

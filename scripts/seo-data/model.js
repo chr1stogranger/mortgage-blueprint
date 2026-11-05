@@ -25,6 +25,7 @@ import { CA_CITY_TAX_INFO, BAY_AREA_COUNTIES, CA_TAX_CURRENT_FY } from "../../sr
 import { CA_TAX_BILL_LOOKUP } from "../../src/data/caTaxBillLookup.js";
 import { STATE_PROPERTY_TAX_RATES } from "../../src/data/propertyTax.js";
 import { LICENSED_STATES, LICENSED_STATES_TEXT } from "../../src/data/licensing.js";
+import { CA_FIXED_ASSESSMENT_DEFAULT, CA_FIXED_ASSESSMENT_CITIES } from "../../src/data/caFixedAssessments.js";
 import { slugify, caCityTaxPath, caCountyTaxPath, CA_TAX_HUB_PATH } from "../../src/lib/seoPaths.js";
 
 export const ORIGIN = "https://blueprint.realstack.app";
@@ -33,6 +34,7 @@ const STATE_CODE = { Arizona: "AZ", California: "CA", Colorado: "CO", Hawaii: "H
 const UNITS = [1, 2, 3, 4];
 const TAX_PRICES = [500000, 750000, 1000000, 1500000, 2000000];
 const PRICE_EXAMPLE = 1000000;
+const TRUE_RATE = "Your true tax rate is the two together, the tax at the city rate plus fixed assessments, divided by the purchase price on a newly purchased home.";
 
 export const FOOTER_TEXT =
   `Chris Granger NMLS #952015 · Xpert Home Lending, Inc. NMLS #2179191 · Licensed in ${LICENSED_STATES_TEXT} · ` +
@@ -264,12 +266,13 @@ export function buildSite({ now, limitSource }) {
   );
   const citiesIn = (short) => cities.filter((x) => normalizeCounty(x.county) === normalizeCounty(short));
   // Property-tax calculator (render.js + tax-calc.client.js), pre-filled for one city.
+  const fixedTable = { default: CA_FIXED_ASSESSMENT_DEFAULT, cities: CA_FIXED_ASSESSMENT_CITIES };
   const calcSection = (x, { map = false, mapCounty = null } = {}) => ({
     heading: "Property tax calculator",
     blocks: [
       p(`${map ? "Search for a city or pick one on the map, then change" : "Search for a city, then change"} the price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown.`),
       {
-        type: "taxcalc", map, mapCounty, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
+        type: "taxcalc", map, mapCounty, fixedTable, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
         billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
       },
     ],
@@ -485,7 +488,7 @@ export function buildSite({ now, limitSource }) {
           p("When you buy a home in California, the purchase price becomes its assessed value. The tax is that value times the rate for the home's tax rate area: the 1% Proposition 13 base plus any voter-approved bonds."),
           p("After the purchase, the assessed value can rise by at most 2% a year until the home sells again, even if market values climb faster."),
           p("Buyers also get a supplemental tax bill after closing, covering the difference between the old owner's assessed value and the new one for the rest of the fiscal year."),
-          p("The rates here do not include Mello-Roos (Community Facilities District) taxes, flat parcel taxes or fixed special assessments, which can add a noticeable amount on some homes."),
+          p(`The rates here do not include Mello-Roos (Community Facilities District) taxes, flat parcel taxes or fixed special assessments, which can add a noticeable amount on some homes. ${TRUE_RATE}`),
           p(DUE_DATES),
         ],
       },
@@ -541,7 +544,7 @@ export function buildSite({ now, limitSource }) {
     if (bill?.url) billBlocks.push(p(`The ${bill.office} posts ${label} secured tax bills online: `, link(bill.url, "look up or pay a property tax bill"), ". You'll usually need the parcel number (APN)."));
     billBlocks.push(
       p(DUE_DATES),
-      p("A bill adds fixed charges to the rate: parcel taxes, Mello-Roos (Community Facilities District) taxes and special assessments such as sewer, flood control or lighting. Those vary by parcel and are not in the rates above."),
+      p(`A bill adds fixed charges to the rate: parcel taxes, Mello-Roos (Community Facilities District) taxes and special assessments such as sewer, flood control or lighting. Those vary by parcel and are not in the rates above. ${TRUE_RATE}`),
     );
     pages.push(page({
       now,
@@ -579,7 +582,7 @@ export function buildSite({ now, limitSource }) {
       {
         heading: "First-year property tax by purchase price",
         blocks: [
-          p(`Under Proposition 13 the purchase price becomes the assessed value, so the first-year tax is the price times ${total}.`),
+          p(`Under Proposition 13 the purchase price becomes the assessed value, so the first-year tax at the city rate is the price times ${total}. Fixed assessments come on top. ${TRUE_RATE}`),
           {
             type: "table",
             caption: `Estimated first-year property tax in ${x.city}, CA at ${total} (FY ${x.fy})`,
@@ -649,6 +652,7 @@ export function buildSite({ now, limitSource }) {
       .map((x) => ({ city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, path: cityPath(x) }))
       .sort((a, b) => order(a.county) - order(b.county) || a.county.localeCompare(b.county) || a.city.localeCompare(b.city)),
     bills: Object.fromEntries(Object.entries(CA_TAX_BILL_LOOKUP).filter(([, v]) => v?.url).map(([k, v]) => [k, v.url])),
+    fixed: fixedTable,
     countyPaths: Object.fromEntries([...caByCounty.keys()].map((k) => [k, taxCountyPath(k)])),
   };
   return { pages, sitemap: pages.map((pg) => ({ loc: pg.url, lastmod: now })), taxData };

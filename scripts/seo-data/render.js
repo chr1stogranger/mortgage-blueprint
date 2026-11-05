@@ -8,7 +8,7 @@
 import { LIGHT, DARK } from "../../src/lib/theme.js";
 import { FONT, MONO } from "../../src/lib/fonts.js";
 import { ORIGIN, FOOTER_TEXT } from "./model.js";
-import { computeTax, formatTax, HOMEOWNERS_EXEMPTION } from "./tax-calc.client.js";
+import { computeTax, formatTax, fixedEstimate, HOMEOWNERS_EXEMPTION } from "./tax-calc.client.js";
 
 export const CSS_PATH = "/seo/seo.css";
 export const TAX_CALC_JS = "/seo/tax-calc.js";
@@ -56,7 +56,9 @@ ${rows}
 
 // Property-tax calculator, pre-filled for one city (see tax-calc.client.js).
 function taxCalc(b) {
-  const out = formatTax(computeTax({ price: b.price, ratePct: b.pct, primary: true, fixed: 0 }));
+  const est = fixedEstimate(b.city, b.fixedTable);
+  const out = formatTax(computeTax({ price: b.price, ratePct: b.pct, primary: true, fixed: est.est }));
+  const live = (key) => `<span data-out="${key}">${esc(out[key])}</span>`;
   const row = (label, key, strong) =>
     `<tr${strong ? ' class="total"' : ""}><th scope="row">${esc(label)}</th><td class="num" data-out="${key}">${esc(out[key])}</td></tr>`;
   return `<form class="calc" data-taxcalc data-src="${TAX_DATA_JSON}" action="#" aria-label="Property tax calculator">
@@ -69,22 +71,25 @@ function taxCalc(b) {
 </div>
 </div>
 ${b.map ? `<div class="taxmap" data-taxmap data-js="${TAX_MAP_JS}" data-src="${TAX_MAP_JSON}"${b.mapCounty ? ` data-county="${esc(b.mapCounty)}"` : ""} hidden></div>\n` : ""}<label class="f"><span>Home price</span><span class="box"><i>$</i><input name="price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span></label>
-<label class="f"><span>Tax rate <em data-fy>FY ${esc(b.fy)}</em></span><span class="box"><input name="rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span></label>
-<label class="f"><span>Fixed assessments</span><span class="box"><i>$</i><input name="fixed" inputmode="numeric" autocomplete="off" value="0" /><i>/yr</i></span></label>
+<label class="f"><span>City tax rate <em data-fy>FY ${esc(b.fy)}</em></span><span class="box"><input name="rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span></label>
+<label class="f"><span>Fixed assessments <em>estimate</em></span><span class="box"><i>$</i><input name="fixed" inputmode="numeric" autocomplete="off" value="${esc(est.est.toLocaleString("en-US"))}" /><i>/yr</i></span></label>
 <label class="chk"><input type="checkbox" name="primary" checked /> Primary residence (${esc(`$${HOMEOWNERS_EXEMPTION.toLocaleString("en-US")}`)} homeowners' exemption)</label>
-<p class="hint">Fixed assessments are the Mello-Roos, parcel taxes and special assessments on the property's tax bill.</p>
+<p class="hint">Fixed assessments are the Mello-Roos, parcel taxes and special assessments on the property's tax bill. <span data-fixednote>${esc(est.note)}</span></p>
 <p class="bill-cta">${b.billUrl ? `<a class="pill" data-bill href="${esc(b.billUrl)}" rel="noopener">${esc(b.billLabel)}</a>` : `<a class="pill" data-bill hidden href="#" rel="noopener"></a>`}</p>
 </div>
+<div class="calc-hero">
+<div class="calc-stat"><span class="k">Annual property tax</span><strong data-out="annual">${esc(out.annual)}</strong><span class="s">${live("monthly")} a month</span></div>
+<div class="calc-stat"><span class="k">True tax rate</span><strong data-out="effective">${esc(out.effective)}</strong><span class="s">the rate you really pay</span></div>
+</div>
+<p class="calc-why">Your true tax rate counts the whole bill, not just the city rate. On a newly purchased home: (${live("base")} at the city rate + ${live("fixed")} in fixed assessments) &divide; ${live("price")} purchase price.</p>
 <div class="table-wrap"><table class="calc-out">
-<caption>Estimated first-year property tax</caption>
+<caption>How that adds up</caption>
 <tbody>
 ${row("Home exemption", "exemption")}
 ${row("Taxable value", "taxable")}
-${row("Base tax", "base")}
+${row("Tax at the city rate", "base")}
 ${row("Fixed assessments", "fixed")}
-${row("Annual total", "annual", true)}
-${row("Monthly", "monthly", true)}
-${row("Effective rate", "effective")}
+${row("Annual property tax", "annual", true)}
 </tbody>
 </table></div>
 </form>`;
@@ -304,6 +309,12 @@ tr:target { outline: 2px solid var(--accent); outline-offset: -2px; }
 .bill-cta { grid-column: 1 / -1; margin: 0; }
 .bill-cta .pill { display: block; padding: 14px 22px; font-size: 16px; line-height: 1.3; text-align: center; }
 .bill-cta .pill[hidden] { display: none; }
+.calc-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 14px 0 0; }
+.calc-stat { display: flex; flex-direction: column; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; }
+.calc-stat .k { font-size: 13px; font-weight: 600; color: var(--text2); }
+.calc-stat strong { font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; color: var(--text); font-variant-numeric: tabular-nums; }
+.calc-stat .s { font-size: 13px; color: var(--text2); font-variant-numeric: tabular-nums; }
+.calc-why { margin: 10px 0 0; font-size: 14px; }
 .calc .table-wrap { margin: 14px 0 0; }
 .calc-out { table-layout: fixed; }
 .calc-out th { white-space: normal; }

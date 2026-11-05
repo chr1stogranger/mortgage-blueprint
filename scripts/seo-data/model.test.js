@@ -195,7 +195,7 @@ describe("property tax calculator", () => {
     // (1,000,000 - 7,000) x 1.2127% = 12,042.11; + 1,500 = 13,542.11; / 1,000,000 = 1.354%
     const t = computeTax({ price: 1000000, ratePct: 1.2127, primary: true, fixed: 1500 });
     expect(formatTax(t)).toEqual({
-      exemption: "-$7,000", taxable: "$993,000", base: "$12,042.11", fixed: "$1,500.00",
+      price: "$1,000,000", exemption: "-$7,000", taxable: "$993,000", base: "$12,042.11", fixed: "$1,500.00",
       annual: "$13,542.11", monthly: "$1,128.51", effective: "1.354%",
     });
     expect(computeTax({ price: 1000000, ratePct: 1.2127, primary: false, fixed: 0 }).annual).toBeCloseTo(12127, 6);
@@ -218,6 +218,27 @@ describe("property tax calculator", () => {
     const base = ((1000000 - 7000) * pct) / 100;
     expect(fremont).toContain(`data-out="base">$${base.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<`);
     expect(fremont).toMatch(/<a class="pill" data-bill href="[^"]*propertytax\.alamedacountyca\.gov[^"]*"[^>]*>Look up your Alameda County tax bill<\/a>/);
+  });
+
+  it("never defaults fixed assessments to $0, and leads with annual tax and the true rate", async () => {
+    const { computeTax, formatTax, fixedEstimate } = await import("./tax-calc.client.js");
+    const font = { fontHref: "/fonts/fonts.css" };
+    const table = site.taxData.fixed;
+    expect(table.default).toBeGreaterThan(0);
+    for (const c of Object.keys(table.cities)) expect(CA_CITY_COUNTY[c], c).toBeTruthy();
+    for (const p of site.pages.filter((x) => x.path.startsWith("/property-tax/"))) {
+      expect(renderPage(p, font), p.path).not.toContain('name="fixed" inputmode="numeric" autocomplete="off" value="0"');
+    }
+    expect(fixedEstimate("Fremont", table).est).toBe(table.default);
+    expect(fixedEstimate("Berkeley", table)).toMatchObject({ est: 5000 });
+    expect(fixedEstimate("Berkeley", table).note).toContain("$3,000 to $7,000");
+    expect(fixedEstimate("San Francisco", table).note).toContain("$750 to $1,200");
+    // Pre-rendered with the estimate included: (1,000,000 - 7,000) x rate + 5,000
+    const berkeley = renderPage(byPath.get("/property-tax/california/berkeley/"), font);
+    expect(berkeley).toContain('value="5,000"');
+    const out = formatTax(computeTax({ price: 1000000, ratePct: CA_CITY_TAX_RATES.Berkeley * 100, primary: true, fixed: 5000 }));
+    expect(berkeley).toContain(`<strong data-out="annual">${out.annual}</strong>`);
+    expect(berkeley).toContain(`<strong data-out="effective">${out.effective}</strong>`);
   });
 
   it("puts the map on the hub and county pages, opened on the county; never on city pages", () => {

@@ -10,8 +10,10 @@
 //
 // Same math as Blueprint's Tax breakdown (MortgageBlueprint.jsx calc):
 // taxable = max(0, price - exemption); base = taxable x rate;
-// annual = base + fixed assessments. The generator and the tests import
-// computeTax from this file, so the static and live numbers can't disagree.
+// annual = base + fixed assessments. The true (effective) tax rate is annual /
+// price: on a new purchase the price is the assessed value. The generator and
+// the tests import computeTax from this file, so the static and live numbers
+// can't disagree.
 
 export const HOMEOWNERS_EXEMPTION = 7000;
 
@@ -27,7 +29,7 @@ export function computeTax({ price, ratePct, primary, fixed }) {
   const taxable = Math.max(0, p - exemption);
   const base = taxable * r;
   const annual = base + f;
-  return { exemption, taxable, base, fixed: f, annual, monthly: annual / 12, effectivePct: p > 0 ? (annual / p) * 100 : 0 };
+  return { price: p, exemption, taxable, base, fixed: f, annual, monthly: annual / 12, effectivePct: p > 0 ? (annual / p) * 100 : 0 };
 }
 
 const usd0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -36,6 +38,7 @@ const usd2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD"
 /** The output cells, keyed by their data-out attribute. */
 export function formatTax(t) {
   return {
+    price: usd0.format(t.price),
     exemption: t.exemption ? `-${usd0.format(t.exemption)}` : "$0",
     taxable: usd0.format(t.taxable),
     base: usd2.format(t.base),
@@ -44,6 +47,18 @@ export function formatTax(t) {
     monthly: usd2.format(t.monthly),
     effective: `${t.effectivePct.toFixed(3)}%`,
   };
+}
+
+/**
+ * A city's starting fixed-assessment estimate and the sentence that labels it
+ * as one. `table` is { default, cities } (see src/data/caFixedAssessments.js).
+ * @returns {{ est: number, note: string }}
+ */
+export function fixedEstimate(city, table) {
+  const row = table.cities[city];
+  const dollars = (n) => usd0.format(n);
+  if (row) return { est: row.est, note: `In ${city} they often run ${dollars(row.low)} to ${dollars(row.high)} a year, so we start at ${dollars(row.est)}. They vary by parcel, so check the actual bill.` };
+  return { est: table.default, note: `We start with an estimate of ${dollars(table.default)} a year. They vary by parcel, so check the actual bill.` };
 }
 
 const fold = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -89,6 +104,8 @@ function init(form) {
   const hint = form.querySelector("[data-cityhint]");
   const bill = form.querySelector("[data-bill]");
   const fyOut = form.querySelector("[data-fy]");
+  const fixedNote = form.querySelector("[data-fixednote]");
+  let fixedTouched = false; // once someone enters their own figure, picking a city keeps it
   let data = null;
   let map = null;
   let current = city.value; // the last real city, restored when a search is abandoned
@@ -118,6 +135,9 @@ function init(form) {
     rate.value = x.pct.toFixed(4);
     if (fyOut) fyOut.textContent = `FY ${x.fy}`;
     setBill(x.county);
+    const est = fixedEstimate(x.city, data.fixed);
+    if (fixedNote) fixedNote.textContent = est.note;
+    if (!fixedTouched) fixed.value = commas(est.est);
     map?.select(x.city, mapOpts);
     render();
   };
@@ -206,7 +226,10 @@ function init(form) {
   });
 
   form.addEventListener("submit", (e) => e.preventDefault());
-  form.addEventListener("input", (e) => { if (e.target !== city) render(); });
+  form.addEventListener("input", (e) => {
+    if (e.target === fixed) fixedTouched = true;
+    if (e.target !== city) render();
+  });
   for (const el of [price, fixed]) el.addEventListener("blur", () => { el.value = commas(num(el.value)) || (el === fixed ? "0" : ""); render(); });
   form.classList.add("live");
 
