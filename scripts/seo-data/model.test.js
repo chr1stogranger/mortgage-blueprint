@@ -217,7 +217,7 @@ describe("property tax calculator", () => {
     const pct = CA_CITY_TAX_RATES.Fremont * 100;
     const base = ((1000000 - 7000) * pct) / 100;
     expect(fremont).toContain(`data-out="base">$${base.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<`);
-    expect(fremont).toContain("propertytax.alamedacountyca.gov");
+    expect(fremont).toMatch(/<a class="pill" data-bill href="[^"]*propertytax\.alamedacountyca\.gov[^"]*"[^>]*>Look up your Alameda County tax bill<\/a>/);
   });
 
   it("puts the map on the hub and county pages, opened on the county; never on city pages", () => {

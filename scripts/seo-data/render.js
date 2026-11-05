@@ -72,7 +72,8 @@ ${b.map ? `<div class="taxmap" data-taxmap data-js="${TAX_MAP_JS}" data-src="${T
 <label class="f"><span>Tax rate <em data-fy>FY ${esc(b.fy)}</em></span><span class="box"><input name="rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span></label>
 <label class="f"><span>Fixed assessments</span><span class="box"><i>$</i><input name="fixed" inputmode="numeric" autocomplete="off" value="0" /><i>/yr</i></span></label>
 <label class="chk"><input type="checkbox" name="primary" checked /> Primary residence (${esc(`$${HOMEOWNERS_EXEMPTION.toLocaleString("en-US")}`)} homeowners' exemption)</label>
-<p class="hint">Fixed assessments are the Mello-Roos, parcel taxes and special assessments on the property's tax bill. ${b.billUrl ? `<a data-bill href="${esc(b.billUrl)}" rel="noopener">${esc(b.billLabel)}</a>` : `<a data-bill hidden href="#" rel="noopener"></a>`}</p>
+<p class="hint">Fixed assessments are the Mello-Roos, parcel taxes and special assessments on the property's tax bill.</p>
+<p class="bill-cta">${b.billUrl ? `<a class="pill" data-bill href="${esc(b.billUrl)}" rel="noopener">${esc(b.billLabel)}</a>` : `<a class="pill" data-bill hidden href="#" rel="noopener"></a>`}</p>
 </div>
 <div class="table-wrap"><table class="calc-out">
 <caption>Estimated first-year property tax</caption>
@@ -300,6 +301,9 @@ tr:target { outline: 2px solid var(--accent); outline-offset: -2px; }
 .calc .chk { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
 .calc .chk input { width: 18px; height: 18px; accent-color: var(--accent); }
 .calc .hint { grid-column: 1 / -1; margin: 0; font-size: 13px; }
+.bill-cta { grid-column: 1 / -1; margin: 0; }
+.bill-cta .pill { display: block; padding: 14px 22px; font-size: 16px; line-height: 1.3; text-align: center; }
+.bill-cta .pill[hidden] { display: none; }
 .calc .table-wrap { margin: 14px 0 0; }
 .calc-out { table-layout: fixed; }
 .calc-out th { white-space: normal; }

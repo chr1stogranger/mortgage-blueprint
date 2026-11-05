@@ -101,6 +101,15 @@ function init(form) {
       for (const el of form.querySelectorAll(`[data-out="${k}"]`)) el.textContent = v;
     }
   };
+  const setBill = (county) => {
+    const url = data?.bills[county];
+    if (!bill) return;
+    bill.hidden = !url;
+    if (url) {
+      bill.href = url;
+      bill.textContent = `Look up your ${countyLabel(county)} tax bill`;
+    }
+  };
   const pickCity = (name, mapOpts) => {
     const x = data?.cities.find((c) => c.city === name);
     if (!x) return;
@@ -108,14 +117,7 @@ function init(form) {
     city.value = x.city;
     rate.value = x.pct.toFixed(4);
     if (fyOut) fyOut.textContent = `FY ${x.fy}`;
-    const url = data.bills[x.county];
-    if (bill) {
-      bill.hidden = !url;
-      if (url) {
-        bill.href = url;
-        bill.textContent = `Look up your ${countyLabel(x.county)} tax bill`;
-      }
-    }
+    setBill(x.county);
     map?.select(x.city, mapOpts);
     render();
   };
@@ -217,7 +219,7 @@ function init(form) {
       if (!mapEl) return;
       mapEl.hidden = false; // holds its space while the geometry loads, so the page doesn't jump
       return import(mapEl.dataset.js)
-        .then((m) => m.initTaxMap(mapEl, { data: d, onPick: (name) => pickCity(name, { frame: "auto" }) }))
+        .then((m) => m.initTaxMap(mapEl, { data: d, onPick: (name) => pickCity(name, { frame: "auto" }), onCounty: setBill }))
         .then((m) => {
           map = m;
           pickCity(current);

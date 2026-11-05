@@ -61,10 +61,10 @@ const link = (href, text) => {
 
 /**
  * @param {HTMLElement} el  the [data-taxmap] element
- * @param {{ data: { cities: object[], bills: object, countyPaths: object }, onPick: (city: string) => void }} opts
+ * @param {{ data: { cities: object[], countyPaths: object }, onPick: (city: string) => void, onCounty: (county: string) => void }} opts  onCounty: the map is now showing this county, so the bill button should follow
  * @returns {Promise<{ select: (city: string, opts?: { frame?: boolean | "auto" }) => void }>}
  */
-export async function initTaxMap(el, { data, onPick }) {
+export async function initTaxMap(el, { data, onPick, onCounty }) {
   const res = await fetch(el.dataset.src);
   if (!res.ok) throw new Error(`tax map: ${res.status}`);
   const geo = await res.json();
@@ -289,7 +289,6 @@ export async function initTaxMap(el, { data, onPick }) {
       parts.push(rate);
     }
     if (data.countyPaths[county]) parts.push(link(data.countyPaths[county], "County rates"));
-    if (data.bills[county]) parts.push(link(data.bills[county], "Look up a tax bill"));
     strip.replaceChildren(...parts);
   };
 
@@ -412,6 +411,7 @@ export async function initTaxMap(el, { data, onPick }) {
     if (county) {
       markChip(null);
       showCountyStrip(county.county);
+      onCounty(county.county);
       fitBox(county.box);
     }
   };
@@ -477,8 +477,12 @@ export async function initTaxMap(el, { data, onPick }) {
       markChip(b);
       if (!list) {
         animateTo(geo.width / 2, geo.height / 2, 1);
-        if (selected) select(selected.city);
-        else showPrompt();
+        if (selected) {
+          select(selected.city);
+          onCounty(selected.county);
+        } else {
+          showPrompt();
+        }
         return;
       }
       fitBox(frameOf(list));
