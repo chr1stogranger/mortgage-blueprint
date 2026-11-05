@@ -6,6 +6,7 @@ import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
 import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
 import { CA_TAX_BILL_LOOKUP } from "../../src/data/caTaxBillLookup.js";
+import { caCountyTaxPath } from "../../src/lib/seoPaths.js";
 import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, CA_TAX_STALE_COUNTIES, BAY_AREA_COUNTIES } from "../../src/data/caTaxRates.js";
 import { COUNTY_LIMITS, normalizeCounty, getCountyLimits } from "../../src/data/loanLimits.js";
 
@@ -53,7 +54,20 @@ describe("generated data files", () => {
       expect(v.url, k).toMatch(/^https:\/\//);
       expect(v.office, k).toBeTruthy();
     }
-    expect(CA_TAX_STALE_COUNTIES).toEqual(CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY).map((c) => c.county));
+    expect(CA_TAX_STALE_COUNTIES).toEqual(CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY || c.computed).map((c) => c.county));
+  });
+});
+
+describe("computed rates", () => {
+  it("says so wherever a county's rates are summed from its bills", () => {
+    const computed = CA_TAX_COUNTIES.filter((c) => c.computed);
+    expect(computed.map((c) => c.county)).toEqual(["San Bernardino"]);
+    for (const c of computed) {
+      expect(CA_TAX_STALE_COUNTIES).toContain(c.county);
+      expect(c.source).toMatch(/added up/);
+      expect(byPath.get(caCountyTaxPath(c.county))?.lead).toMatch(/added up from the district rates/);
+    }
+    expect(pageText(byPath.get("/property-tax/california/"))).toMatch(/San Bernardino County hasn't published/);
   });
 });
 

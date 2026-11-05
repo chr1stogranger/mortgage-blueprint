@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { FONT, MONO } from "../lib/fonts.js";
 import Icon from "../Icon";
 import BottomSheet from "../BottomSheet";
-import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, CA_TAX_STALE_COUNTIES, BAY_AREA_COUNTIES, CA_CITY_TAX_INFO } from "../data/caTaxRates.js";
+import { CA_TAX_COUNTIES, CA_TAX_CURRENT_FY, BAY_AREA_COUNTIES, CA_CITY_TAX_INFO } from "../data/caTaxRates.js";
 import { CA_TAX_BILL_LOOKUP } from "../data/caTaxBillLookup.js";
 import { caCityTaxUrl, caCountyTaxUrl, CA_TAX_HUB_URL } from "../lib/seoPaths.js";
 
@@ -37,6 +37,9 @@ const outLink = (T, href, children, style) => (
   {children} <Icon name="external-link" size={11} />
  </a>
 );
+
+const BEHIND_COUNT = CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY).length;
+const COMPUTED_COUNTIES = CA_TAX_COUNTIES.filter((c) => c.computed).map((c) => c.county);
 
 const SORTS = [["county", "By county"], ["low", "Lowest first"], ["high", "Highest first"]];
 
@@ -213,9 +216,9 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
      ))}
     </div>
 
-    {CA_TAX_STALE_COUNTIES.length > 0 && (
+    {BEHIND_COUNT > 0 && (
      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, lineHeight: 1.5 }}>
-      Rates are FY {CA_TAX_CURRENT_FY} where the county has published them. Counties with an <span style={{ color: T.orange }}>orange year</span> haven't yet ({CA_TAX_STALE_COUNTIES.length} of {CA_TAX_COUNTIES.length}); they update as they publish.
+      Rates are FY {CA_TAX_CURRENT_FY} where the county has published them. Counties with an <span style={{ color: T.orange }}>orange year</span> haven't yet ({BEHIND_COUNT} of {CA_TAX_COUNTIES.length}); they update as they publish.
      </div>
     )}
 
@@ -238,7 +241,7 @@ export default function CityTaxRatesSheet({ T, isOpen, onClose, city, county }) 
     <div style={{ marginTop: 14 }}>{outLink(T, CA_TAX_HUB_URL, "Every California city's rate, with sources", { fontSize: 12 })}</div>
 
     <div style={{ fontSize: 10, color: T.textTertiary, lineHeight: 1.5, marginTop: 10 }}>
-     Source: each county's published tax rate book (San Francisco: the Treasurer's secured rate). Other tax areas in the same city can differ; the property's tax bill is the final word.
+     Source: each county's published tax rate book (San Francisco: the Treasurer's secured rate{COMPUTED_COUNTIES.length > 0 && `; ${COMPUTED_COUNTIES.join(", ")}: added up from its FY ${CA_TAX_CURRENT_FY} tax bills until its rate book is out`}). Other tax areas in the same city can differ; the property's tax bill is the final word.
     </div>
    </div>
   </BottomSheet>

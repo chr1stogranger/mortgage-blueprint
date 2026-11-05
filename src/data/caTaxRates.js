@@ -13,7 +13,9 @@
 // bonds. Flat parcel taxes, Mello-Roos/CFDs and special assessments are NOT
 // included. Every number comes from the county's own published document at
 // `url`; never add a city without one (the 1.25% block in citiesData.js is a
-// placeholder and must never show up as a sourced rate).
+// placeholder and must never show up as a sourced rate). The one exception is
+// a block marked `computed`: its rates are summed from the county's bill data
+// and pages say so, and it counts as stale until the rate book replaces it.
 
 /** The fiscal year the table is being refreshed to. */
 export const CA_TAX_CURRENT_FY = "2026-27";
@@ -402,16 +404,19 @@ export const CA_TAX_COUNTIES = [
   },
  },
  {
-  county: "San Bernardino", fy: "2025-26",
-  source: "San Bernardino County Valuations - Tax Rates, Code Area Tax Rates 2025-2026 (Tax Rate Book, Auditor-Controller/Treasurer/Tax Collector Ensen Mason)",
-  url: "https://downloads.ctfassets.net/wrl7z79vuuk1/3jjPtwSNSeRzsObPJySmgq/4d41f949f1bf79c030c00ad06b45fbff/FY2025-26_Tax_Rate_Book_-_Print_Proof_v2_ADS.pdf",
+  // Added up from the county's bill files (Christo's call, 2026-11-04): its
+  // 2026-27 Tax Rate Book isn't out. Drop `computed` and swap in the book's
+  // rates, source and url once it is.
+  county: "San Bernardino", fy: "2026-27", computed: true,
+  source: "San Bernardino County Auditor-Controller/Treasurer/Tax Collector open data, FY 2026-27 secured bills (the county's rate book isn't out yet, so each rate is the district rates on those bills, added up)",
+  url: "https://opendata.sbcountyatc.gov/dataset/aa598a4e47c611f0aafde6930ba38f4d",
   rates: {
-   "Adelanto": 1.1727, "Apple Valley": 1.1014, "Barstow": 1.1183, "Big Bear Lake": 1.0567,
-   "Chino": 1.1094, "Chino Hills": 1.1094, "Colton": 1.2401, "Fontana": 1.1131,
-   "Grand Terrace": 1.2401, "Hesperia": 1.0746, "Highland": 1.2343, "Loma Linda": 1.2343,
-   "Montclair": 1.0947, "Needles": 1.0647, "Ontario": 1.0947, "Rancho Cucamonga": 1.0811,
-   "Redlands": 1.2343, "Rialto": 1.2331, "San Bernardino": 1.2416, "Twentynine Palms": 1.085,
-   "Upland": 1.0732, "Victorville": 1.2261, "Yucaipa": 1.1599, "Yucca Valley": 1.14,
+   "Adelanto": 1.16611616, "Apple Valley": 1.10151307, "Barstow": 1.11440386, "Big Bear Lake": 1.05274804,
+   "Chino": 1.10618729, "Chino Hills": 1.10618729, "Colton": 1.20824402, "Fontana": 1.10684128,
+   "Grand Terrace": 1.20824402, "Hesperia": 1.07578168, "Highland": 1.18437658, "Loma Linda": 1.18437658,
+   "Montclair": 1.09322566, "Needles": 1.0828183, "Ontario": 1.09322566, "Rancho Cucamonga": 1.0721086,
+   "Redlands": 1.18437658, "Rialto": 1.19444464, "San Bernardino": 1.17461084, "Twentynine Palms": 1.08331249,
+   "Upland": 1.09816039, "Victorville": 1.21630407, "Yucaipa": 1.0856643, "Yucca Valley": 1.13831249,
   },
  },
  {
@@ -556,11 +561,11 @@ export const CA_TAX_COUNTIES = [
  },
 ];
 
-/** city -> { county, fy, pct, source, url } for every sourced city. */
+/** city -> { county, fy, pct, source, url, computed } for every sourced city. */
 export const CA_CITY_TAX_INFO = {};
 for (const c of CA_TAX_COUNTIES) {
  for (const [city, pct] of Object.entries(c.rates)) {
-  CA_CITY_TAX_INFO[city] = { county: c.county, fy: c.fy, pct, source: c.source, url: c.url };
+  CA_CITY_TAX_INFO[city] = { county: c.county, fy: c.fy, pct, source: c.source, url: c.url, computed: !!c.computed };
  }
 }
 
@@ -569,5 +574,5 @@ export const CA_CITY_TAX_SOURCED = Object.fromEntries(
  Object.entries(CA_CITY_TAX_INFO).map(([city, x]) => [city, Math.round(x.pct * 1e7) / 1e9]),
 );
 
-/** Counties whose rates are still from an earlier year than CA_TAX_CURRENT_FY. */
-export const CA_TAX_STALE_COUNTIES = CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY).map((c) => c.county);
+/** Counties the weekly check still watches: on an earlier year than CA_TAX_CURRENT_FY, or waiting on a rate book to replace computed rates. */
+export const CA_TAX_STALE_COUNTIES = CA_TAX_COUNTIES.filter((c) => c.fy !== CA_TAX_CURRENT_FY || c.computed).map((c) => c.county);
