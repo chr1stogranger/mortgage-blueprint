@@ -647,26 +647,28 @@ describe("stateGainTax long-term breaks", () => {
     // 25,000 × 7.6% + 49,999 × 7.9% + 24,999 × 8.25% = 1,900 + 3,949.92 + 2,062.42
     expect(stateGainTax(100000, 108000, "Hawaii", "Single", { longTerm: false })).toBeCloseTo(7912.34, 2);
   });
-  it("Hawaii's worksheet keeps the first $24,000 at ordinary rates, then 7.25%", () => {
-    // Single, $0 taxable before, $120,000 after. Tax on $24,000 = 859.05, plus $96,000 × 7.25%.
-    // Ordinary on $120,000 would be 8,010.83, so the cap wins.
-    expect(stateGainTax(120000, 8000, "Hawaii", "Single", lt)).toBeCloseTo(7819.05, 2);
+  it("Hawaii's worksheet keeps the first $48,000 at ordinary rates, then 7.25%", () => {
+    // Single, $0 taxable before, $120,000 after. Tax on $48,000 (top of the 7.2% bracket)
+    // = 2,538.91, plus $72,000 × 7.25% = 5,220. Ordinary on $120,000 would be 8,010.83, so the cap wins.
+    expect(stateGainTax(120000, 8000, "Hawaii", "Single", lt)).toBeCloseTo(7758.91, 2);
   });
-  it("Hawaii's worksheet stays with ordinary tax when that comes out smaller", () => {
-    // Single, $0 to $50,000 taxable. Worksheet: 859.05 + $26,000 × 7.25% = 2,744.05. Ordinary: 2,690.83.
-    expect(stateGainTax(50000, 8000, "Hawaii", "Single", lt)).toBeCloseTo(2690.83, 2);
+  it("Hawaii's worksheet stays with ordinary tax when the gain never clears the floor", () => {
+    // Single, $0 to $40,000 taxable: all of it sits under the $48,000 floor, so the
+    // 7.25% line never applies and the answer is plain ordinary tax, 1,962.91.
+    expect(stateGainTax(40000, 8000, "Hawaii", "Single", lt)).toBeCloseTo(1962.91, 2);
   });
   it("Hawaii uses the filing status schedule, deduction and floor", () => {
-    // MFJ, $16,000 income, $240,000 gain: 1,718.25 + $192,000 × 7.25%
-    expect(stateGainTax(240000, 16000, "Hawaii", "MFJ", lt)).toBeCloseTo(15638.25, 2);
-    // HOH, $12,000 income, $180,000 gain: 1,288.65 + $144,000 × 7.25%
-    expect(stateGainTax(180000, 12000, "Hawaii", "HOH", lt)).toBeCloseTo(11728.65, 2);
+    // MFJ, $16,000 income less the $16,000 deduction, $240,000 gain: 5,078.11 + $144,000 × 7.25%
+    expect(stateGainTax(240000, 16000, "Hawaii", "MFJ", lt)).toBeCloseTo(15518.11, 2);
+    // HOH, $12,000 income less the $11,704 deduction ($296 taxable), $180,000 gain:
+    // tax on $72,000 = 3,808.51, plus $108,296 × 7.25% = 7,851.46, less the $4.14 already due on $296
+    expect(stateGainTax(180000, 12000, "Hawaii", "HOH", lt)).toBeCloseTo(11655.82, 2);
   });
   it("describes the break that applied", () => {
     expect(stateGainBreakNote(100000, 80000, "Arizona", "Single", lt)).toBe("after Arizona's 25% long-term subtraction");
     expect(stateGainBreakNote(100000, 80000, "Arizona", "Single", { longTerm: true, acquiredYear: 2011 })).toBe("with no 25% subtraction on a purchase before 2012");
     expect(stateGainBreakNote(100000, 108000, "Hawaii", "Single", lt)).toBe("with Hawaii's 7.25% long-term cap");
-    expect(stateGainBreakNote(50000, 8000, "Hawaii", "Single", lt)).toBeNull();
+    expect(stateGainBreakNote(40000, 8000, "Hawaii", "Single", lt)).toBeNull();
     expect(stateGainBreakNote(100000, 108000, "Hawaii", "Single", { longTerm: false })).toBeNull();
     expect(stateGainBreakNote(100000, 80000, "California", "Single", lt)).toBeNull();
   });

@@ -72,10 +72,15 @@ export const STATE_TAX = {
  // under Act 46 (SLH 2024); standard deduction per DOTAX. Not modeled: the $1,144
  // personal exemption. Act 24 (SLH 2026) changes rates and brackets from 2027,
  // and the deduction steps up in 2028, so refresh every January.
- // ltGainCap: HRS §235-51(f) as run by the N-11 Tax on Capital Gains Worksheet;
- // floor is its line 12 (2025 form, the latest published).
- "Hawaii": { type:"progressive", year:2026, std:{s:8000,m:16000,h:12000},
-  ltGainCap:{ rate:0.0725, floor:{s:24000,m:48000,h:36000} },
+ // Standard deduction per Act 46 (SLH 2024) for tax years beginning after
+ // 12/31/2025: $8,000 single, $16,000 joint, $11,704 head of household.
+ // ltGainCap: HRS §235-51(f) as run by the N-11 Tax on Capital Gains Worksheet.
+ // The worksheet floor is the top of the 7.2% bracket (above it the ordinary
+ // rate beats 7.25%), so it doubles with the 2026 brackets: 48k/96k/72k. The
+ // 2025 form printed 24k/48k/36k against the old brackets; confirm against the
+ // 2026 N-11 when DOTAX publishes it.
+ "Hawaii": { type:"progressive", year:2026, std:{s:8000,m:16000,h:11704},
+  ltGainCap:{ rate:0.0725, floor:{s:48000,m:96000,h:72000} },
   s:B([[9600,0.014],[14400,0.032],[19200,0.055],[24000,0.064],[36000,0.068],[48000,0.072],[125000,0.076],[175000,0.079],[225000,0.0825],[275000,0.09],[325000,0.10],[Infinity,0.11]]),
   m:B([[19200,0.014],[28800,0.032],[38400,0.055],[48000,0.064],[72000,0.068],[96000,0.072],[250000,0.076],[350000,0.079],[450000,0.0825],[550000,0.09],[650000,0.10],[Infinity,0.11]]),
   h:B([[14400,0.014],[21600,0.032],[28800,0.055],[36000,0.064],[54000,0.068],[72000,0.072],[187500,0.076],[262500,0.079],[337500,0.0825],[412500,0.09],[487500,0.10],[Infinity,0.11]]) },
