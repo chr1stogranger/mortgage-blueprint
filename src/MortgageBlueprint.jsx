@@ -7508,7 +7508,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sellGrossGain = sellPrice - sellAdjBasis - sellTotalCosts;
   const sellExclusionLimit = (sellPrimaryRes && sellYearsOwned >= 2) ? (married === "MFJ" ? 500000 : 250000) : 0;
   const sellTaxableGain = Math.max(0, sellGrossGain - sellExclusionLimit);
-  const sellIsLongTerm = sellYearsOwned >= 1;
+  const sellIsLongTerm = sellYearsOwned > 1; // IRC 1222: long-term means held MORE than one year; exactly 1 yr is short-term
   const sellFedGainTax = sellIsLongTerm ? longTermGainFedTax(sellTaxableGain, annualIncome, married) : shortTermGainFedTax(sellTaxableGain, annualIncome, married);
   const fedLTCGRate = sellIsLongTerm && sellTaxableGain > 0 ? sellFedGainTax / sellTaxableGain : null; // average: one gain can span brackets
   const sellNIIT = gainNIIT(sellTaxableGain, annualIncome, married);
