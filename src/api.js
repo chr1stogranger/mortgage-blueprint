@@ -393,6 +393,18 @@ export async function fetchListing(token) {
   return res.json();
 }
 
+// ─── Personal LO link (?lo=<code>) ──────────────────────────────────────────
+// No auth, like fetchListing: the LO's public card from Ops (CORS *).
+export async function fetchLoCard(code) {
+  const res = await fetch(`${API_BASE}/api/lo-card?c=${encodeURIComponent(code)}`);
+  if (!res.ok) {
+    const err = new Error(`LO card fetch failed: ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 // ─── MCP handoff (ChatGPT / Claude → ?plan=<token>) ─────────────────────────
 // No auth, like fetchListing. Served by THIS app's own /api/plan (not Ops), so
 // it goes through apiUrl (absolute on Capacitor; imported lazily because

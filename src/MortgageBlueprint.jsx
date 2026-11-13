@@ -39,6 +39,7 @@ import { DARK, LIGHT, tintOver, isTranslucentColor } from "./lib/theme.js";
 import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import { DEFAULT_APPLY_URL, getApplyUrl, applyHref } from "./lib/applyUrl.js";
+import { readLoCode, identityFromLoCard } from "./lib/loLink.js";
 import Icon from "./Icon";
 import { CA_TAX_HUB_URL } from "./lib/seoPaths.js";
 import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT, useKeyboardOpen } from "./components/MobileTabBar.jsx";
@@ -85,7 +86,7 @@ import {
   searchAriveLoans, fetchAriveImport, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
-  fetchSharedData, fetchListing, fetchPlan,
+  fetchSharedData, fetchListing, fetchLoCard, fetchPlan,
   saveSharedScenario, renameSharedScenario, deleteSharedScenario, reorderSharedScenarios,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios, saveScenarioVersion } from "./lib/supabaseClient";
@@ -2020,6 +2021,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   try { localStorage.setItem("bp_lo_info", JSON.stringify({ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, applyUrl })); } catch { /* private mode */ }
  }, [loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, applyUrl]);
+ // ── ?lo=<code>: an LO's personal link (email signature, texts). A guest
+ // device adopts that LO as its contact, pre-approval link included, and keeps
+ // it (bp_lo_info) for return visits. Never on a device an LO has signed into
+ // (bp_lo_info_owner), and never in share-link borrower mode. lib/loLink.js.
+ const [loCode] = useState(() => {
+  if (isBorrower) return null;
+  try { return readLoCode(window.location.search); } catch { return null; }
+ });
+ useEffect(() => {
+  if (!loCode || isBorrower) return;
+  let owner = "";
+  try { owner = localStorage.getItem("bp_lo_info_owner") || ""; } catch { /* private mode */ }
+  if (owner) return;
+  let alive = true;
+  fetchLoCard(loCode).then((data) => {
+   const id = alive ? identityFromLoCard(data?.lo) : null;
+   if (!id) return;
+   setLoanOfficer(id.loanOfficer);
+   if (id.loEmail) setLoEmail(id.loEmail);
+   setLoPhone(id.loPhone);
+   setLoNmls(id.loNmls);
+   if (id.companyName) setCompanyName(id.companyName);
+   setApplyUrl(id.applyUrl);
+  }).catch(() => { /* expired or offline: keep what the device had */ });
+  return () => { alive = false; };
+ }, [loCode, isBorrower]); // eslint-disable-line react-hooks/exhaustive-deps
  // ── LO identity + signature come from Ops (2026-07-29; every load since
  //    2026-10-31, Christo: "it should just flow in from Ops") ──
  // Name / email / phone / NMLS / company: the Ops marketing profile, then the
@@ -2073,7 +2100,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (sig) { setLoSignature(sig.html); setOpsSigState("ops"); }
     else if (sigs) { setLoSignature(""); setOpsSigState("none"); }
     else setOpsSigState("none");
-    if (newOwner) setApplyUrl("");
+    // The LO's pre-approval link now lives on their Ops profile (2026-11-13).
+    if (newOwner) setApplyUrl(prof?.apply_url || "");
+    else if (prof?.apply_url) setApplyUrl(prof.apply_url);
     claim();
    } catch { if (!cancelled) setOpsSigState("none"); /* offline — keep whatever the device had */ }
   })();
@@ -4302,6 +4331,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      if (data.lo.phone) setLoPhone(String(data.lo.phone));
      if (data.lo.nmls) setLoNmls(String(data.lo.nmls));
      if (data.lo.company) setCompanyName(String(data.lo.company));
+     // Ops sends the flyer LO's own pre-approval link; with none, hide the
+     // button rather than send their buyer to another LO's portal.
+     if ("applyUrl" in data.lo) setApplyUrl(identityFromLoCard(data.lo)?.applyUrl || "");
     }
    }
    try { LS.set("active-scenario", name); } catch { /* ignore */ }
