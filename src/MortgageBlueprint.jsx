@@ -2071,25 +2071,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     const token = localStorage.getItem("bp_token") || "";
     const base = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
     const hdrs = { Authorization: `Bearer ${token}` };
-    const [pRes, lRes, sRes] = await Promise.all([
+    const [pRes, lRes, sRes, iRes] = await Promise.all([
      fetch(`${base}/api/pipeline-data?_route=marketing&kind=profiles`, { headers: hdrs }),
      fetch(`${base}/api/pipeline-data?_route=marketing&kind=los`, { headers: hdrs }),
      fetch(`${base}/api/pipeline-data?_route=signatures`, { headers: hdrs, cache: "no-store" }).catch(() => null),
+     // Which of this person's emails is their LO identity (Ops → Integrations →
+     // Your Blueprint identity, 2026-11-13). Missing or failed = the login itself.
+     fetch(`${base}/api/pipeline-data?_route=lo-identity`, { headers: hdrs, cache: "no-store" }).catch(() => null),
     ]);
     if (cancelled) return;
     const profiles = pRes.ok ? await pRes.json() : [];
     const roster = lRes.ok ? await lRes.json() : { los: [] };
     const sigs = sRes?.ok ? await sRes.json() : null;
+    const ident = iRes?.ok ? await iRes.json().catch(() => null) : null;
+    const idEmail = String(ident?.email || email).toLowerCase();
     if (cancelled) return;
     const me = sigs?.me || {};
     const myName = (auth?.user?.name || "").trim().toLowerCase();
-    const prof = (Array.isArray(profiles) ? profiles : []).find((p) => (p.email || "").toLowerCase() === email) || null;
-    const row = (roster?.los || []).find((r) => r.email === email)
+    const prof = (Array.isArray(profiles) ? profiles : []).find((p) => (p.email || "").toLowerCase() === idEmail) || null;
+    const row = (roster?.los || []).find((r) => r.email === idEmail)
      || (roster?.los || []).find((r) => (r.name || "").trim().toLowerCase() === myName)
      || null;
     const set = (v, fn) => { if (v) fn(v); };
     set(prof?.name || row?.name || me.name || (newOwner ? auth?.user?.name : ""), setLoanOfficer);
-    set(prof?.email || row?.email || email, setLoEmail);
+    set(prof?.email || row?.email || idEmail, setLoEmail);
     set(prof?.phone || row?.phone || me.phone, setLoPhone);
     set(prof?.nmls || row?.nmls || me.nmls, setLoNmls);
     // Company: profile value if set (defaults to the brokerage in Ops);
