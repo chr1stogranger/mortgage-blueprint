@@ -10470,7 +10470,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </Card>
     ) : (
      <Card style={{ padding: 18 }}>
-      {optionHead("info", "Apply when a loan officer is set", "Add your loan officer's name and email in Settings to turn on Get pre-approved.")}
+      {loanOfficer
+       ? optionHead("info", "Application link coming", `${loanOfficer} hasn't added an application link yet. Email or call to get started.`)
+       : optionHead("info", "Apply when a loan officer is set", "Add your loan officer's name and email in Settings to turn on Get pre-approved.")}
      </Card>
     )}
     <div>
