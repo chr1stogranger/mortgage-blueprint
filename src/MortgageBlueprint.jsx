@@ -2031,6 +2031,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  useEffect(() => {
   if (!loCode || isBorrower) return;
+  // A signed-in LO opening a colleague's ?lo= link keeps their own identity:
+  // the Ops identity effect below claims the device, and on a fresh device
+  // both effects race, so the auth check closes that window too.
+  if (auth?.user?.email) return;
   let owner = "";
   try { owner = localStorage.getItem("bp_lo_info_owner") || ""; } catch { /* private mode */ }
   if (owner) return;
@@ -2046,7 +2050,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setApplyUrl(id.applyUrl);
   }).catch(() => { /* expired or offline: keep what the device had */ });
   return () => { alive = false; };
- }, [loCode, isBorrower]); // eslint-disable-line react-hooks/exhaustive-deps
+ }, [loCode, isBorrower, auth?.user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
  // ── LO identity + signature come from Ops (2026-07-29; every load since
  //    2026-10-31, Christo: "it should just flow in from Ops") ──
  // Name / email / phone / NMLS / company: the Ops marketing profile, then the
