@@ -160,8 +160,25 @@ export function normalizeArivePrefill(prefill) {
     pf.addressInput = pf.propertyAddress;
   }
 
+  // ── Setup-question answers (Ops helpers/_ariveQuestions.js, 2026-11-16) ──
+  // Each is present only when the Arive file answers it. Anything that isn't
+  // a clean answer is dropped, so the question stays open instead of being
+  // answered with junk (a "false" string would read as Yes in a truthy check).
+  for (const k of QUESTION_BOOLEANS) {
+    if (!(k in pf)) continue;
+    const v = pf[k] === "true" ? true : pf[k] === "false" ? false : pf[k];
+    if (typeof v === "boolean") pf[k] = v;
+    else delete pf[k];
+  }
+  if ("married" in pf && !FILING_STATUSES.includes(pf.married)) delete pf.married;
+  // First-time buyer is a purchase question; a refi file never answers it.
+  if (pf.isRefi) delete pf.firstTimeBuyer;
+
   return pf;
 }
+
+const QUESTION_BOOLEANS = ["firstTimeBuyer", "ownsProperties", "hasSellProperty", "showInvestor", "includeEscrow", "escrowInsWaived", "refiNewEscrowTax", "refiNewEscrowIns"];
+const FILING_STATUSES = ["Single", "MFJ", "MFS", "HOH"];
 
 /**
  * Totals for the import preview. Mirrors the calculator's own income math

@@ -134,6 +134,29 @@ describe("normalizeArivePrefill", () => {
     expect(out.assets).toEqual([]);
     expect(out.debts).toEqual([]);
   });
+
+  it("keeps clean setup-question answers from Ops", () => {
+    const out = normalizeArivePrefill({
+      firstTimeBuyer: false, ownsProperties: true, married: "MFJ",
+      includeEscrow: true, escrowInsWaived: false, showInvestor: true,
+    });
+    expect(out).toMatchObject({
+      firstTimeBuyer: false, ownsProperties: true, married: "MFJ",
+      includeEscrow: true, escrowInsWaived: false, showInvestor: true,
+    });
+  });
+
+  it("drops answers that aren't clean, so the question stays open", () => {
+    const out = normalizeArivePrefill({ firstTimeBuyer: "maybe", ownsProperties: "false", married: "Married", includeEscrow: 1 });
+    expect("firstTimeBuyer" in out).toBe(false);
+    expect(out.ownsProperties).toBe(false);
+    expect("married" in out).toBe(false);
+    expect("includeEscrow" in out).toBe(false);
+  });
+
+  it("never answers first-time buyer on a refi file", () => {
+    expect("firstTimeBuyer" in normalizeArivePrefill({ isRefi: true, firstTimeBuyer: true })).toBe(false);
+  });
 });
 
 describe("summarizePrefill", () => {

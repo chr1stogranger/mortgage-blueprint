@@ -3831,8 +3831,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // starting point — the LO overwrites Home Value with an actual estimate.
   const homeValue = Number(p.refiHomeValue) > 0 ? Number(p.refiHomeValue) : salesPrice;
   const currentMi = estimateCurrentMi({ loanType: p.loanType || 'Conventional', originalAmount, homeValue, creditScore: p.creditScore });
+  // The purchase file's answers describe the borrower at application time.
+  // First-time buyer and investor numbers are purchase-only questions, and
+  // "owned another home then" says nothing about owning one now (it may have
+  // been sold), so those stay open. The file's escrow answer becomes the
+  // CURRENT loan's escrow; the new loan's falls back to it in loadState.
+  const { firstTimeBuyer: _f, ownsProperties: _o, showInvestor: _i, escrowInsWaived: _w, ...rest } = p;
+  const escrowAnswer = typeof p.includeEscrow === 'boolean'
+   ? { refiCurEscrowTax: p.includeEscrow, refiCurEscrowIns: p.includeEscrow && !p.escrowInsWaived }
+   : {};
   return {
-   ...p,
+   ...rest,
+   ...escrowAnswer,
    isRefi: true,
    loanPurpose: 'Refi Rate/Term',
    refiPurpose: p.refiPurpose || 'Rate/Term',
