@@ -222,7 +222,8 @@ export function RefiSummaryDoc(p) {
   // lib/householdRate.js (computed by the engine as calc.householdRate).
   // Only when it says more than the Rate row: there's debt beyond the first.
   const hh = c.householdRate;
-  const showHousehold = p.refiPurpose === "Cash-Out" && hh && hh.mode === "refi" && hh.after
+  // The LO can switch it off per scenario (refiPdfHousehold); on by default.
+  const showHousehold = p.refiPdfHousehold !== false && p.refiPurpose === "Cash-Out" && hh && hh.mode === "refi" && hh.after
     && hh.today.items.length > 1 && hh.today.rate != null && hh.after.rate != null;
   const pct = (r) => `${Number((r || 0).toFixed(3))}%`;
   const hhDelta = showHousehold ? hh.after.rate - hh.today.rate : 0;

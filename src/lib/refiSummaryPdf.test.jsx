@@ -85,6 +85,11 @@ describe("RefiSummaryDoc", () => {
     const doc = React.createElement(RefiSummaryDoc, { ...props, calc, refiPurpose: "Cash-Out" });
     const buf = await renderToBuffer(doc);
     expect(pageCount(buf)).toBe(1);
+    // The LO's switch turns it off.
+    const off = RefiSummaryDoc({ ...props, calc, refiPurpose: "Cash-Out", refiPdfHousehold: false });
+    expect(JSON.stringify(off, (k, v) => (k === "_owner" ? undefined : v))).not.toContain("Household Interest Rate");
+    const on = RefiSummaryDoc({ ...props, calc, refiPurpose: "Cash-Out" });
+    expect(JSON.stringify(on, (k, v) => (k === "_owner" ? undefined : v))).toContain("Household Interest Rate");
     // Rate/Term never prints it.
     const tree = RefiSummaryDoc({ ...props, calc, refiPurpose: "Rate/Term" });
     expect(JSON.stringify(tree, (k, v) => (k === "_owner" ? undefined : v))).not.toContain("Household Interest Rate");

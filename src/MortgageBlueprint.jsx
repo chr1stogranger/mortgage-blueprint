@@ -2371,6 +2371,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // setup; any debt marked "Yes - at Escrow" rolls its payoff into the new
  // loan and its retired payment onto the current side of every comparison.
  const [refiPayoffDebts, setRefiPayoffDebts] = useState(null);
+ // Household interest rate section on the cash-out Refi Summary PDF — the LO
+ // switches it per scenario (Christo 2026-11-15). On unless turned off.
+ const [refiPdfHousehold, setRefiPdfHousehold] = useState(true);
  // History flags — "" (unanswered) | yes | no | unsure.
  const [refiModified, setRefiModified] = useState("");
  const [refiPrepayPenalty, setRefiPrepayPenalty] = useState("");
@@ -2569,7 +2572,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
-  refiHasMaturity, refiMaturityDate, refiPayoffDebts,
+  refiHasMaturity, refiMaturityDate, refiPayoffDebts, refiPdfHousehold,
   showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   showRateLadder, rateLadder,
   showVaResidual, vaResidual,
@@ -2832,6 +2835,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Same explicit-default rule: carrying the previous scenario's answer over
   // would silently roll one client's debts into another client's loan.
   setRefiPayoffDebts(s.refiPayoffDebts !== undefined ? s.refiPayoffDebts : null);
+  setRefiPdfHousehold(s.refiPdfHousehold !== false);
   if (s.refiModified !== undefined) setRefiModified(s.refiModified);
   if (s.refiPrepayPenalty !== undefined) setRefiPrepayPenalty(s.refiPrepayPenalty);
   if (s.refiExtraCadence !== undefined) setRefiExtraCadence(s.refiExtraCadence);
@@ -3703,7 +3707,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
-  refiHasMaturity, refiMaturityDate, refiPayoffFees, refiPayoffDebts, showRefi3, debtFree,
+  refiHasMaturity, refiMaturityDate, refiPayoffFees, refiPayoffDebts, refiPdfHousehold, showRefi3, debtFree,
   darkMode, loaded, scenarioName]);
 
  // ── Blueprint switcher (left panel): client callbacks + open helper ──
@@ -5126,7 +5130,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   includeFees,
   // Current-loan facts the fees worksheet never needed
   refiCurrentRate, refiOriginalTerm, refiClosedDate, refiEscrowBalance, refiCurrentMI,
-  refiSecondKind, refiShowTaxIns,
+  refiSecondKind, refiShowTaxIns, refiPdfHousehold,
  });
  const renderRefiSummaryBlob = async (includeFees) => {
   const [{ pdf }, { RefiSummaryDoc }] = await Promise.all([
@@ -7750,7 +7754,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!refiPreviewOpen || !isRefi || loanType === "HELOC") return "";
   try { return JSON.stringify(buildRefiSummaryProps(false)); } catch { return ""; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [refiPreviewOpen, isRefi, loanType, calc, refiShowTaxIns, borrowerName, scenarioName]);
+ }, [refiPreviewOpen, isRefi, loanType, calc, refiShowTaxIns, refiPdfHousehold, borrowerName, scenarioName]);
  useEffect(() => {
   if (!refiPreviewOpen || !isRefi || !refiPreviewFingerprint) return;
   let stale = false;
@@ -8317,6 +8321,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Single source of truth for BOTH surfaces (Christo 7.24 — "one screen
  // as we scroll down"): the standalone routable tabs below AND the
  // Overview fold-in sections both render these.
+ // Household-rate switch for the Refi Summary PDF. Only offered when the PDF
+ // would print the section: a cash-out with debt beyond the first mortgage
+ // (same test as RefiSummaryPdf's showHousehold).
+ const householdPdfEligible = (() => {
+  const h = calc.householdRate;
+  return isRefi && refiPurpose === "Cash-Out" && !!h && h.mode === "refi" && !!h.after
+   && h.today.items.length > 1 && h.today.rate != null && h.after.rate != null;
+ })();
+ const householdPdfToggle = (small) => householdPdfEligible ? (
+  <button type="button" role="switch" aria-checked={refiPdfHousehold} onClick={() => setRefiPdfHousehold(v => !v)}
+   title={refiPdfHousehold ? "Leave the household interest rate off the Refi Summary PDF" : "Print the household interest rate on the Refi Summary PDF"}
+   style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: small ? "3px 10px" : "5px 12px", borderRadius: 9999, fontSize: small ? 10 : 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap",
+    background: refiPdfHousehold ? `${T.blue}18` : "none", color: refiPdfHousehold ? T.blue : T.textSecondary, border: `1px solid ${refiPdfHousehold ? T.blue + "55" : T.separator}` }}>
+   <span aria-hidden="true" style={{ width: small ? 20 : 24, height: small ? 12 : 14, borderRadius: 99, padding: 1, boxSizing: "border-box", display: "inline-flex", justifyContent: refiPdfHousehold ? "flex-end" : "flex-start", background: refiPdfHousehold ? T.blue : T.inputBg, border: `1px solid ${refiPdfHousehold ? T.blue : T.separator}`, transition: "all 0.2s" }}>
+    <span style={{ width: small ? 8 : 10, height: small ? 8 : 10, borderRadius: 99, background: refiPdfHousehold ? "#fff" : T.textTertiary }} />
+   </span>
+   Household rate on PDF
+  </button>
+ ) : null;
  const renderRefiSummarySection = () => (<>
  <div style={{ marginTop: 20 }}>
   <Hero value={fmt(Math.abs(calc.refiPiMiSavings))} label={(calc.refiPiMiSavings >= 0 ? "Monthly P&I + MI Savings" : "Monthly P&I + MI Increase") + (calc.refiLienPmtSaved > 0 ? ` (incl. ${calc.refiThirdPmtSaved > 0 ? "junior liens" : "2nd lien"})` : "")} color={calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary} sub={[calc.refiLienPmtSaved > 0 ? `Retires ${fmt(calc.refiLienPmtSaved)}/mo in ${calc.refiThirdPmtSaved > 0 ? "junior-lien" : "second-lien"} payments` : "", calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiPiMiSavings <= 0 ? "No P&I + MI savings" : ""].filter(Boolean).join(" · ")} />
@@ -8335,6 +8358,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </button>
   ))}
  </div>
+ {householdPdfEligible && <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>{householdPdfToggle(false)}</div>}
  {/* No statement: everything on this page is rebuilt from the original note
      (Refi Hunter Phase 2). Same label prints on the Summary PDF. */}
  {calc.refiFromStatement === false && (
@@ -9076,6 +9100,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         <button onClick={handleStatementRemove} disabled={!!stmtBusy} title="Remove the shown statement" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Remove</button>
        </>
       )}
+      {(refiPreviewTab !== 'statement' || !stmtAvailable) && householdPdfToggle(true)}
       {(refiPreviewTab !== 'statement' || !stmtAvailable) && (
        <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
       )}
