@@ -90,7 +90,7 @@
 ## Microsoft sign-in and Outlook sending (2026-11-03)
 - `src/lib/microsoftAuth.js` (MSAL 4 popup flow, redirect page `public/msal-redirect.html`); hidden until `VITE_MICROSOFT_CLIENT_ID` is set. Sign-in posts the ID token to Ops' session exchange, which only accepts an email Microsoft vouches for (see loan-pipeline CLAUDE.md).
 - `gmailAuth.js` returns an `ms:`-prefixed Graph token for these LOs, and Ops' `/api/gmail` sends it through Outlook. Tokens stay under separate keys, so a leftover Gmail token can't send for an Outlook sign-in.
-- Live co-editing needs a Supabase session, which needs the Azure provider switched on in Supabase. Without it, sign-in and sending still work.
+- Live co-editing needs a Supabase session from `signInWithIdToken({ provider: 'azure' })`. The Supabase Azure provider is on (2026-11-15): client ID = the RealStack Entra app, Tenant URL left blank (= common, so any company plus personal accounts), secret "Supabase" in Entra expires 2028-11. Never set a Tenant URL, it would refuse every other tenant's tokens.
 
 ## Compliance (2026-10-28)
 - Users must be 18+ (Terms §1, first-run consent line, AccountSheet checkbox).
