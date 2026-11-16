@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { RefiSummaryDoc } from "./RefiSummaryPdf.jsx";
+import { householdRate } from "./householdRate.js";
 
 const pageCount = (buf) => (buf.toString("latin1").match(/\/Type \/Page[^s]/g) || []).length;
 
@@ -67,6 +68,39 @@ describe("RefiSummaryDoc", () => {
     const buf = await renderToBuffer(React.createElement(RefiSummaryDoc, props));
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
     expect(pageCount(buf)).toBe(1);
+  });
+
+  // Cash-out with consolidated debts: the Household Interest Rate section
+  // prints, and the page (with the full Cost of Waiting matrix) stays one page.
+  it("fits the household rate section on page 1 for a debt-consolidation cash-out", async () => {
+    const debts = [
+      { id: 1, name: "Toyota", type: "Auto Loan", balance: 22000, monthly: 520, rate: 5, payoff: "No" },
+      { id: 2, name: "Chase Sapphire", type: "Revolving", balance: 18000, monthly: 540, rate: 22, payoff: "Yes - at Escrow" },
+      { id: 3, name: "Amex", type: "Revolving", balance: 9000, monthly: 270, rate: 24, payoff: "Yes - at Escrow" },
+      { id: 4, name: "Sallie Mae", type: "Student Loan", balance: 30000, monthly: 300, rate: 0, payoff: "No" },
+    ];
+    const hh = householdRate({ isRefi: true, debts, refi: { firstBalance: 787158, firstRate: 3, liens: [], newLoanAmt: 830000, newRate: 6, consolidatedIds: new Set([2, 3]), cashOut: true } });
+    const calc = { ...refiCalc, householdRate: JSON.parse(JSON.stringify(hh)),
+      refiPaidDebts: debts.slice(1, 3), refiDebtPmtSaved: 810, refiDebtBalTotal: 27000 };
+    const doc = React.createElement(RefiSummaryDoc, { ...props, calc, refiPurpose: "Cash-Out" });
+    const buf = await renderToBuffer(doc);
+    expect(pageCount(buf)).toBe(1);
+    // Rate/Term never prints it.
+    const tree = RefiSummaryDoc({ ...props, calc, refiPurpose: "Rate/Term" });
+    expect(JSON.stringify(tree, (k, v) => (k === "_owner" ? undefined : v))).not.toContain("Household Interest Rate");
+  });
+
+  it("never adds a page, even with a long debt list and a paid-off 2nd", async () => {
+    const debts = Array.from({ length: 9 }, (_, i) => ({ id: i + 1, name: `Creditor Number ${i + 1}`, type: i % 2 ? "Revolving" : "Installment", balance: 5000 + i * 1000, monthly: 150, rate: i === 8 ? 0 : 18 + i, payoff: i < 5 ? "Yes - at Escrow" : "No" }));
+    const hh = householdRate({ isRefi: true, debts, refi: { firstBalance: 787158, firstRate: 3, liens: [{ pos: "2nd", bal: 60000, rate: 9.5, kind: "heloc", plan: "payoff" }], newLoanAmt: 900000, newRate: 6, consolidatedIds: new Set([1, 2, 3, 4, 5]), cashOut: true } });
+    const calc = { ...refiCalc, householdRate: JSON.parse(JSON.stringify(hh)), refiPaidDebts: debts.slice(0, 5), refiDebtPmtSaved: 750, refiDebtBalTotal: 35000,
+      refiLiens: [{ pos: "2nd", kind: "heloc", bal: 60000, rate: 9.5, pmt: 475, plan: "payoff" }], refiLienPmtSaved: 475, refiLienPmtCur: 475, refiCurTotalDebt: 882158, refiBlendedRate: 4.2, refiLienLabel: "1st + 2nd + Debts" };
+    // This page is already at its edge without the section (a paid-off 2nd
+    // plus consolidated debts), so the rule is: the household section never
+    // adds a page. Side by side with Cost of Waiting it costs no height.
+    const base = await renderToBuffer(React.createElement(RefiSummaryDoc, { ...props, calc: { ...calc, householdRate: null }, refiPurpose: "Cash-Out" }));
+    const buf = await renderToBuffer(React.createElement(RefiSummaryDoc, { ...props, calc, refiPurpose: "Cash-Out" }));
+    expect(pageCount(buf)).toBeLessThanOrEqual(pageCount(base));
   });
 
   it("appends the fees worksheet as page 2 when includeFees is set", async () => {

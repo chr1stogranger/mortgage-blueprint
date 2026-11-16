@@ -216,6 +216,115 @@ export function RefiSummaryDoc(p) {
       - (c.totalClosingCosts || 0)
     : 0;
 
+  // ── Household interest rate (cash-out only, Christo 2026-11-15) ──
+  // The blend across EVERY debt, today vs after the refi, row by row: what
+  // the cash-out replaces, what it pays off, what stays. Math lives in
+  // lib/householdRate.js (computed by the engine as calc.householdRate).
+  // Only when it says more than the Rate row: there's debt beyond the first.
+  const hh = c.householdRate;
+  const showHousehold = p.refiPurpose === "Cash-Out" && hh && hh.mode === "refi" && hh.after
+    && hh.today.items.length > 1 && hh.today.rate != null && hh.after.rate != null;
+  const pct = (r) => `${Number((r || 0).toFixed(3))}%`;
+  const hhDelta = showHousehold ? hh.after.rate - hh.today.rate : 0;
+  const signedUsd = (v) => (v > 0.5 ? "+" : v < -0.5 ? "−" : "") + usd(Math.abs(v || 0));
+  // One line naming each debt and what happens to it, rate in parentheses.
+  const hhNote = (compact) => {
+    if (!showHousehold) return "";
+    // Up to 3 names per group; past that, a count and the group's blended
+    // rate, so a long debt list can't push page 1 onto a second page.
+    const named = (fates) => {
+      const g = hh.rows.filter(r => fates.includes(r.fate));
+      if (g.length <= 3) return g.map(r => `${r.label}${r.rateMissing ? "" : ` (${pct(r.rate)})`}`).join(", ");
+      const priced = g.filter(r => !r.rateMissing && r.balance > 0);
+      const bal = priced.reduce((t, r) => t + r.balance, 0);
+      return `${g.length} debts${bal > 0 ? ` averaging ${pct(priced.reduce((t, r) => t + r.balance * r.rate, 0) / bal)}` : ""}`;
+    };
+    const parts = [];
+    // Half-width keeps only what the refi pays off; the replaced mortgage is
+    // already in Option 1 and what stays is implied.
+    const replaced = compact ? "" : named(["replaced"]); if (replaced) parts.push(`Replaced: ${replaced}.`);
+    const paid = named(["consolidated", "paid"]); if (paid) parts.push(`Paid off: ${paid}.`);
+    const stays = compact ? "" : named(["stays"]); if (stays) parts.push(`Stays: ${stays}.`);
+    const nm = hh.today.missing.length;
+    const miss = !nm ? "" : compact ? ` ${nm} without a rate left out.`
+      : ` No rate given for ${nm > 2 ? `${nm} debts` : hh.today.missing.map(m => m.label).join(", ")}, so ${nm === 1 ? "it's" : "they're"} left out.`;
+    return `${parts.join(" ")}${compact ? "" : " Weighted by balance."}${miss}`;
+  };
+
+  // Household block: compact = half-width (label | Today | After, change in
+  // the note); full = Option 1's four-column grid with a Change column.
+  const householdBlock = (compact) => {
+    const L = compact ? [s.cLabel, { width: "40%" }] : [s.cLabel];
+    const N = compact ? [s.cNum, { width: "30%" }] : [s.cNum];
+    const deltaTxt = Math.abs(hhDelta) < 0.005 ? "No change" : `${hhDelta > 0 ? "+" : "−"}${Math.abs(hhDelta).toFixed(2)} pts`;
+    const deltaColor = Math.abs(hhDelta) < 0.005 ? SUB : hhDelta > 0 ? RED : GREEN;
+    const rows = [
+      ["Total owed", usd(hh.today.totalOwed), usd(hh.after.totalOwed), signedUsd(hh.after.totalOwed - hh.today.totalOwed)],
+      ["Interest / mo", usd(hh.today.monthlyInterest), usd(hh.after.monthlyInterest), signedUsd(hh.after.monthlyInterest - hh.today.monthlyInterest)],
+    ];
+    return (
+      <>
+        <View style={s.secHead}><Text style={s.secHeadText}>Household Interest Rate</Text></View>
+        <View style={s.th}>
+          <Text style={[...L, s.bold, { color: INK }]}>All debts</Text>
+          <Text style={[...N, s.bold]}>Today</Text>
+          <Text style={[...N, s.bold]}>After Refi</Text>
+          {!compact && <Text style={[s.cNum, s.bold]}>Change</Text>}
+        </View>
+        {rows.map(([l, a, b, d]) => (
+          <View key={l} style={s.tr}>
+            <Text style={L}>{l}</Text>
+            <Text style={N}>{a}</Text>
+            <Text style={N}>{b}</Text>
+            {!compact && <Text style={[s.cNum, { color: SUB }]}>{d}</Text>}
+          </View>
+        ))}
+        <View style={s.trTotal}>
+          <Text style={[...L, s.bold, { color: INK }]}>Household Rate</Text>
+          <Text style={[...N, s.bold]}>{pct(hh.today.rate)}</Text>
+          <Text style={[...N, s.bold, compact ? { color: deltaColor } : {}]}>{pct(hh.after.rate)}{compact && Math.abs(hhDelta) >= 0.005 ? ` (${hhDelta > 0 ? "+" : "−"}${Math.abs(hhDelta).toFixed(2)})` : ""}</Text>
+          {!compact && <Text style={[s.cNum, s.bold, { color: deltaColor }]}>{deltaTxt}</Text>}
+        </View>
+        <Text style={s.note}>{hhNote(compact)}</Text>
+      </>
+    );
+  };
+
+  const cowRows = c.refiCostOfWaiting || [];
+  const cowBlock = (compact) => {
+    const L = compact ? [s.cwLabel, { width: "28%" }] : [s.cwLabel];
+    const N = compact ? [s.cwNum, { width: "18%" }] : [s.cwNum];
+    return (
+      <>
+        <View style={s.secHead}><Text style={s.secHeadText}>{compact ? "Cost of Waiting · Breakeven Mos" : "Cost of Waiting · Breakeven Analysis"}</Text></View>
+        <View style={s.th}>
+          <Text style={[...L, s.bold, { color: INK }]}>{compact ? "Rate drop" : "Waiting for"}</Text>
+          {(compact ? ["1 Yr", "2 Yrs", "3 Yrs", "4 Yrs"] : ["1 Year", "2 Years", "3 Years", "4 Years"]).map((h) => (
+            <Text key={h} style={[...N, s.bold]}>{h}</Text>
+          ))}
+        </View>
+        <View style={s.tr}>
+          <Text style={L}>Lost Savings</Text>
+          {cowRows[0].years.map((cell, j) => (
+            <Text key={j} style={N}>{usd(cell.lostSavings)}</Text>
+          ))}
+        </View>
+        {cowRows.map((row, i) => (
+          <View key={i} style={s.tr}>
+            <Text style={L}>−{row.drop}%{compact ? "" : " rate drop"}</Text>
+            {row.years.map((cell, j) => (
+              <Text key={j} style={[...N, { color: cell.breakeven >= 120 ? RED : cell.breakeven >= 60 ? ORANGE : GREEN }]}>
+                {cell.breakeven >= 999 ? "Never" : `${cell.breakeven} mo`}
+              </Text>
+            ))}
+          </View>
+        ))}
+        {/* Compact: the header carries "breakeven months"; no room for the note. */}
+        {!compact && <Text style={s.note}>Breakeven months: how long a future lower-rate refinance would take to catch up to the savings missed by waiting for that rate.</Text>}
+      </>
+    );
+  };
+
   // ── Cash to close + net cash ──
   const skipRows = (() => {
     const n = Number(p.refiSkipMonths) || 0;
@@ -332,6 +441,7 @@ export function RefiSummaryDoc(p) {
         )}
         <Text style={s.note}>Option 3 is any blend of the two: bank part of the monthly savings, put the rest toward principal.</Text>
 
+
         {/* ── Cash to Close Summary ── */}
         <View style={s.twoCol}>
           <View style={s.col}>
@@ -397,33 +507,19 @@ export function RefiSummaryDoc(p) {
           </View>
         </View>
 
-        {/* ── Cost of Waiting — breakeven analysis (doc 7.23) ── */}
-        {(c.refiCostOfWaiting || []).length > 0 && (
+        {/* ── Household rate + Cost of Waiting ──
+            Page 1 has ~15pt to spare once Cost of Waiting prints, so on a
+            cash-out that shows the household rate the two sit side by side
+            (compact) instead of stacking onto a second page. */}
+        {showHousehold && cowRows.length > 0 ? (
+          <View style={s.twoCol}>
+            <View style={s.col}>{householdBlock(true)}</View>
+            <View style={s.col}>{cowBlock(true)}</View>
+          </View>
+        ) : (
           <>
-            <View style={s.secHead}><Text style={s.secHeadText}>Cost of Waiting · Breakeven Analysis</Text></View>
-            <View style={s.th}>
-              <Text style={[s.cwLabel, s.bold, { color: INK }]}>Waiting for</Text>
-              {["1 Year", "2 Years", "3 Years", "4 Years"].map((h) => (
-                <Text key={h} style={[s.cwNum, s.bold]}>{h}</Text>
-              ))}
-            </View>
-            <View style={s.tr}>
-              <Text style={s.cwLabel}>Lost Savings</Text>
-              {c.refiCostOfWaiting[0].years.map((cell, j) => (
-                <Text key={j} style={s.cwNum}>{usd(cell.lostSavings)}</Text>
-              ))}
-            </View>
-            {c.refiCostOfWaiting.map((row, i) => (
-              <View key={i} style={s.tr}>
-                <Text style={s.cwLabel}>−{row.drop}% rate drop</Text>
-                {row.years.map((cell, j) => (
-                  <Text key={j} style={[s.cwNum, { color: cell.breakeven >= 120 ? RED : cell.breakeven >= 60 ? ORANGE : GREEN }]}>
-                    {cell.breakeven >= 999 ? "Never" : `${cell.breakeven} mo`}
-                  </Text>
-                ))}
-              </View>
-            ))}
-            <Text style={s.note}>Breakeven months: how long a future lower-rate refinance would take to catch up to the savings missed by waiting for that rate.</Text>
+            {showHousehold && householdBlock(false)}
+            {cowRows.length > 0 && cowBlock(false)}
           </>
         )}
 
