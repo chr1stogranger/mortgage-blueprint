@@ -114,6 +114,7 @@ import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
 import { syncNativeStatusBar } from "./lib/nativeStatusBar.js";
 import useEscape from "./hooks/useEscape.js";
+import { householdRate } from "./lib/householdRate.js";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -7184,6 +7185,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // refiCashOut stays "extra cash beyond the debt payoffs".
   const refiAutoLoanAmt = (refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut + refiDebtPayoffTotal) : refiPayoffAmount) + refiSecondPayoffAmt + refiThirdPayoffAmt;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
+  // Household interest rate — one balance-weighted rate across the mortgage
+  // and every debt, today and (on a refi) after the new loan. Debts tab card +
+  // refi Loan Comparison row. See lib/householdRate.js for the rules.
+  const householdRateInfo = householdRate({
+   isRefi, debts, debtFree, reos,
+   refi: isRefi ? {
+    firstBalance: refiEffBalance, firstRate: refiCurrentRate,
+    liens: refiLiens.map(l => ({ pos: l.pos, bal: l.bal, rate: l.rate, kind: l.kind, plan: l.plan })),
+    newLoanAmt: refiNewLoanAmt, newRate: rate,
+    consolidatedIds: refiPaidDebtIds, cashOut: refiPurpose === "Cash-Out",
+   } : null,
+  });
   // Which rate sheet this loan prices off. Measures whichever loan actually
   // exists — the new refi loan, or the purchase loan.
   const categoryLoan = isRefi ? refiNewLoanAmt : baseLoan;
@@ -7666,6 +7679,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiThirdBal, refiThirdPmt, refiThirdPmtAuto, refiSecondPmtAuto, refiThirdPayoffAmt, refiThirdPayoffInterest: refiThirdPayoff.interest, refiThirdPayoffDays: refiThirdPayoff.days, refiThirdPmtSaved,
    refiLienPmtSaved, refiLienPmtCur, refiLienPmtNew, refiLienPayoffBalTotal, refiLienLabel, refiLiens,
    refiPaidDebts, refiDebtPayoffTotal, refiDebtPmtSaved, refiDebtBalTotal, refiCurSecuredDebt,
+   householdRate: householdRateInfo,
    refiPmiDropEligible, refiFromStatement, refiUnsure, refiHardFlags,
    refiBalanceSuspect, refiConfidence,
    refiExtraMonthly, refiExtraLump, refiLumpMonth,
@@ -8355,6 +8369,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     [calc.refiCurTotalDebt > calc.refiEffBalance ? `Blended Rate (${calc.refiLienLabel})` : "Interest Rate",
      (calc.refiCurTotalDebt > calc.refiEffBalance && calc.refiBlendedRate > 0 ? calc.refiBlendedRate : refiCurrentRate).toFixed(3) + "%",
      rate.toFixed(3) + "%"],
+    // Household rate: the blend across EVERY debt, not just what the loan
+    // replaces. Only when it says something the rate row doesn't.
+    ...(calc.householdRate?.mode === "refi" && calc.householdRate.today.items.length > 1 && calc.householdRate.today.rate != null && calc.householdRate.after?.rate != null
+     ? [["Household Rate (all debts)", calc.householdRate.today.rate.toFixed(3) + "%", calc.householdRate.after.rate.toFixed(3) + "%"]] : []),
     ["Term", `${calc.refiEffRemaining} mos left`, `${term * 12} mos (${term}yr)`],
    ].map(([l, c, n], i) => (
     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>

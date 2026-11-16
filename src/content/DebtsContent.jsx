@@ -22,6 +22,128 @@ const isLienType = (d) => d.type === "Mortgage" || d.type === "HELOC";
 // gridlines, derived colored column second-to-last, remove × last).
 const COLS = "minmax(0,1.45fr) minmax(0,0.8fr) minmax(0,1fr) minmax(0,1fr) minmax(0,0.9fr) minmax(0,0.85fr) minmax(0,1.2fr) minmax(0,0.95fr) 32px";
 
+// Rates as people quote them: 22% card, 4.875% mortgage. Up to 3 decimals,
+// trailing zeros dropped.
+const fmtRate = (r) => `${Number((r || 0).toFixed(3))}%`;
+
+// ─── Household interest rate (Christo 2026-11-15) ───
+// One balance-weighted rate across the mortgage and every debt. On a refi it
+// prices the household today and after the new loan, so a debt-consolidation
+// cash-out shows what the blend becomes. Math: lib/householdRate.js.
+function HouseholdRateCard({ T, isDesktop, fmt, info, Card }) {
+  if (!info || !info.today || info.today.items.length === 0) return null;
+  const { mode, today, after, rows } = info;
+  const isRefi = mode === "refi" && after;
+  const labelStyle = { fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 };
+  const big = { fontSize: 28, fontWeight: 800, fontFamily: FONT, letterSpacing: "-0.03em", lineHeight: 1.1 };
+  const delta = isRefi && today.rate != null && after.rate != null ? after.rate - today.rate : null;
+  const up = delta != null && delta > 0.005;
+  const down = delta != null && delta < -0.005;
+  const intDelta = isRefi ? after.monthlyInterest - today.monthlyInterest : 0;
+  const missing = today.missing;
+  const consolidatedAny = isRefi && rows.some(r => r.fate === "consolidated");
+  const first = rows.find(r => r.key === "subject-1st");
+  const newLoan = rows.find(r => r.key === "new-loan");
+
+  const fateLabel = { replaced: "Replaced", consolidated: "Paid by refi", paid: "Paid off" };
+  // Desktop: Debt | Rate | two money columns. Phones fold the rate under the name.
+  const cols = isDesktop ? "minmax(0,1.6fr) minmax(0,0.7fr) minmax(0,0.9fr) minmax(0,0.9fr)" : "minmax(0,1.4fr) minmax(0,0.9fr) minmax(0,0.9fr)";
+  const head = { display: "grid", gridTemplateColumns: cols, gap: 8, padding: "0 0 6px", borderBottom: `1px solid ${T.separator}`, fontSize: 10, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 };
+  const row = { display: "grid", gridTemplateColumns: cols, gap: 8, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13, alignItems: "baseline" };
+  const num = { textAlign: "right", fontFamily: FONT, fontWeight: 600 };
+  const rateCell = (r) => r.rateMissing
+    ? <span style={{ color: T.orange, fontWeight: 600 }}>No rate</span>
+    : <span>{fmtRate(r.rate)}</span>;
+
+  const stat = (label, value, color) => (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 11, color: T.textSecondary, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+      <div style={{ ...big, color }}>{value}</div>
+    </div>
+  );
+
+  return (
+    <Card pad={16}>
+      <div style={labelStyle}>Household Interest Rate</div>
+      {today.rate == null ? (
+        <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginTop: 6 }}>
+          Add each debt's interest rate above to see the household rate: one blended rate across the mortgage, car, cards and everything else.
+        </div>
+      ) : isRefi ? (<>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: isDesktop ? 28 : 16, flexWrap: "wrap", marginTop: 8 }}>
+          {stat("Today", fmtRate(today.rate), T.text)}
+          <div aria-hidden="true" style={{ fontSize: 20, color: T.textTertiary, paddingBottom: 4 }}>→</div>
+          {stat("After the refi", after.rate != null ? fmtRate(after.rate) : "—", up ? T.red : down ? T.green : T.blue)}
+          {delta != null && (up || down) && (
+            <span style={{ alignSelf: "center", fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 9999, fontFamily: FONT,
+              color: up ? T.red : T.green, background: up ? `${T.red}14` : T.successBg }}>
+              {up ? "+" : "−"}{Math.abs(delta).toFixed(2)} pts
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, marginTop: 8 }}>
+          {up && first && newLoan && !first.rateMissing
+            ? <>The blend goes up because the {fmtRate(first.rate)} first mortgage is replaced at {fmtRate(newLoan.rate)}. </>
+            : down ? <>Higher-rate balances move onto the {fmtRate(newLoan?.rate)} loan. </> : null}
+          Interest runs about <b style={{ color: T.text }}>{fmt(today.monthlyInterest)}/mo</b> today and <b style={{ color: T.text }}>{fmt(after.monthlyInterest)}/mo</b> after
+          {Math.abs(intDelta) >= 1 ? <> ({intDelta > 0 ? "+" : "−"}{fmt(Math.abs(intDelta))}/mo)</> : null}.
+        </div>
+      </>) : (<>
+        <div style={{ ...big, color: T.blue, marginTop: 4 }}>{fmtRate(today.rate)}</div>
+        <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, marginTop: 4 }}>
+          Blended across {fmt(today.balance)} owed. About <b style={{ color: T.text }}>{fmt(today.monthlyInterest)}/mo</b> of the payments goes to interest.
+        </div>
+      </>)}
+
+      {today.rate != null && (
+        <div style={{ marginTop: 14 }}>
+          <div style={head}>
+            <span>Debt</span>
+            {isDesktop && <span style={{ textAlign: "right" }}>Rate</span>}
+            <span style={{ textAlign: "right" }}>{isRefi ? "Today" : "Balance"}</span>
+            <span style={{ textAlign: "right" }}>{isRefi ? "After refi" : "Interest/mo"}</span>
+          </div>
+          {rows.map(r => (
+            <div key={r.key} style={row}>
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ color: T.text, fontWeight: r.fate === "new" ? 700 : 500 }}>{r.label}</span>
+                {!isDesktop && <span style={{ display: "block", fontSize: 11, color: T.textTertiary }}>{rateCell(r)}</span>}
+              </span>
+              {isDesktop && <span style={{ ...num, fontWeight: 500, color: T.textSecondary }}>{rateCell(r)}</span>}
+              {isRefi ? (<>
+                <span style={{ ...num, color: r.today > 0 ? T.text : T.textTertiary }}>{r.today > 0 ? fmt(r.today) : "—"}</span>
+                <span style={{ ...num, color: r.fate === "stays" || r.fate === "new" ? (r.fate === "new" ? T.blue : T.text) : T.green }}>
+                  {r.fate === "stays" || r.fate === "new" ? fmt(r.after) : fateLabel[r.fate]}
+                </span>
+              </>) : (<>
+                <span style={num}>{fmt(r.today)}</span>
+                <span style={{ ...num, color: r.rateMissing ? T.textTertiary : T.text }}>{r.rateMissing ? "—" : fmt(r.monthlyInterest)}</span>
+              </>)}
+            </div>
+          ))}
+          <div style={{ ...row, borderBottom: "none", fontWeight: 700 }}>
+            <span style={{ color: T.textSecondary, fontWeight: 600 }}>{isRefi ? "Total owed" : "Total"}</span>
+            {isDesktop && <span />}
+            <span style={num}>{fmt(today.totalOwed)}</span>
+            <span style={num}>{isRefi ? fmt(after.totalOwed) : fmt(today.monthlyInterest)}</span>
+          </div>
+        </div>
+      )}
+
+      {missing.length > 0 && today.rate != null && (
+        <div style={{ fontSize: 11.5, color: T.orange, lineHeight: 1.5, marginTop: 4 }}>
+          No rate entered for {missing.map(m => m.label).join(", ")}, so {missing.length === 1 ? "it's" : "they're"} left out of the blend. Add {missing.length === 1 ? "its rate" : "the rates"} above to count {missing.length === 1 ? "it" : "them"}.
+        </div>
+      )}
+      {consolidatedAny && (
+        <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginTop: 6 }}>
+          Rates are weighted by balance. Debt moved onto a mortgage costs less interest each month but is paid off over more years.
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function DebtsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
   if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton", "ClusterContinue", "openMismoImport"]);
@@ -378,6 +500,8 @@ export default function DebtsContent(props) {
         </>)}
       </div>
     </div>
+
+    <HouseholdRateCard T={T} isDesktop={isDesktop} fmt={fmt} info={calc.householdRate} Card={Card} />
 
     {/* ─── BOTTOM SUMMARY — mirrors Assets: amber total, then two cards ─── */}
     {(() => {
