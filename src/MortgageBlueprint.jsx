@@ -9359,13 +9359,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
      )}
-     {/* Sidebar Header — Logo + Mode Toggle (matches PricePoint/Markets pattern) */}
+     {/* Sidebar Header — Logo + Mode Toggle (matches PricePoint/Markets pattern).
+         Logo, wordmark and collapse toggle match Ops' sidebar header (Chris
+         2026-11-17): same 32px logo, product overline, 18px toggle with hover;
+         collapsed keeps the logo with the toggle under it. Keep in step with
+         loan-pipeline/src/MortgagePipeline.jsx. */}
      <div style={{ padding: (sidebarCollapsed && isDesktop) ? "12px 8px 14px" : "12px 16px 14px", borderBottom: `1px solid ${T.separator}` }}>
       {(!sidebarCollapsed || !isDesktop) && <>
        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-         <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
-          <defs><linearGradient id="bp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#3B6BF5"/></linearGradient></defs>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+         <svg viewBox="0 0 100 100" fill="none" aria-label="RealStack" style={{width:32,height:32,borderRadius:8,overflow:"hidden",flexShrink:0,boxShadow:"0 6px 16px -4px rgba(59,107,245,0.6)"}}>
+          <defs><linearGradient id="bp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#2B4FCE"/></linearGradient></defs>
           <rect width="100" height="100" fill="url(#bp-bg)"/>
           <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
           <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
@@ -9384,7 +9388,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
          </svg>
          <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#3B6BF5" }}>Stack</span></div>
+          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#3B6BF5" }}>Stack</span></div>
+          <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 600, letterSpacing: "0.15em", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", textTransform: "uppercase", lineHeight: 1, marginTop: 2 }}>Blueprint</div>
          </div>
         </div>
         {/* Collapse is a desktop-only affordance; on mobile the drawer just closes. */}
@@ -9393,8 +9398,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <button aria-label={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
            <Icon name={themeMode === 'dark' ? "sun" : "moon"} size={16} />
           </button>
-          <button aria-label="Collapse sidebar" onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar" style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
-           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <button aria-label="Collapse sidebar" onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar" style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4, display: "flex", borderRadius: 4, transition: "color 0.2s" }}
+           onMouseEnter={e => e.currentTarget.style.color = T.text} onMouseLeave={e => e.currentTarget.style.color = T.textTertiary}>
+           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
           </button>
          </div>
         )}
@@ -9445,19 +9451,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       </>}
       {(sidebarCollapsed && isDesktop) && (
        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden"}}>
-         <defs><linearGradient id="bp-bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#3B6BF5"/></linearGradient></defs>
+        <svg viewBox="0 0 100 100" fill="none" aria-label="RealStack" style={{width:32,height:32,borderRadius:8,overflow:"hidden",flexShrink:0,boxShadow:"0 6px 16px -4px rgba(59,107,245,0.6)"}}>
+         <defs><linearGradient id="bp-bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#2B4FCE"/></linearGradient></defs>
          <rect width="100" height="100" fill="url(#bp-bg2)"/>
          <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
          <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
          <polygon points="50,25 8,30 8,34 50,29" fill="rgba(255,255,255,0.68)"/>
          <polygon points="8,38 50,33 92,38 50,43" fill="rgba(255,255,255,0.90)"/>
+         <polygon points="8,38 50,43 50,46 8,41" fill="rgba(255,255,255,0.58)"/>
+         <polygon points="50,43 92,38 92,41 50,46" fill="rgba(255,255,255,0.40)"/>
          <polygon points="8,52 50,47 92,52 50,57" fill="rgba(255,255,255,0.70)"/>
+         <polygon points="8,52 50,57 50,60 8,55" fill="rgba(255,255,255,0.45)"/>
+         <polygon points="50,57 92,52 92,55 50,60" fill="rgba(255,255,255,0.28)"/>
          <polygon points="8,66 50,61 92,66 50,71" fill="rgba(255,255,255,0.50)"/>
+         <polygon points="8,66 50,71 50,74 8,69" fill="rgba(255,255,255,0.32)"/>
+         <polygon points="50,71 92,66 92,69 50,74" fill="rgba(255,255,255,0.18)"/>
          <polygon points="8,80 50,75 92,80 50,85" fill="rgba(255,255,255,0.34)"/>
+         <polygon points="8,80 50,85 50,88 8,83" fill="rgba(255,255,255,0.20)"/>
+         <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
         </svg>
-        <button aria-label="Expand sidebar" onClick={() => setSidebarCollapsed(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
-         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        <button aria-label="Expand sidebar" onClick={() => setSidebarCollapsed(false)} title="Expand sidebar" style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4, display: "flex", borderRadius: 4, transition: "color 0.2s" }}
+         onMouseEnter={e => e.currentTarget.style.color = T.text} onMouseLeave={e => e.currentTarget.style.color = T.textTertiary}>
+         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         </button>
        </div>
       )}
