@@ -11,8 +11,15 @@
 //               Ops panel, which also hands over light/dark)
 //   <id>      — one of BACKGROUNDS below
 // Borrower-facing views (share links) always use "default".
+// Plaid (added in Ops 2026-11-18 with the Plaid theme): plaid.com's deep blue →
+// aqua with two sets of fine engraved wavy lines. Same css as Ops PLAID_BG_CSS.
+const svgUrl = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+const PLAID_LINES_A = svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="9"><path d="M0 4.5 C40 0 120 0 160 4.5 S280 9 320 4.5" fill="none" stroke="rgba(255,255,255,0.13)" stroke-width="0.9"/></svg>');
+const PLAID_LINES_B = svgUrl('<svg xmlns="http://www.w3.org/2000/svg" width="560" height="14"><path d="M0 7 C70 0 210 0 280 7 S490 14 560 7" fill="none" stroke="rgba(110,255,215,0.14)" stroke-width="0.9"/></svg>');
+
 export const BACKGROUNDS = [
   { id: "ribbons", label: "Grange Ribbons", kind: "ribbons" },
+  { id: "plaid", label: "Plaid", kind: "gradient", tone: "dark", css: `${PLAID_LINES_A}, ${PLAID_LINES_B}, linear-gradient(150deg, #0B4AA8 0%, #0A78CC 45%, #13C4C2 100%)` },
   // Gradients
   { id: "realstack", label: "RealStack", kind: "gradient", tone: "dark", css: "linear-gradient(135deg, #1E3BA8 0%, #3B6BF5 50%, #8B7BF0 100%)" },
   { id: "snow",     label: "Snow",     kind: "gradient", tone: "light", css: "linear-gradient(135deg, #E9F2FF 0%, #CCE0FF 100%)" },
