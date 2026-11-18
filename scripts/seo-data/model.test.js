@@ -274,6 +274,9 @@ describe("property tax calculator", () => {
     expect(html.indexOf('name="price"')).toBeLessThan(html.indexOf("How California property tax works"));
     expect(html).toContain('data-region="Bay Area"');
     expect(html).not.toContain('class="crumbs"');
+    expect(html.indexOf('name="price"')).toBeLessThan(html.indexOf('name="rate"'));
+    expect(html).toMatch(/<input type="checkbox" name="primary" checked \/>/);
+    expect(html).toContain('<b data-out="exemption">-$7,000</b>');
     expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
     // The year of each county's rates still has to be stated somewhere on the page.
     expect(pageText(hub)).toMatch(/\d+ of these \d+ counties have fiscal year 2026-27 rates/);

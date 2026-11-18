@@ -95,15 +95,13 @@ ${row("Annual property tax", "annual", true)}
 </form>`;
 }
 
-// First screen of the CA tax hub and county pages: the calculator written out as
-// the math on the left, with the map pinned beside it. Same fields and data-out
+// First screen of the CA tax hub and county pages: the calculator on the left,
+// led by the home price, with the map beside it at the same height. Same fields and data-out
 // cells as taxCalc, so tax-calc.client.js drives both.
 function hubCalc(page, b, crumbs) {
   const est = fixedEstimate(b.city, b.fixedTable);
   const out = formatTax(computeTax({ price: b.price, ratePct: b.pct, primary: true, fixed: est.est }));
   const live = (key, tag = "span") => `<${tag} data-out="${key}">${esc(out[key])}</${tag}>`;
-  const row = (op, label, value, cls = "") =>
-    `<div class="hub-row${cls}"><span class="hub-op" aria-hidden="true">${op}</span><span class="hub-lab">${label}</span>${value}</div>`;
   return `<form class="hub-stage" data-taxcalc data-src="${TAX_DATA_JSON}" action="#" aria-label="Property tax calculator">
 <div class="hub-calc">
 <div>
@@ -118,12 +116,11 @@ ${page.breadcrumbs.length > 2 ? `<nav aria-label="Breadcrumb" class="crumbs"><ol
 <ul id="tax-city-list" class="city-list" role="listbox" aria-label="Matching cities" data-citylist hidden></ul>
 </div>
 </div>
-<div class="hub-ledger">
-${row("", "Home price", `<span class="hub-box"><i>$</i><input name="price" aria-label="Home price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span>`)}
-${row("&minus;", `Homeowners' exemption<small><label><input type="checkbox" name="primary" checked /> Primary residence</label></small>`, `<span class="hub-val" data-out="exemption">${esc(out.exemption)}</span>`)}
-${row("&times;", `City tax rate<small data-fy>FY ${esc(b.fy)}</small>`, `<span class="hub-box"><input name="rate" aria-label="City tax rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span>`)}
-${row("=", "Tax at the city rate", `<span class="hub-val" data-out="base">${esc(out.base)}</span>`, " sub")}
-${row("+", "Fixed assessments<small>Estimate</small>", `<span class="hub-box"><i>$</i><input name="fixed" aria-label="Fixed assessments per year" inputmode="numeric" autocomplete="off" value="${esc(est.est.toLocaleString("en-US"))}" /><i>/yr</i></span>`)}
+<div class="hub-fields">
+<label class="hub-fd wide"><span>Home price</span><span class="hub-box"><i>$</i><input name="price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span></label>
+<label class="hub-fd"><span>City tax rate <small data-fy>FY ${esc(b.fy)}</small></span><span class="hub-box"><input name="rate" inputmode="decimal" autocomplete="off" value="${esc(b.pct.toFixed(4))}" /><i>%</i></span></label>
+<label class="hub-fd"><span>Fixed assessments <small>Estimate</small></span><span class="hub-box"><i>$</i><input name="fixed" inputmode="numeric" autocomplete="off" value="${esc(est.est.toLocaleString("en-US"))}" /><i>/yr</i></span></label>
+<div class="hub-foot"><label class="hub-sw"><input type="checkbox" name="primary" checked /><u aria-hidden="true"></u>Primary residence</label><span>Exemption ${live("exemption", "b")}</span></div>
 </div>
 <div class="hub-answer">
 <div class="hub-stats">
@@ -411,7 +408,7 @@ footer.site p { color: var(--text3); }
   th, td { padding: 8px 10px; }
 }
 /* CA tax hub and county pages: the math on the left, the navy map pinned on the right. */
-.taxhub { --hub-head: 59px; --hub-gut: 24px; --hub-navy: #0a1120; --hub-screen: max(700px, calc(100vh - var(--hub-head) - 36px)); }
+.taxhub { --hub-head: 59px; --hub-gut: 24px; --hub-navy: #0a1120; --hub-screen: clamp(640px, calc(100vh - var(--hub-head) - 36px), 820px); }
 .taxhub .wrap { max-width: none; padding-left: var(--hub-gut); padding-right: var(--hub-gut); }
 .taxhub header.site .bar { min-height: var(--hub-head); padding-top: 8px; padding-bottom: 8px; }
 .hub-brand { display: flex; flex-direction: column; line-height: 1.15; text-decoration: none; }
@@ -434,32 +431,39 @@ footer.site p { color: var(--text3); }
 .hub-pick .hub-box { height: 44px; }
 .hub-pick .hub-box input { font-size: 18px; }
 .hub-box .glass { flex: none; margin-right: 5px; color: var(--text3); }
-.hub-ledger { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; padding: 4px 16px; }
-.hub-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 158px; align-items: center; gap: 6px; min-height: 42px; }
-.hub-row + .hub-row { border-top: 1px solid var(--sep); }
-.hub-op { font-size: 16px; font-weight: 500; color: var(--link); }
-.hub-lab { font-size: 14px; font-weight: 500; line-height: 1.25; color: var(--text); }
-.hub-lab small { display: block; font-size: 12px; font-weight: 400; color: var(--text3); }
-.hub-lab label { display: inline-flex; align-items: center; gap: 6px; color: var(--text2); cursor: pointer; }
-.hub-lab input[type="checkbox"] { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); }
-.hub-val { font-size: 15px; font-weight: 500; text-align: right; color: var(--text2); font-variant-numeric: tabular-nums; }
-.hub-row .hub-box input { text-align: right; }
-.hub-row.sub .hub-lab, .hub-row.sub .hub-val { font-weight: 600; color: var(--text); }
-.hub-answer { margin: 0 8px 8px; padding: 15px 18px 13px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #fff; background-color: var(--hub-navy); background-image: linear-gradient(rgba(147, 173, 250, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(147, 173, 250, 0.09) 1px, transparent 1px); background-size: 22px 22px; }
-.hub-stats { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; }
+.hub-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; padding: 14px 16px 13px; }
+.hub-fd { display: flex; flex-direction: column; justify-content: space-between; gap: 5px; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text2); }
+.hub-fd.wide { grid-column: 1 / -1; }
+.hub-fd small { margin-left: 3px; font-size: 12px; font-weight: 400; color: var(--text3); }
+.hub-fd .hub-box { height: 44px; padding: 0 12px; background: var(--card); }
+.hub-fd .hub-box input { font-size: 18px; font-weight: 650; }
+.hub-fd.wide .hub-box { height: 50px; }
+.hub-fd.wide .hub-box input { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.hub-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; font-size: 13px; color: var(--text2); font-variant-numeric: tabular-nums; }
+.hub-foot b { font-weight: 650; color: var(--text); }
+.hub-sw { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.hub-sw input { position: absolute; opacity: 0; width: 28px; height: 16px; margin: 0; cursor: pointer; }
+.hub-sw u { position: relative; flex: none; width: 28px; height: 16px; border-radius: 9999px; background: var(--input-border); transition: background 0.15s; }
+.hub-sw u::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.hub-sw input:checked + u { background: var(--accent); }
+.hub-sw input:checked + u::after { transform: translateX(12px); }
+.hub-sw input:focus-visible + u { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hub-answer { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 11px; margin: 0 8px 8px; padding: 15px 18px 13px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #fff; background-color: var(--hub-navy); background-image: linear-gradient(rgba(147, 173, 250, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(147, 173, 250, 0.09) 1px, transparent 1px); background-size: 22px 22px; }
+.hub-stats { flex: 1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: center; gap: 14px; }
 .hub-stat + .hub-stat { padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
 .hub-stat .k { display: block; font-family: ${MONO}; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #a9bbe6; }
 .hub-stat strong { display: block; margin-top: 3px; font-size: 36px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .hub-stat .s { display: block; margin-top: 3px; font-size: 13px; color: #c7d3ee; font-variant-numeric: tabular-nums; }
-.hub-proof { margin: 11px 0 0; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, 0.14); font-size: 12.5px; line-height: 1.4; color: #c7d3ee; font-variant-numeric: tabular-nums; }
+.hub-proof { margin: 0; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, 0.14); font-size: 12.5px; line-height: 1.4; color: #c7d3ee; font-variant-numeric: tabular-nums; }
 .hub-proof b { font-weight: 600; color: #fff; }
 .hub-bill { display: block; padding: 13px 20px; background: linear-gradient(135deg, #3b6bf5, #2b4fce); font-size: 16px; line-height: 1.3; text-align: center; box-shadow: 0 10px 22px -12px rgba(43, 79, 206, 0.8); }
 .hub-bill:hover { background: linear-gradient(135deg, #3b6bf5, #2b4fce); filter: brightness(1.08); }
 .hub-bill[hidden] { display: none; }
 .hub-note { margin: 0 2px; font-size: 12px; line-height: 1.4; color: var(--text3); }
-.hub-map { position: sticky; top: 16px; align-self: start; height: var(--hub-screen); min-width: 0; border-radius: 18px; background: var(--hub-navy); }
+.hub-map { position: relative; min-width: 0; border-radius: 18px; background: var(--hub-navy); }
 .taxhub .taxmap { position: relative; height: 100%; --map-water: #0a1120; --map-land: #15213a; --map-land-hover: #1d2c4b; --map-line: rgba(255, 255, 255, 0.2); --hub-glass: rgba(15, 24, 43, 0.84); --hub-grid-a: rgba(147, 173, 250, 0.13); --hub-grid-b: rgba(147, 173, 250, 0.05); --card: #0a1120; --border: rgba(255, 255, 255, 0.15); --sep: rgba(255, 255, 255, 0.12); --pill: rgba(255, 255, 255, 0.1); --text: #f2f5fc; --text2: #bccae6; --text3: #8fa1c4; --link: #93adfa; --accent-hover: #bccdfc; --q0: #2f4a8f; --q1: #3f66c9; --q2: #5f86f7; --q3: #93adfa; --q4: #dbe5ff; }
 .taxhub .taxmap:empty { height: 100%; }
+@media (min-width: 1081px) { .taxhub .taxmap { position: absolute; inset: 0; height: auto; } }
 .taxhub .m-frame { height: 100%; border-radius: 18px; background-color: var(--map-water); background-image: linear-gradient(var(--hub-grid-a) 1px, transparent 1px), linear-gradient(90deg, var(--hub-grid-a) 1px, transparent 1px), linear-gradient(var(--hub-grid-b) 1px, transparent 1px), linear-gradient(90deg, var(--hub-grid-b) 1px, transparent 1px); background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; }
 .taxhub .m-chips { position: absolute; z-index: 6; top: 14px; left: 14px; right: 62px; gap: 5px; margin: 0; }
 .taxhub .m-chip { padding: 5px 11px; border-color: var(--border); background: var(--hub-glass); color: var(--text); font-size: 12.5px; font-weight: 500; white-space: nowrap; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
@@ -482,6 +486,15 @@ footer.site p { color: var(--text3); }
 .hub-tables .table-wrap { max-height: 420px; overflow: auto; margin: 0; border-radius: 14px; }
 .hub-tables caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hub-tables table { font-size: 13.5px; }
+@media (min-width: 1081px) and (min-height: 820px) {
+  .hub-fields { gap: 14px; padding: 16px 16px 15px; }
+  .hub-fd .hub-box { height: 48px; }
+  .hub-fd.wide .hub-box { height: 56px; }
+  .hub-fd.wide .hub-box input { font-size: 27px; }
+  .hub-stat .k { font-size: 11px; }
+  .hub-stat strong { font-size: 40px; }
+  .hub-stat .s { font-size: 14px; }
+}
 @media (scripting: none) {
   .hub-stage { grid-template-columns: minmax(0, 640px); justify-content: center; }
   .hub-map { display: none; }
@@ -489,12 +502,12 @@ footer.site p { color: var(--text3); }
 @media (max-width: 1080px) {
   .hub-stage { grid-template-columns: minmax(0, 1fr); }
   .hub-calc { min-height: 0; }
-  .hub-map { position: relative; top: 0; height: 620px; }
+  .hub-map { height: 620px; }
 }
 @media (max-width: 560px) {
   .taxhub { --hub-gut: 16px; }
   .hub-calc h1 { font-size: 27px; }
-  .hub-row { grid-template-columns: 16px minmax(0, 1fr) 132px; }
+  .hub-fd small { display: block; margin-left: 0; }
   .hub-stat strong { font-size: 28px; }
   .hub-map { height: auto; min-height: 480px; overflow: hidden; }
   .taxhub .taxmap { height: auto; padding-bottom: 10px; }
