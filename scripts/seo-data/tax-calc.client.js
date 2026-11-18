@@ -247,9 +247,9 @@ function init(form) {
           map = m;
           pickCity(current);
         })
-        .catch(() => { mapEl.hidden = true; });
+        .catch(() => { mapEl.hidden = true; form.classList.add("no-map"); });
     })
-    .catch(() => { /* keep the one pre-rendered city; the rest still works */ });
+    .catch(() => { form.classList.add("no-map"); /* keep the one pre-rendered city; the rest still works */ });
 }
 
 if (typeof document !== "undefined") {

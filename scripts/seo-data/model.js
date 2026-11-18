@@ -213,7 +213,7 @@ function crumbs(...items) {
   return [{ name: "Mortgage Blueprint", path: "/" }, ...items];
 }
 
-function page({ path, titleCore, description, h1, lead, sections, breadcrumbs, now }) {
+function page({ path, titleCore, description, h1, lead, sections, breadcrumbs, now, layout = null }) {
   if (titleCore.length > 65) throw new Error(`seo-data: title over 65 chars on ${path}: ${titleCore}`);
   if (description.length > 155) throw new Error(`seo-data: description over 155 chars (${description.length}) on ${path}`);
   const url = ORIGIN + path;
@@ -226,7 +226,7 @@ function page({ path, titleCore, description, h1, lead, sections, breadcrumbs, n
   return {
     path, url,
     title: `${titleCore} — ${BRAND}`,
-    description, h1, lead, sections, breadcrumbs,
+    description, h1, lead, sections, breadcrumbs, layout,
     links: [...new Set(links)],
     jsonLd: [
       {
@@ -267,14 +267,15 @@ export function buildSite({ now, limitSource }) {
   const citiesIn = (short) => cities.filter((x) => normalizeCounty(x.county) === normalizeCounty(short));
   // Property-tax calculator (render.js + tax-calc.client.js), pre-filled for one city.
   const fixedTable = { default: CA_FIXED_ASSESSMENT_DEFAULT, cities: CA_FIXED_ASSESSMENT_CITIES };
-  const calcSection = (x, { map = false, mapCounty = null } = {}) => ({
+  const calcBlock = (x, { map = false, mapCounty = null, mapRegion = null } = {}) => ({
+    type: "taxcalc", map, mapCounty, mapRegion, fixedTable, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
+    billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
+  });
+  const calcSection = (x, opts = {}) => ({
     heading: "Property tax calculator",
     blocks: [
-      p(`${map ? "Search for a city or pick one on the map, then change" : "Search for a city, then change"} the price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown.`),
-      {
-        type: "taxcalc", map, mapCounty, fixedTable, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
-        billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
-      },
+      p(`${opts.map ? "Search for a city or pick one on the map, then change" : "Search for a city, then change"} the price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown.`),
+      calcBlock(x, opts),
     ],
   });
 
@@ -480,12 +481,15 @@ export function buildSite({ now, limitSource }) {
     path: TAX_HUB,
     titleCore: "California Property Tax Rates by City and County",
     description: `Property tax rates for ${cities.length} California cities in ${caByCounty.size} counties, from county rate books and bill data, plus where to look up each county's tax bills.`,
-    h1: "California Property Tax Rates by City and County",
-    lead: `California property tax is 1% of assessed value under Proposition 13, plus voter-approved bonds. Across the ${cities.length} cities and communities listed here, the rate runs from ${splitRate(lo.rate).total} (${lo.city}) to ${splitRate(hi.rate).total} (${hi.city}). ${current.length} of these ${caByCounty.size} counties have fiscal year ${CA_TAX_CURRENT_FY} rates; the rest show their latest published year until they do.`,
+    layout: "taxhub",
+    h1: "California Property Tax Calculator",
+    lead: "Pick a city, enter the price, and see the whole bill.",
     breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }),
     sections: [
+      { heading: "Property tax calculator", blocks: [calcBlock(cities.find((x) => x.city === "Berkeley") || cities[0], { map: true, mapRegion: "Bay Area" })] },
       {
         heading: "How California property tax works",
+        cards: ["Your price sets the tax", "The 2% yearly cap", "The supplemental bill", "Your true tax rate", "When it's due"],
         blocks: [
           p("When you buy a home in California, the purchase price becomes its assessed value. The tax is that value times the rate for the home's tax rate area: the 1% Proposition 13 base plus any voter-approved bonds."),
           p("After the purchase, the assessed value can rise by at most 2% a year until the home sells again, even if market values climb faster."),
@@ -494,9 +498,13 @@ export function buildSite({ now, limitSource }) {
           p(DUE_DATES),
         ],
       },
-      calcSection(cities.find((x) => x.city === "Los Angeles") || cities[0], { map: true }),
+      {
+        heading: "Every county, every rate",
+        blocks: [p(`California property tax is 1% of assessed value under Proposition 13, plus voter-approved bonds. Across the ${cities.length} cities and communities listed here, the rate runs from ${splitRate(lo.rate).total} (${lo.city}) to ${splitRate(hi.rate).total} (${hi.city}). ${current.length} of these ${caByCounty.size} counties have fiscal year ${CA_TAX_CURRENT_FY} rates; the rest show their latest published year until they do.`)],
+      },
       {
         heading: "Rates by county",
+        grid: true,
         blocks: [{
           type: "table",
           caption: "California property tax rates by county",
@@ -507,10 +515,11 @@ export function buildSite({ now, limitSource }) {
           })),
         }],
       },
-      { heading: "Lowest rates", blocks: [rankTable(sortedRates.slice(0, 10), "The 10 lowest California city property tax rates listed here")] },
-      { heading: "Highest rates", blocks: [rankTable(sortedRates.slice(-10).reverse(), "The 10 highest California city property tax rates listed here")] },
+      { heading: "Lowest rates", grid: true, blocks: [rankTable(sortedRates.slice(0, 10), "The 10 lowest California city property tax rates listed here")] },
+      { heading: "Highest rates", grid: true, blocks: [rankTable(sortedRates.slice(-10).reverse(), "The 10 highest California city property tax rates listed here")] },
       {
         heading: "Look up a property tax bill",
+        grid: true,
         blocks: [
           p("Each county's treasurer-tax collector posts secured tax bills online. You'll usually need the parcel number (APN), which is on the bill and on the county assessor's records."),
           {

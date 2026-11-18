@@ -266,6 +266,20 @@ describe("property tax calculator", () => {
     expect(renderPage(byPath.get("/property-tax/california/san-francisco-county/"), font)).toContain('data-county="San Francisco"');
   });
 
+  it("opens the hub on the math, with the navy map beside it and the explainer below", () => {
+    const hub = byPath.get("/property-tax/california/");
+    const html = renderPage(hub, { fontHref: "/fonts/fonts.css" });
+    expect(hub.title).toContain("California Property Tax Rates by City and County");
+    expect(hub.h1).toBe("California Property Tax Calculator");
+    expect(html.indexOf('name="price"')).toBeLessThan(html.indexOf("How California property tax works"));
+    expect(html).toContain('data-region="Bay Area"');
+    expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
+    // The year of each county's rates still has to be stated somewhere on the page.
+    expect(pageText(hub)).toMatch(/\d+ of these \d+ counties have fiscal year 2026-27 rates/);
+    for (const heading of ["Rates by county", "Lowest rates", "Highest rates", "Look up a property tax bill", "Source"]) expect(html).toContain(`<h2>${heading}</h2>`);
+    expect(renderPage(byPath.get("/property-tax/california/marin-county/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
+  });
+
   it("has a map position for every sourced city, and none it doesn't list", () => {
     const geo = JSON.parse(readFileSync(new URL("./ca-map-geo.json", import.meta.url), "utf8"));
     expect(geo.cities.map((c) => c.city).sort()).toEqual(Object.keys(CA_CITY_COUNTY).sort());

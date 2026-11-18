@@ -1,7 +1,9 @@
 // Clickable California map for the CA tax hub and county pages, served as
 // /seo/tax-map.js (an ES module, copied as-is by scripts/seo-data-pages.mjs).
 // tax-calc.client.js loads it only when the page has a [data-taxmap] element;
-// a data-county attribute on that element opens the map framed on that county.
+// a data-county attribute on that element opens the map framed on that county,
+// data-region opens it on one of the REGIONS, and data-compact leaves the tax
+// figures out of the readout when the calculator sits right beside the map.
 //
 // Geometry comes from /seo/ca-tax-map.json (see build-ca-map.mjs), already
 // projected to map units, so this file draws SVG and handles the pointer. Rates
@@ -70,6 +72,8 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
   const geo = await res.json();
 
   const focus = el.dataset.county || null;
+  const startRegion = REGIONS.find(([label]) => label === el.dataset.region) || null;
+  const compact = "compact" in el.dataset;
   const byName = new Map(data.cities.map((c) => [c.city, c]));
   const breaks = rateBreaks(data.cities.map((c) => c.pct));
   const rows = geo.cities.filter((g) => byName.has(g.city)).map((g) => ({ ...g, ...byName.get(g.city) }));
@@ -279,7 +283,8 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
       stat.append(value, h("span", null, label));
       return stat;
     };
-    strip.replaceChildren(who, rate, outStat("annual", "annual tax"), outStat("effective", "true tax rate"), link(c.path, `${c.city} rate page`));
+    const stats = compact ? [] : [outStat("annual", "annual tax"), outStat("effective", "true tax rate")];
+    strip.replaceChildren(who, rate, ...stats, link(c.path, `${c.city} rate page`));
   };
   const showCountyStrip = (county) => {
     const stats = countyStats.get(county);
@@ -496,7 +501,7 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
   function markChip(on) {
     for (const b of chipEls) b.setAttribute("aria-pressed", b === on ? "true" : "false");
   }
-  markChip(chipEls[0]);
+  markChip(chipEls[Math.max(0, regions.indexOf(startRegion))]);
 
   // ── size ──
   const resize = () => {
@@ -506,7 +511,7 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
     vpW = f.width; vpH = f.height;
     base = Math.min(vpW / geo.width, vpH / geo.height) * 0.97;
     measure();
-    if (first && focus) Object.assign(view, boxView(frameOf([focus])));
+    if (first && (focus || startRegion)) Object.assign(view, boxView(frameOf(focus ? [focus] : startRegion[1])));
     applyView();
     drawLabels();
     if (first && selected) select(selected.city);
