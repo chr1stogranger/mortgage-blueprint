@@ -213,7 +213,7 @@ function crumbs(...items) {
   return [{ name: "Mortgage Blueprint", path: "/" }, ...items];
 }
 
-function page({ path, titleCore, description, h1, lead, sections, breadcrumbs, now, layout = null }) {
+function page({ path, titleCore, description, h1, lead, intro = null, sections, breadcrumbs, now, layout = null }) {
   if (titleCore.length > 65) throw new Error(`seo-data: title over 65 chars on ${path}: ${titleCore}`);
   if (description.length > 155) throw new Error(`seo-data: description over 155 chars (${description.length}) on ${path}`);
   const url = ORIGIN + path;
@@ -226,7 +226,7 @@ function page({ path, titleCore, description, h1, lead, sections, breadcrumbs, n
   return {
     path, url,
     title: `${titleCore} — ${BRAND}`,
-    description, h1, lead, sections, breadcrumbs, layout,
+    description, h1, lead, intro, sections, breadcrumbs, layout,
     links: [...new Set(links)],
     jsonLd: [
       {
@@ -552,6 +552,10 @@ export function buildSite({ now, limitSource }) {
       : `In ${label}, the fiscal year ${fy} property tax rate runs from ${splitRate(s[0].rate).total} (${s[0].city}) to ${splitRate(s[s.length - 1].rate).total} (${s[s.length - 1].city}) across the ${cs.length} cities and communities listed here: the 1% Proposition 13 base plus voter-approved bonds.`)
       + (cs[0].computed ? ` The county hasn't published its fiscal year ${fy} rate book yet, so these rates are added up from the district rates on its ${fy} tax bills. The rate book will replace them once it's out.` : "")
       + (fy === CA_TAX_CURRENT_FY ? "" : ` The county hasn't published fiscal year ${CA_TAX_CURRENT_FY} rates yet, so these are its latest published rates.`);
+    // The first screen's short version: the full lead sits just below the calculator.
+    const intro = "Pick a city, enter the price, and see the whole bill."
+      + (cs[0].computed ? ` Rates are added up from the county's ${fy} tax bills until its rate book is out.` : "")
+      + (fy === CA_TAX_CURRENT_FY ? "" : ` FY ${fy} rates are the county's latest published.`);
     const billBlocks = [];
     if (bill?.url) billBlocks.push(p(`The ${bill.office} posts ${label} secured tax bills online: `, link(bill.url, "look up or pay a property tax bill"), ". You'll usually need the parcel number (APN)."));
     billBlocks.push(
@@ -563,17 +567,19 @@ export function buildSite({ now, limitSource }) {
       path: taxCountyPath(county),
       titleCore: `${label} Property Tax Rates and Bill Lookup`,
       description: `${label}, CA property tax rates (FY ${fy}) for ${cs.length === 1 ? "the city" : `${cs.length} cities`}: ${rateRange(cs)}. Plus where to look up and pay your tax bill.`,
+      layout: "taxhub",
       h1: `${label} Property Tax Rates (FY ${fy})`,
       lead,
+      intro,
       breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: label, path: taxCountyPath(county) }),
       sections: [
-        { heading: "Rates by city", blocks: [cityRateTable(cs, `Property tax rates, ${label} (FY ${fy})`)] },
-        calcSection([...cs].sort((a, b) => a.city.localeCompare(b.city))[0], { map: true, mapCounty: county }),
-        { heading: "Your property tax bill", blocks: billBlocks },
-        { heading: "Loan limits", blocks: [p(link(llPath(cc), `${cc.name} ${year} conforming loan limit: ${money(cc.limits[0])}`))] },
+        { heading: "Property tax calculator", blocks: [calcBlock([...cs].sort((a, b) => a.city.localeCompare(b.city))[0], { map: true, mapCounty: county })] },
+        { heading: "Rates by city", grid: true, blocks: [cityRateTable(cs, `Property tax rates, ${label} (FY ${fy})`)] },
+        { heading: "Your property tax bill", grid: true, blocks: billBlocks },
+        { heading: "Loan limits", grid: true, blocks: [p(link(llPath(cc), `${cc.name} ${year} conforming loan limit: ${money(cc.limits[0])}`))] },
+        { heading: "Related", grid: true, blocks: [{ type: "list", items: [[link(TAX_HUB, "California property tax rates by city and county")]] }] },
         { heading: "Source", blocks: [p("Rates from ", link(cs[0].url, cs[0].source), ". Each rate is for the city's primary or most common tax rate area; other areas in the same city can differ.")] },
         { blocks: [{ type: "cta", href: prefillLink({ st: "CA", county, src: "seo-ptax" }), text: `Run your numbers for ${label} in Mortgage Blueprint` }] },
-        { heading: "Related", blocks: [{ type: "list", items: [[link(TAX_HUB, "California property tax rates by city and county")]] }] },
       ],
     }));
   }

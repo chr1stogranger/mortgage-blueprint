@@ -273,11 +273,29 @@ describe("property tax calculator", () => {
     expect(hub.h1).toBe("California Property Tax Calculator");
     expect(html.indexOf('name="price"')).toBeLessThan(html.indexOf("How California property tax works"));
     expect(html).toContain('data-region="Bay Area"');
+    expect(html).not.toContain('class="crumbs"');
     expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
     // The year of each county's rates still has to be stated somewhere on the page.
     expect(pageText(hub)).toMatch(/\d+ of these \d+ counties have fiscal year 2026-27 rates/);
     for (const heading of ["Rates by county", "Lowest rates", "Highest rates", "Look up a property tax bill", "Source"]) expect(html).toContain(`<h2>${heading}</h2>`);
-    expect(renderPage(byPath.get("/property-tax/california/marin-county/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
+    expect(renderPage(byPath.get("/property-tax/california/fremont/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
+  });
+
+  it("gives every county page the same first screen, keeping its rate-year notes", () => {
+    const font = { fontHref: "/fonts/fonts.css" };
+    for (const c of CA_TAX_COUNTIES) {
+      const p = byPath.get(caCountyTaxPath(c.county));
+      const html = renderPage(p, font);
+      expect(html, c.county).toContain('class="taxhub"');
+      expect(html.indexOf('name="price"'), c.county).toBeLessThan(html.indexOf("<h2>Rates by city</h2>"));
+      expect(html.match(/POWERED BY REALSTACK/g), c.county).toHaveLength(1);
+      // The full lead still reads on the page, and the first screen says when rates aren't current.
+      expect(html, c.county).toContain('class="lead hub-lead"');
+      expect(html, c.county).toContain('class="crumbs"');
+      if (c.computed) expect(p.intro, c.county).toMatch(/added up from the county's/);
+      if (c.fy !== CA_TAX_CURRENT_FY) expect(p.intro, c.county).toContain(`FY ${c.fy} rates are the county's latest published.`);
+      if (c.fy === CA_TAX_CURRENT_FY && !c.computed) expect(p.intro, c.county).toBe("Pick a city, enter the price, and see the whole bill.");
+    }
   });
 
   it("has a map position for every sourced city, and none it doesn't list", () => {

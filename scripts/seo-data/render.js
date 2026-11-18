@@ -95,10 +95,10 @@ ${row("Annual property tax", "annual", true)}
 </form>`;
 }
 
-// The CA tax hub's first screen: the calculator written out as the math on the
-// left, with the map pinned beside it. Same fields and data-out cells as taxCalc,
-// so tax-calc.client.js drives both.
-function hubCalc(page, b) {
+// First screen of the CA tax hub and county pages: the calculator written out as
+// the math on the left, with the map pinned beside it. Same fields and data-out
+// cells as taxCalc, so tax-calc.client.js drives both.
+function hubCalc(page, b, crumbs) {
   const est = fixedEstimate(b.city, b.fixedTable);
   const out = formatTax(computeTax({ price: b.price, ratePct: b.pct, primary: true, fixed: est.est }));
   const live = (key, tag = "span") => `<${tag} data-out="${key}">${esc(out[key])}</${tag}>`;
@@ -107,8 +107,8 @@ function hubCalc(page, b) {
   return `<form class="hub-stage" data-taxcalc data-src="${TAX_DATA_JSON}" action="#" aria-label="Property tax calculator">
 <div class="hub-calc">
 <div>
-<h1>${esc(page.h1)}</h1>
-<p class="hub-intro">${esc(page.lead)}</p>
+${page.breadcrumbs.length > 2 ? `<nav aria-label="Breadcrumb" class="crumbs"><ol>${crumbs}</ol></nav>\n` : ""}<h1>${esc(page.h1)}</h1>
+<p class="hub-intro">${esc(page.intro ?? page.lead)}</p>
 </div>
 <div class="hub-sheet">
 <div class="hub-pick">
@@ -136,11 +136,11 @@ ${row("+", "Fixed assessments<small>Estimate</small>", `<span class="hub-box"><i
 ${b.billUrl ? `<a class="pill hub-bill" data-bill href="${esc(b.billUrl)}" rel="noopener">${esc(b.billLabel)}</a>` : `<a class="pill hub-bill" data-bill hidden href="#" rel="noopener"></a>`}
 <p class="hub-note">Fixed assessments are the Mello-Roos, parcel taxes and special assessments on the bill. <span data-fixednote>${esc(est.note)}</span></p>
 </div>
-<div class="hub-map"><div class="taxmap" data-taxmap data-js="${TAX_MAP_JS}" data-src="${TAX_MAP_JSON}"${b.mapRegion ? ` data-region="${esc(b.mapRegion)}"` : ""} data-compact hidden></div></div>
+<div class="hub-map"><div class="taxmap" data-taxmap data-js="${TAX_MAP_JS}" data-src="${TAX_MAP_JSON}"${b.mapCounty ? ` data-county="${esc(b.mapCounty)}"` : ""}${b.mapRegion ? ` data-region="${esc(b.mapRegion)}"` : ""} data-compact hidden></div></div>
 </form>`;
 }
 
-// Everything under the hub's first screen, using the full page width.
+// Everything under that first screen, using the full page width.
 function hubMore(sections) {
   const out = [];
   let grid = [];
@@ -188,9 +188,9 @@ export function renderPage(page, { fontHref }) {
   const hubBlock = hub ? page.sections[0].blocks[0] : null;
   const main = hub
     ? `<main>
-${hubCalc(page, hubBlock)}
+${hubCalc(page, hubBlock, crumbs)}
 <div class="wrap hub-more">
-${hubMore(page.sections.slice(1))}
+${page.intro ? `<p class="lead hub-lead">${esc(page.lead)}</p>\n` : ""}${hubMore(page.sections.slice(1))}
 </div>
 </main>`
     : `<main class="wrap">
@@ -410,7 +410,7 @@ footer.site p { color: var(--text3); }
   .lead { font-size: 17px; }
   th, td { padding: 8px 10px; }
 }
-/* CA tax hub: the math on the left, the navy map pinned on the right. */
+/* CA tax hub and county pages: the math on the left, the navy map pinned on the right. */
 .taxhub { --hub-head: 59px; --hub-gut: 24px; --hub-navy: #0a1120; --hub-screen: max(700px, calc(100vh - var(--hub-head) - 36px)); }
 .taxhub .wrap { max-width: none; padding-left: var(--hub-gut); padding-right: var(--hub-gut); }
 .taxhub header.site .bar { min-height: var(--hub-head); padding-top: 8px; padding-bottom: 8px; }
@@ -421,6 +421,7 @@ footer.site p { color: var(--text3); }
 .hub-stage.no-map .hub-map { display: none; }
 .hub-calc { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: var(--hub-screen); }
 .hub-calc h1 { margin: 2px 0 0; font-size: 31px; line-height: 1.12; letter-spacing: -0.025em; }
+.hub-calc .crumbs ol { margin: 0 0 4px; font-size: 12px; }
 .hub-intro { margin: 5px 0 0; font-size: 15px; line-height: 1.4; }
 .hub-sheet { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 18px; background: var(--card); box-shadow: 0 14px 34px -22px rgba(10, 17, 32, 0.3); }
 .hub-pick { padding: 14px 16px 12px; border-bottom: 1px solid var(--sep); }
@@ -469,6 +470,7 @@ footer.site p { color: var(--text3); }
 .taxhub .m-legend { bottom: 14px; flex-direction: column; align-items: flex-start; gap: 5px; }
 .taxhub .m-legend-title { margin-bottom: 1px; font-family: ${MONO}; font-size: 10px; font-weight: 500; letter-spacing: 0.13em; text-transform: uppercase; color: var(--text2); }
 .taxhub .m-strip { bottom: 186px; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: 6px; min-height: 0; }
+.hub-lead { max-width: 92ch; margin: 18px 0 0; font-size: 16px; line-height: 1.5; }
 .hub-more h2 { margin: 26px 0 12px; font-size: 22px; letter-spacing: -0.015em; }
 .hub-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
 .hub-card { padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }

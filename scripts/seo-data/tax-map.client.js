@@ -28,6 +28,7 @@ const CITY_FRAME_UNITS = 600; // 60 km across when zooming to a small city
 const MAX_LABELS = 40;
 const AUTO_FRAME_BELOW = 0.25; // screen px per map unit
 const MIN_CITIES_TO_FRAME = 4; // below this, frame the county's lines instead of its few cities
+const OVERLAY_PX = 190; // width of the floating readout and legend, plus their margin
 
 /** Quantile cut points, rounded for the legend: rates cluster, so even steps would paint nearly everything one shade. */
 export function rateBreaks(pcts, n = 5) {
@@ -232,7 +233,12 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
     anim = requestAnimationFrame(step);
   };
 
-  const boxView = ([x, y, w, ht]) => ({ x: x + w / 2, y: y + ht / 2, k: Math.min(vpW / (w * 1.15), vpH / (ht * 1.15)) / base });
+  // Beside the calculator the readout and legend float over the map's left edge, so frame what's asked for in the space they leave.
+  const boxView = ([x, y, w, ht]) => {
+    const inset = compact && vpW >= 700 ? OVERLAY_PX : 0;
+    const k = Math.max(1, Math.min((vpW - inset) / (w * 1.15), vpH / (ht * 1.15)) / base);
+    return { x: x + w / 2 - inset / 2 / (base * k), y: y + ht / 2, k };
+  };
   const fitBox = (box) => {
     const v = boxView(box);
     animateTo(v.x, v.y, v.k);
