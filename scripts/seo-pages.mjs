@@ -31,7 +31,7 @@ const PAGES = [
     title: 'Markets: Real Estate Prediction Markets, powered by RealStack',
     ogTitle: 'Markets: Real Estate Prediction Markets',
     description: 'Forecast home prices, rate movements, and housing policy. Crowd intelligence meets real estate data. Powered by RealStack.',
-    image: `${ORIGIN}/og-image.png?v=2`,
+    image: `${ORIGIN}/og-image.png?v=3`,
   },
 ];
 

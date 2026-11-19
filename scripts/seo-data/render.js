@@ -21,7 +21,7 @@ export const LL_CALC_JS = "/seo/ll-calc.js";
 export const LL_DATA_JSON = "/seo/loan-limits.json";
 export const LL_MAP_JS = "/seo/ll-map.js";
 export const LL_MAP_JSON = "/seo/ll-map-geo.json";
-const OG_IMAGE = `${ORIGIN}/og-image.png?v=2`;
+const OG_IMAGE = `${ORIGIN}/og-image.png?v=3`;
 // Plaid link-preview cards from scripts/og/build-seo-og.mjs (1200x630).
 const OG_TAX = `${ORIGIN}/og-ca-tax.png`;
 const OG_LIMITS = `${ORIGIN}/og-loan-limits.png`;
