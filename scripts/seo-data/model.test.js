@@ -548,3 +548,37 @@ describe("link previews", () => {
     for (const f of ["og-ca-tax.png", "og-loan-limits.png"]) expect(readFileSync(new URL(`../../public/${f}`, import.meta.url)).length).toBeGreaterThan(50000);
   });
 });
+
+describe("city link-preview cards", () => {
+  it("points each city page at its own card, with the rate in the URL", () => {
+    const html = renderPage(byPath.get("/property-tax/california/berkeley/"), { fontHref: "/fonts/fonts.css" });
+    expect(html).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-tax?city=Berkeley&amp;r=1.2313" />');
+    expect(renderPage(byPath.get("/property-tax/california/alameda-county/"), { fontHref: "/fonts/fonts.css" })).toContain('content="https://blueprint.realstack.app/og-ca-tax.png"');
+  });
+
+  it("measures path boxes like the map geometry encodes them", async () => {
+    const { pathBox } = await import("../../api/_taxCard.js");
+    expect(pathBox("M10 20l5 0 0 5-5 0z")).toEqual([10, 20, 5, 5]);
+    expect(pathBox("M10 20l5 0 0 5zm20 0l1 1")).toEqual([10, 20, 21, 5]); // "z" returns to (10, 20); m20 0 starts at (30, 20)
+  });
+
+  it("renders a PNG for a city and falls back to the shared card otherwise", async () => {
+    const { default: handler } = await import("../../api/og-tax.js");
+    const call = async (query) => {
+      const out = { headers: {} };
+      const res = {
+        setHeader: (k, v) => { out.headers[k.toLowerCase()] = v; },
+        status: (c) => { out.status = c; return res; },
+        send: (b) => { out.body = b; return res; },
+        redirect: (c, u) => { out.status = c; out.location = u; return res; },
+      };
+      await handler({ query }, res);
+      return out;
+    };
+    const ok = await call({ city: "Berkeley" });
+    expect(ok.status).toBe(200);
+    expect(ok.headers["content-type"]).toBe("image/png");
+    expect(ok.body.subarray(1, 4).toString()).toBe("PNG");
+    expect(await call({ city: "Atlantis" })).toMatchObject({ status: 302, location: "/og-ca-tax.png" });
+  }, 20000);
+});

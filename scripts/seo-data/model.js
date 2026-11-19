@@ -242,7 +242,7 @@ function crumbs(...items) {
   return [{ name: "Mortgage Blueprint", path: "/" }, ...items];
 }
 
-function page({ path, titleCore, shareTitle = null, description, h1, lead, intro = null, sections, breadcrumbs, now, layout = null }) {
+function page({ path, titleCore, shareTitle = null, ogImage = null, description, h1, lead, intro = null, sections, breadcrumbs, now, layout = null }) {
   if (layout === "llhub" && sections[0]?.blocks[0]?.type !== "llcalc") throw new Error(`seo-data: ${path} needs the loan-limit checker first`);
   if (titleCore.length > 65) throw new Error(`seo-data: title over 65 chars on ${path}: ${titleCore}`);
   if (description.length > 155) throw new Error(`seo-data: description over 155 chars (${description.length}) on ${path}`);
@@ -259,6 +259,7 @@ function page({ path, titleCore, shareTitle = null, description, h1, lead, intro
     description, h1, lead, intro, sections, breadcrumbs, layout,
     // The short name a text or chat preview shows (og:title); the search title stays long.
     shareTitle: shareTitle || titleCore,
+    ogImage,
     links: [...new Set(links)],
     jsonLd: [
       {
@@ -717,6 +718,8 @@ export function buildSite({ now, limitSource }) {
       path: cityPath(x),
       titleCore: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
       shareTitle: `${x.city}, CA Property Tax Calculator`,
+      // The city's own card (api/og-tax.js); its rate in the URL refreshes the CDN copy when the rate changes.
+      ogImage: `${ORIGIN}/api/og-tax?${new URLSearchParams({ city: x.city, r: CA_CITY_TAX_INFO[x.city].pct.toFixed(4) })}`,
       description: `${x.city}, CA property tax rate: ${total} for FY ${x.fy}. On a ${money(PRICE_EXAMPLE)} purchase that's about ${money(Math.round(ex.annual))} a year. Prop 13 basics and caveats.`,
       layout: "taxhub",
       h1: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,

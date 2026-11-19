@@ -57,6 +57,11 @@
       "permanent": false
     }
   ],
+  "functions": {
+    "api/og-tax.js": {
+      "includeFiles": "{scripts/seo-data/ca-map-geo.json,src/assets/fonts/Inter_400Regular.ttf,src/assets/fonts/Inter_700Bold.ttf}"
+    }
+  },
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
