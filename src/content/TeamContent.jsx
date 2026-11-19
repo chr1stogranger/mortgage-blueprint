@@ -398,12 +398,13 @@ export default function TeamContent({
 
       {/* Arive auto-fill + save status row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-        <button onClick={runAriveFill} disabled={ariveState === "loading"} style={{
+        <button onClick={runAriveFill} disabled={ariveState === "loading"} className={T.onColor ? "bp-rainbow-pill" : undefined} style={{
           display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px",
-          borderRadius: 9999, border: "none", cursor: ariveState === "loading" ? "wait" : "pointer",
-          background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff",
+          borderRadius: 9999, cursor: ariveState === "loading" ? "wait" : "pointer",
+          // On a colored background the blue pill sank into the page: Ops' ink
+          // rainbow pill instead (Chris 2026-11-18).
+          ...(T.onColor ? {} : { border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", boxShadow: "0 0 20px rgba(59,107,245,0.25)" }),
           fontSize: 13.5, fontWeight: 700, fontFamily: FONT, opacity: ariveState === "loading" ? 0.7 : 1,
-          boxShadow: "0 0 20px rgba(59,107,245,0.25)",
         }}>
           <Icon name="zap" size={14} />{ariveState === "loading" ? "Checking Arive…" : "Auto-fill from Arive"}
         </button>

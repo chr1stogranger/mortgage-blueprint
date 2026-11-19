@@ -1,4 +1,5 @@
 import { FONT, MONO } from "./lib/fonts.js";
+import { canvasCta } from "./lib/onColor.js";
 import RefiSteps from "./components/RefiSteps.jsx";
 import { REFI_STEPS } from "./lib/refiSteps.js";
 import React, { useState, useEffect, useRef, Suspense } from "react";
@@ -354,7 +355,7 @@ export default function OverviewTab(props) {
             <button type="button" onClick={() => goStep(refiStep - 1)} style={{ padding: "10px 18px", borderRadius: 9999, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>← {REFI_STEPS[refiStep - 1]}</button>
           ) : <span />}
           {refiStep < REFI_STEPS.length - 1 && (
-            <button type="button" onClick={() => goStep(refiStep + 1)} style={{ padding: "10px 22px", borderRadius: 9999, border: "none", background: T.blue, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, boxShadow: `0 4px 16px ${T.blue}30` }}>Next: {REFI_STEPS[refiStep + 1]} →</button>
+            <button type="button" onClick={() => goStep(refiStep + 1)} className={canvasCta(T).className} style={{ padding: "10px 22px", borderRadius: 9999, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, boxShadow: `0 4px 16px ${T.blue}30`, ...canvasCta(T).style }}>Next: {REFI_STEPS[refiStep + 1]} →</button>
           )}
         </div>
       )}
@@ -493,17 +494,15 @@ export default function OverviewTab(props) {
           BOTTOM CTA — Share + mode switch
           ═══════════════════════════════════════ */}
       <div style={{ marginTop: 32, textAlign: "center", paddingBottom: 40 }}>
-        <button onClick={() => setTab("summary")} style={{
+        <button onClick={() => setTab("summary")} className={canvasCta(T).className} style={{
           padding: "14px 28px",
-          background: T.blue,
-          border: "none",
           borderRadius: 99,
-          color: "#fff",
           fontSize: 15,
           fontWeight: 700,
           cursor: "pointer",
           fontFamily: FONT,
           boxShadow: `0 4px 16px ${T.blue}30`,
+          ...canvasCta(T).style,
         }}>
           Share This Blueprint →
         </button>

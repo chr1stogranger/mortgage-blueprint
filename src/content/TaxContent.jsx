@@ -1,4 +1,5 @@
 import { FONT } from "../lib/fonts.js";
+import { washOn } from "../lib/onColor.js";
 import React from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import NetPaymentLadder from "../components/NetPaymentLadder";
@@ -41,7 +42,7 @@ export default function TaxContent(props) {
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "12px auto 0" }}>
      If you rent the property out for more than 14 days/year, it becomes a rental property and IRS rules change significantly. Consult your CPA for your specific situation.
     </div>
-    <div style={{ marginTop: 20, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+    <div style={{ marginTop: 20, padding: "10px 14px", background: washOn(T, `${T.orange}08`), borderRadius: 10, border: `1px solid ${T.orange}18` }}>
      <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is general information only, not tax advice. Tax situations vary. Please confirm with your CPA or tax professional.</div>
     </div>
    </div>
@@ -124,7 +125,7 @@ export default function TaxContent(props) {
      </div>
     </Card>
    </Sec>
-   <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+   <div style={{ marginTop: 12, padding: "10px 14px", background: washOn(T, `${T.orange}08`), borderRadius: 10, border: `1px solid ${T.orange}18` }}>
     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is an estimate for illustration purposes only, not tax advice. Depreciation recapture, passive activity limits, and other rules apply. Please confirm with your CPA.</div>
    </div>
   </div>
@@ -640,7 +641,7 @@ export default function TaxContent(props) {
   )}
 
   {/* 8. Disclaimer */}
-  <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+  <div style={{ marginTop: 12, padding: "10px 14px", background: washOn(T, `${T.orange}08`), borderRadius: 10, border: `1px solid ${T.orange}18` }}>
    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is an estimate for illustration purposes only, not tax advice. Tax situations vary based on individual circumstances. Please confirm with your CPA or tax professional before making financial decisions based on these projections.</div>
   </div>
 

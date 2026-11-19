@@ -1,4 +1,5 @@
 import { FONT, MONO } from "../lib/fonts.js";
+import { washOn } from "../lib/onColor.js";
 import { todayLocal } from "../lib/today.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
@@ -1610,7 +1611,7 @@ export default function IncomeContent(props) {
           padding: 12,
           marginBottom: 16,
           borderRadius: 10,
-          background: `${ACCENT}10`,
+          background: washOn(T, `${ACCENT}10`),
           border: `1px dashed ${ACCENT}44`,
           color: ACCENT, fontSize: 13, fontWeight: 600,
           cursor: "pointer", fontFamily: FONT,

@@ -45,6 +45,7 @@
   `prefers-reduced-motion`.
 - Pill buttons (`border-radius: 9999px`); no emojis in UI (shared `Icon`).
 - **Section banners use `T.banner` (2026-11-18), never `T.blue`:** Plaid navy `#0B2545` in light mode and on colored backgrounds, Grange blue on the dark navy canvas, where navy would vanish. Blue banners disappeared on blue backgrounds. The banner's Share / Send to pill is `.bp-rainbow-pill` (`src/index.css`), the same ink pill with a rainbow edge as Ops' Plaid theme.
+- **Anything painted straight on a colored background (Plaid etc., `T.onColor`) goes through `src/lib/onColor.js` (2026-11-18):** `canvasCta` (primary button → rainbow ink pill), `canvasGhost` (secondary → white/navy), `washOn` (tinted wash → solid card under it), `blueFill` (big blue fill → navy). `Hero` banners take `T.banner` when blue. Inside white cards, Grange blue stays.
 - **Light is the default (2026-11-04)**, whatever the OS is set to. Dark only
   from a saved choice (`bp_theme_mode`), `?theme=dark`, or Match Ops inside the
   Ops panel. Pre-React CSS keys off `html[data-theme="dark"]`, never

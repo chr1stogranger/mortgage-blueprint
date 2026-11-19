@@ -1,4 +1,5 @@
 import { FONT, MONO } from "../lib/fonts.js";
+import { canvasGhost, blueFill } from "../lib/onColor.js";
 import React, { useMemo, useRef, useState } from "react";
 import { winnerBy, firstLeaderChange } from "../lib/compareMetrics.js";
 import { HOLD_KEYS, LENS_HELD, modeForHeld, netOf, solveLens, minDownFor } from "../lib/compareLens.js";
@@ -156,7 +157,7 @@ function SpecSheetCompare({ T, isDesktop, fmt, pct, compareData, compareLoading,
   // No onAddOption = a view-only share link: they compare the LO's options
   // but can't add one (2026-10-12).
   const addBtn = onAddOption ? (
-    <button onClick={onAddOption} style={{ font: `600 13px ${FONT}`, color: T.blue, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 9999, padding: "7px 16px", cursor: "pointer", whiteSpace: "nowrap" }}>
+    <button onClick={onAddOption} style={{ font: `600 13px ${FONT}`, ...canvasGhost(T, { color: T.blue, background: `${T.blue}12`, border: `1px solid ${T.blue}33` }), borderRadius: 9999, padding: "7px 16px", cursor: "pointer", whiteSpace: "nowrap" }}>
       + Add option
     </button>
   ) : null;
@@ -764,7 +765,7 @@ function BlueprintCompare({ T, isDesktop, fmt, pct, compareData, compareLoading,
     </div>
   );
   const secBar = (title, extra) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: isDesktop ? "11px 16px" : "10px 14px", borderRadius: 12, background: `linear-gradient(90deg, ${T.blue}, ${T.accentDeep})`, color: "#fff", fontFamily: FONT, fontWeight: 700, fontSize: 15, boxShadow: `0 8px 18px -10px ${T.accentDeep}b3` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: isDesktop ? "11px 16px" : "10px 14px", borderRadius: 12, background: blueFill(T, `linear-gradient(90deg, ${T.blue}, ${T.accentDeep})`), color: "#fff", fontFamily: FONT, fontWeight: 700, fontSize: 15, boxShadow: `0 8px 18px -10px ${T.accentDeep}b3` }}>
       <span style={{ width: 5, height: 5, borderRadius: 9, background: "currentColor", opacity: 0.75 }} />{title}{extra}
     </div>
   );

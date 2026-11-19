@@ -1,4 +1,5 @@
 import { FONT } from "../lib/fonts.js";
+import { blueFill } from "../lib/onColor.js";
 import React from "react";
 import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
@@ -516,7 +517,7 @@ export default function QualifyContent(props) {
    <Sec title="Your Maximum Purchase Price">
     {/* Solid Grange-blue hero, white type (Christo 2026-09-23: "mega pop").
         The pale tint read as just another card over the background canvas. */}
-    <Card style={{ background: `linear-gradient(135deg, ${T.blue}, ${T.accentDeep})`, border: "none", boxShadow: `0 10px 30px ${T.blue}40` }}>
+    <Card style={{ background: blueFill(T, `linear-gradient(135deg, ${T.blue}, ${T.accentDeep})`), border: "none", boxShadow: `0 10px 30px ${T.onColor ? "rgba(11,37,69,0.35)" : `${T.blue}40`}` }}>
      <div style={{ textAlign: "center", padding: "14px 0" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: 1.5 }}>You Can Afford Up To</div>
       <div style={{ fontSize: isDesktop ? 48 : 40, fontWeight: 800, color: "#fff", fontFamily: FONT, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "8px 0" }}>{fmt(maxPrice)}</div>

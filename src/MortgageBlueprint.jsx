@@ -36,6 +36,7 @@ import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } fro
 import { quickIncomeMonthly, miModeFor, borrowCostSeries, refiNetSavingsSeries } from "./lib/compareMetrics.js";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT, tintOver, isTranslucentColor } from "./lib/theme.js";
+import { canvasCta, canvasGhost, washOn } from "./lib/onColor.js";
 import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import { DEFAULT_APPLY_URL, getApplyUrl, applyHref } from "./lib/applyUrl.js";
@@ -267,8 +268,11 @@ let T = DARK;
 // keeps its theme text colors: segmented toggles went blue-on-blue (Learn tab,
 // 2026-10-31). Near-solid pills read on any color. Constant objects so T's
 // reference stays stable per mode.
-const DARK_ON_COLOR = { ...DARK, pillBg: "rgba(14,22,40,0.86)", banner: LIGHT.banner };
-const LIGHT_ON_COLOR = { ...LIGHT, pillBg: "rgba(255,255,255,0.9)" };
+// onColor turns on the colored-background treatments in lib/onColor.js; the
+// glass goes near-solid because half-clear white over Plaid blue read as pale
+// blue under white text (Chris 2026-11-18).
+const DARK_ON_COLOR = { ...DARK, onColor: true, pillBg: "rgba(14,22,40,0.86)", banner: LIGHT.banner, cardGlass: "rgba(14,22,40,0.86)", glass: "rgba(14,22,40,0.86)" };
+const LIGHT_ON_COLOR = { ...LIGHT, onColor: true, pillBg: "rgba(255,255,255,0.9)", cardGlass: "rgba(255,255,255,0.92)", glass: "rgba(255,255,255,0.92)" };
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
  useEscape(open, () => setOpen(false));
@@ -436,8 +440,10 @@ function Hero({ value, label, color, sub, small, light }) {
  }
  // Slim banner profile per Christo (2026-05-02) — shorter padding + smaller
  // title so section banners don't dominate the vertical scroll.
+ // A blue (or default) banner takes the section-banner navy like Quick Start;
+ // green/red stay, they carry the verdict.
  return (<div style={{
-   background: accent,
+   background: accent === T.blue ? T.banner : accent,
    padding: small ? "8px 16px" : "10px 18px",
    borderRadius: 12,
    marginBottom: 10,
@@ -8361,9 +8367,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    { label: refiPdfBusy ? "Generating…" : "Download Summary PDF", fees: false, solid: true },
    { label: refiPdfBusy ? "Generating…" : "PDF + Fees Page", fees: true, solid: false },
   ].map(b => (
-   <button key={b.label + b.fees} onClick={() => downloadRefiSummaryPdf(b.fees)} disabled={refiPdfBusy}
+   <button key={b.label + b.fees} onClick={() => downloadRefiSummaryPdf(b.fees)} disabled={refiPdfBusy} className={b.solid ? canvasCta(T).className : undefined}
     style={{ padding: "9px 18px", borderRadius: 9999, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: refiPdfBusy ? "default" : "pointer", opacity: refiPdfBusy ? 0.6 : 1,
-     background: b.solid ? T.blue : "transparent", color: b.solid ? "#fff" : T.blue, border: b.solid ? "none" : `1px solid ${T.blue}66` }}>
+     ...(b.solid ? canvasCta(T).style : canvasGhost(T, { background: "transparent", color: T.blue, border: `1px solid ${T.blue}66` })) }}>
     {b.label}
    </button>
   ))}
@@ -8691,8 +8697,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
  </Sec>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4, marginBottom: 12 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ padding: 14, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Email</button>
-  <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Print PDF</button>
+  <button onClick={() => setShowEmailModal(true)} className={canvasCta(T).className} style={{ padding: 14, ...canvasCta(T).style, borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Email</button>
+  <button onClick={handlePrintPdf} style={{ padding: 14, ...canvasGhost(T, { background: `${T.blue}15`, border: `1px solid ${T.blue}33`, color: T.blue }), borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Print PDF</button>
  </div>
  <Sec title="">
   <Card style={{ background: T.pillBg }}>
@@ -8708,7 +8714,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </div>
  {/* Score badge */}
  <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
-  <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 28px", borderRadius: 99, background: calc.refiTestScore === 3 ? `${T.green}18` : calc.refiTestScore >= 2 ? `${T.orange}18` : `${T.red}18` }}>
+  <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 28px", borderRadius: 99, background: washOn(T, calc.refiTestScore === 3 ? `${T.green}18` : calc.refiTestScore >= 2 ? `${T.orange}18` : `${T.red}18`) }}>
    <span style={{ fontSize: 28 }}>{calc.refiTestScore === 3 ? "●" : calc.refiTestScore >= 2 ? "●" : "●"}</span>
    <div>
     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiTestScore === 3 ? T.green : calc.refiTestScore >= 2 ? T.orange : T.red }}>{calc.refiTestScore} / 3</div>
@@ -11118,7 +11124,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      ← Back to Course
     </div>
     {/* Chapter header */}
-    <Card style={{ background: `linear-gradient(135deg, ${PHASE_INFO[ch.phase-1].color}12, ${T.card})`, border: `1px solid ${PHASE_INFO[ch.phase-1].color}30` }}>
+    <Card style={{ background: `linear-gradient(135deg, ${PHASE_INFO[ch.phase-1].color}12, ${PHASE_INFO[ch.phase-1].color}00), ${T.card}`, border: `1px solid ${PHASE_INFO[ch.phase-1].color}30` }}>
      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <div style={{ width: 52, height: 52, borderRadius: 16, background: `${PHASE_INFO[ch.phase-1].color}20`, display: "flex", alignItems: "center", justifyContent: "center", color: PHASE_INFO[ch.phase-1].color }}><Icon name={ch.icon} size={28} /></div>
       <div>

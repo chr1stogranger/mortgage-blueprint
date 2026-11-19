@@ -1,4 +1,5 @@
 import { FONT, MONO } from "../lib/fonts.js";
+import { washOn } from "../lib/onColor.js";
 import React, { useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
@@ -1993,7 +1994,7 @@ export default function SetupContent(props) {
    )}
   </Card>
  </Sec>}
- {isRefi && (refiHomeValue > 0 || calc.refiEffBalance > 0) && <div style={{ background: `${T.green}10`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+ {isRefi && (refiHomeValue > 0 || calc.refiEffBalance > 0) && <div style={{ background: washOn(T, `${T.green}10`), borderRadius: 12, padding: 14, marginBottom: 14 }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
    {refiHomeValue > 0 && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Current LTV</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>{(calc.refiEffBalance / refiHomeValue * 100).toFixed(1)}%</div></div>}
    {refiHomeValue > 0 && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Current Equity</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(refiHomeValue - calc.refiEffBalance)}</div></div>}
