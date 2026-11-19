@@ -317,6 +317,7 @@ describe("property tax calculator", () => {
     const css = renderCss();
     expect(css).toMatch(/\.taxhub \{ color-scheme: light;/);
     expect(css).toContain("--accent: #088181");
+    expect(css).toMatch(/\.hub-bill \{[^}]*linear-gradient\(#111, #111\) padding-box, conic-gradient\(from 210deg, #3DF59A/);
     expect(css).toContain("linear-gradient(150deg, #0B4AA8 0%, #0A78CC 45%, #13C4C2 100%)");
     expect(renderPage(byPath.get("/property-tax/california/"), font)).toContain('<meta name="theme-color" content="#e8f2f9" />');
     expect(renderPage(byPath.get("/loan-limits/"), font)).not.toContain('content="#e8f2f9"');

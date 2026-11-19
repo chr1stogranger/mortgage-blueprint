@@ -18,6 +18,8 @@ export const TAX_MAP_JS = "/seo/tax-map.js";
 export const TAX_MAP_JSON = "/seo/ca-tax-map.json";
 const OG_IMAGE = `${ORIGIN}/og-image.png`;
 const PLAID_WATER = BACKGROUNDS.find((b) => b.id === "plaid").css;
+// The thin rainbow edge on Ops' Plaid primary buttons (loan-pipeline src/theme.js).
+const PLAID_EDGE = "conic-gradient(from 210deg, #3DF59A, #18D8E8, #6B7BFF, #F08AE0, #F7A54A, #F5E14A, #3DF59A)";
 
 export const esc = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -421,8 +423,8 @@ footer.site p { color: var(--text3); }
 .hub-receipt .st, .hub-receipt .st b { font-weight: 600; color: var(--hub-ink); }
 .hub-receipt .t { margin-top: 3px; padding-top: 6px; border-top: 1px solid rgba(11, 37, 69, 0.16); font-weight: 700; color: var(--hub-ink); }
 .hub-receipt .t b { font-weight: 700; color: var(--hub-ink); }
-.hub-bill { display: block; padding: 13px 20px; background: #111; font-size: 16px; line-height: 1.3; text-align: center; }
-.hub-bill:hover { background: var(--accent); }
+.hub-bill { display: block; padding: 12px 20px; border: 1.5px solid transparent; background: linear-gradient(#111, #111) padding-box, ${PLAID_EDGE} border-box; font-size: 16px; line-height: 1.3; text-align: center; }
+.hub-bill:hover { background: linear-gradient(#2b2b2b, #2b2b2b) padding-box, ${PLAID_EDGE} border-box; }
 .hub-bill[hidden] { display: none; }
 .hub-note { margin: 0 2px; font-size: 12px; line-height: 1.4; color: var(--text3); }
 .hub-map { position: relative; min-width: 0; border-radius: 20px; background: ${PLAID_WATER}; }
