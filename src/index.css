@@ -187,5 +187,5 @@ button:focus:not(:focus-visible) {
   color: #fff;
   background: linear-gradient(#111111, #111111) padding-box, var(--bp-rainbow) border-box;
 }
-.bp-rainbow-pill:hover { background: linear-gradient(#2B2B2B, #2B2B2B) padding-box, var(--bp-rainbow) border-box; }
+.bp-rainbow-pill:hover { border-color: transparent; background: linear-gradient(#2B2B2B, #2B2B2B) padding-box, var(--bp-rainbow) border-box; }
 .bp-rainbow-pill:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
