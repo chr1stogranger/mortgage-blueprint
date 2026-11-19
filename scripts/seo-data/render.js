@@ -450,7 +450,15 @@ footer.site p { color: var(--text3); }
 .hub-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px 16px; align-items: start; }
 .hub-tables h2 { margin-top: 10px; font-size: 17px; }
 .hub-tables p { font-size: 14px; }
-.hub-tables .table-wrap { max-height: 420px; overflow: auto; margin: 0; border-radius: 20px; }
+.hub-tables .table-wrap { max-height: 420px; overflow: auto; margin: 0; border-radius: 20px; scrollbar-gutter: stable; }
+/* macOS hides overlay scroll bars until you scroll, so a capped table looked complete. A styled bar opts out of overlay mode and stays visible. */
+.hub-tables .table-wrap::-webkit-scrollbar { width: 12px; height: 12px; }
+.hub-tables .table-wrap::-webkit-scrollbar-track { background: #eef3f5; border-radius: 0 20px 20px 0; }
+.hub-tables .table-wrap::-webkit-scrollbar-thumb { background: #9fb3bf; border: 3px solid #eef3f5; border-radius: 9999px; }
+.hub-tables .table-wrap::-webkit-scrollbar-thumb:hover { background: #088181; }
+.hub-tables .table-wrap::-webkit-scrollbar-corner { background: transparent; }
+@supports not selector(::-webkit-scrollbar) { .hub-tables .table-wrap { scrollbar-width: auto; scrollbar-color: #9fb3bf #eef3f5; } }
+.hub-tables thead th { position: sticky; top: 0; z-index: 1; background: var(--card); box-shadow: inset 0 -1px 0 var(--sep); }
 .hub-tables caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hub-tables table { font-size: 13.5px; }
 @media (min-width: 1081px) and (min-height: 980px) {
