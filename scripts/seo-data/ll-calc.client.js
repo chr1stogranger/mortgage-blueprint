@@ -60,6 +60,9 @@ export function expandLimitData(d) {
     return {
       fips, name, st, state: s.name, std: s.std, limits: lim || s.std,
       path: page ? `${s.path}${slug}/` : `${s.path}#${slug}`,
+      // The address a pick puts in the bar: the county's own page, or its state's page opened on it.
+      share: page ? `${s.path}${slug}/` : `${s.path}?county=${slug}`,
+      slug, statePath: s.path,
       app: s.licensed ? `${d.origin}/?${q}` : `${d.origin}/`,
     };
   });
@@ -137,9 +140,17 @@ function init(form) {
     form.dataset.kind = r.kind;
     map?.setUnits(u);
   };
-  const pick = (fips, mapOpts) => {
+  // A county someone picks becomes the page's address, so the link they copy or
+  // share opens on it (and carries its own preview card where it has a page).
+  const follow = (c) => {
+    const here = location.pathname + location.search;
+    if (!c.share || c.share === here) return;
+    try { history.replaceState(history.state, "", c.share); } catch { /* sandboxed frames can refuse */ }
+  };
+  const pick = (fips, mapOpts, { user = true } = {}) => {
     const c = data?.counties.find((x) => x.fips === fips);
     if (!c) return;
+    if (user) follow(c);
     cur = c;
     county.value = label(c);
     if (cta) {
@@ -249,7 +260,11 @@ function init(form) {
       const d = expandLimitData(raw);
       data = d;
       if (hint) hint.textContent = `Search ${d.counties.length.toLocaleString("en-US")} counties by name or state`;
-      cur = d.counties.find((x) => x.fips === cur.fips) || cur;
+      // ?county=<slug> on a state page opens the checker on that county (the address a pick leaves behind).
+      const want = new URLSearchParams(location.search).get("county");
+      const asked = want && d.counties.find((x) => x.slug === want && x.statePath === location.pathname);
+      cur = asked || d.counties.find((x) => x.fips === cur.fips) || cur;
+      if (asked) pick(asked.fips, undefined, { user: false });
       render();
       const mapEl = form.querySelector("[data-llmap]");
       if (!mapEl) return;
@@ -258,7 +273,7 @@ function init(form) {
         .then((m) => m.initLimitMap(mapEl, { data: d, units: units(), onPick: (fips) => pick(fips, { frame: "auto" }) }))
         .then((m) => {
           map = m;
-          if (cur) pick(cur.fips);
+          if (cur) pick(cur.fips, asked ? { frame: true } : undefined, { user: false });
         })
         .catch(() => { mapEl.hidden = true; form.classList.add("no-map"); });
     })

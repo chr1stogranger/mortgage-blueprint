@@ -544,7 +544,7 @@ describe("link previews", () => {
     expect(renderPage(byPath.get("/property-tax/california/fremont/"), font)).toContain('<meta property="og:title" content="Fremont, CA Property Tax Calculator" />');
     const ll = renderPage(byPath.get("/loan-limits/texas/"), font);
     expect(ll).toContain('<meta property="og:title" content="Texas 2026 Loan Limits by County" />');
-    expect(ll).toContain('<meta name="twitter:image" content="https://blueprint.realstack.app/og-loan-limits.png" />');
+    expect(ll).toContain('<meta name="twitter:image" content="https://blueprint.realstack.app/api/og-ll?state=TX&amp;y=2026" />');
     for (const f of ["og-ca-tax.png", "og-loan-limits.png"]) expect(readFileSync(new URL(`../../public/${f}`, import.meta.url)).length).toBeGreaterThan(50000);
   });
 });
@@ -595,4 +595,45 @@ describe("city link-preview cards", () => {
       expect(geo.counties.some((g) => g.county === c.county), c.county).toBe(true);
     }
   }, 20000);
+});
+
+describe("loan-limit link-preview cards", () => {
+  const font = { fontHref: "/fonts/fonts.css" };
+  it("points state and county pages at their own card, territories off the map at the shared one", () => {
+    expect(renderPage(byPath.get("/loan-limits/texas/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-ll?state=TX&amp;y=2026" />');
+    expect(renderPage(byPath.get("/loan-limits/new-york/kings-county/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-ll?fips=36047&amp;l=1209750&amp;y=2026" />');
+    expect(renderPage(byPath.get("/loan-limits/guam/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/og-loan-limits.png" />');
+    expect(renderPage(byPath.get("/loan-limits/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/og-loan-limits.png" />');
+  });
+
+  it("gives each county a shareable address that opens on it", async () => {
+    const { expandLimitData } = await import("./ll-calc.client.js");
+    const all = expandLimitData(JSON.parse(JSON.stringify(site.llData))).counties;
+    const kings = all.find((c) => c.fips === "36047");
+    const harris = all.find((c) => c.fips === "48201");
+    expect(kings.share).toBe("/loan-limits/new-york/kings-county/");
+    expect(harris.share).toBe("/loan-limits/texas/?county=harris-county");
+    for (const c of all) expect(byPath.has(c.share.replace(/\?.*$/, "")), c.share).toBe(true);
+  });
+
+  it("renders state and county cards, and falls back for places off the map", async () => {
+    const { default: handler } = await import("../../api/og-ll.js");
+    const call = async (query) => {
+      const out = { headers: {} };
+      const res = {
+        setHeader: (k, v) => { out.headers[k.toLowerCase()] = v; },
+        status: (c) => { out.status = c; return res; },
+        send: (b) => { out.body = b; return res; },
+        redirect: (c, u) => { out.status = c; out.location = u; return res; },
+      };
+      await handler({ query }, res);
+      return out;
+    };
+    for (const q of [{ state: "TX" }, { fips: "36047" }]) {
+      const r = await call(q);
+      expect(r.status, JSON.stringify(q)).toBe(200);
+      expect(r.body.subarray(1, 4).toString()).toBe("PNG");
+    }
+    for (const q of [{ state: "GU" }, { fips: "66010" }, { fips: "x" }, {}]) expect(await call(q), JSON.stringify(q)).toMatchObject({ status: 302, location: "/og-loan-limits.png" });
+  }, 30000);
 });

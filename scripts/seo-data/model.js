@@ -37,6 +37,8 @@ const STATE_CODE = Object.fromEntries(Object.entries(US_STATE_NAMES).map(([st, n
 // What a state calls its county equivalents, where "counties" is wrong.
 const AREA_NOUN = { AK: "boroughs and census areas", CT: "planning regions", LA: "parishes", PR: "municipios", VA: "counties and cities", VI: "islands", MP: "municipalities", AS: "districts" };
 const areas = (st) => AREA_NOUN[st] || "counties";
+// Not on the county map (see build-ll-map.mjs), so their pages keep the shared preview card.
+const OFF_MAP = new Set(["AS", "GU", "MP", "VI"]);
 const UNITS = [1, 2, 3, 4];
 // Each state page's loan-limit checker opens on its biggest metro county (Alameda for California, Christo's home market).
 const STATE_DEFAULT_COUNTY = {
@@ -443,6 +445,8 @@ export function buildSite({ now, limitSource }) {
       path: statePath(state),
       titleCore: list.length === 1 ? `${state} ${year} Conforming Loan Limit` : `${state} ${year} Conforming Loan Limits by County`,
       shareTitle: list.length === 1 ? `${state} ${year} Loan Limit` : `${state} ${year} Loan Limits by County`,
+      // The state's own card (api/og-ll.js); the year in the URL refreshes the CDN copy with each FHFA release.
+      ogImage: OFF_MAP.has(st) ? null : `${ORIGIN}/api/og-ll?${new URLSearchParams({ state: st, y: String(year) })}`,
       description: (list.length === 1
         ? `${year} conforming loan limit for ${state}: ${minMax} for one unit, with the 2 to 4 unit limits from FHFA.`
         : `${year} conforming loan limits for all ${list.length} ${state} ${noun}: ${minMax} for one unit, 1 to 4 unit limits from FHFA.`),
@@ -503,6 +507,7 @@ export function buildSite({ now, limitSource }) {
         path: countyPath(c),
         titleCore: `${abbrName} ${year} Loan Limits`,
         shareTitle: `${abbrName} ${year} Loan Limit`,
+        ogImage: OFF_MAP.has(st) ? null : `${ORIGIN}/api/og-ll?${new URLSearchParams({ fips: c.fips, l: String(c.limits[0]), y: String(year) })}`,
         description: [
           `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units, and what it means for jumbo loans.`,
           `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units.`,
