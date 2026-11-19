@@ -166,9 +166,16 @@ function init(form) {
       bill.textContent = `Look up your ${countyLabel(county)} tax bill`;
     }
   };
-  const pickCity = (name, mapOpts) => {
+  // A city someone picks becomes the page's address, so the link they copy or
+  // share is that city's own page (and its own preview card), not the hub's.
+  const followCity = (x) => {
+    if (!x.path || x.path === location.pathname) return;
+    try { history.replaceState(history.state, "", x.path); } catch { /* sandboxed frames can refuse */ }
+  };
+  const pickCity = (name, mapOpts, { user = true } = {}) => {
     const x = data?.cities.find((c) => c.city === name);
     if (!x) return;
+    if (user) followCity(x);
     current = x.city;
     city.value = x.city;
     rate.value = x.pct.toFixed(4);
@@ -285,7 +292,7 @@ function init(form) {
         .then((m) => m.initTaxMap(mapEl, { data: d, onPick: (name) => pickCity(name, { frame: "auto" }), onCounty: setBill }))
         .then((m) => {
           map = m;
-          pickCity(current);
+          pickCity(current, undefined, { user: false });
         })
         .catch(() => { mapEl.hidden = true; form.classList.add("no-map"); });
     })
