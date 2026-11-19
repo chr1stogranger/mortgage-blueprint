@@ -18,6 +18,8 @@ export const DARK = {
  bg: "#0a1120", bg2: "#0d1524", card: "#121c30", cardBorder: "rgba(255,255,255,0.08)",
  cardShadow: "0 1px 3px rgba(0,0,0,0.5)", cardHover: "#1a2740",
  accent: "#3B6BF5", accentHover: "#6E90FF", accentDeep: "#2B4FCE", blue: "#3B6BF5",
+ // Section banners. Blue stays here because navy would vanish on the navy ground.
+ banner: "#3B6BF5",
  green: "#12a150", red: "#e5484d",
  purple: "#8b7bf0", orange: "#d98a0b", cyan: "#38c6c6", pink: "#EC4899", teal: "#38c6c6",
  text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#8A8A8A", // #666 was 3.2:1 on navy; #8A8A8A is 5.4:1 (AA), same value realstack-web uses
@@ -48,6 +50,9 @@ export const LIGHT = {
  bg: "#f4f9fc", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(16,27,46,0.12)",
  cardShadow: "0 1px 5px rgba(16,27,46,0.08), 0 0 1px rgba(16,27,46,0.06)", cardHover: "#eff4fa",
  accent: "#3B6BF5", accentHover: "#6E90FF", accentDeep: "#2B4FCE", blue: "#3B6BF5",
+ // Section banners: navy, because blue banners disappeared on blue backgrounds
+ // (Chris 2026-11-18).
+ banner: "#0B2545",
  green: "#12a150", red: "#e5484d",
  purple: "#8b7bf0", orange: "#d98a0b", cyan: "#38c6c6", pink: "#EC4899", teal: "#38c6c6",
  text: "#171717", textSecondary: "#4B5563", textTertiary: "#6B7280",

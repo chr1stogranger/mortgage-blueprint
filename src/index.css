@@ -178,3 +178,14 @@ button:focus:not(:focus-visible) {
 @container (max-width: 720px) {
   .rl-g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Ink pill with a thin rainbow edge, the primary button in Ops' Plaid theme
+   (loan-pipeline src/theme.js). The 1.5px border is part of the pill's size. */
+.bp-rainbow-pill {
+  --bp-rainbow: conic-gradient(from 210deg, #3DF59A, #18D8E8, #6B7BFF, #F08AE0, #F7A54A, #F5E14A, #3DF59A);
+  border: 1.5px solid transparent;
+  color: #fff;
+  background: linear-gradient(#111111, #111111) padding-box, var(--bp-rainbow) border-box;
+}
+.bp-rainbow-pill:hover { background: linear-gradient(#2B2B2B, #2B2B2B) padding-box, var(--bp-rainbow) border-box; }
+.bp-rainbow-pill:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

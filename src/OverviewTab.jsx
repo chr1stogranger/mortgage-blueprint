@@ -20,14 +20,14 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
   // to its right (Christo 2026-09-24/25: two-line banners read as too big).
   const inlineText = !open && collapsedSubtitle ? collapsedSubtitle : subtitle;
   if (heroStyle) {
-    // Full-width indigo banner with white text. Slim profile per Christo
+    // Full-width banner (T.banner) with white text. Slim profile per Christo
     // (2026-05-02) — shorter padding + smaller title so the banners stop
     // dominating the vertical scroll on the Overview tab.
     return (
       <div id={id}>
         <div onClick={() => setOpen(!open)} style={{
           cursor: "pointer", marginTop: compact ? 6 : 12, marginBottom: open ? (compact ? 8 : 10) : 4,
-          background: T.blue, padding: compact ? "6px 14px" : "10px 18px", borderRadius: 12,
+          background: T.banner, padding: compact ? "6px 14px" : "10px 18px", borderRadius: 12,
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
@@ -47,12 +47,12 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
       </div>
     );
   }
-  // Smaller sub-section heading (also blue banner but compact).
+  // Smaller sub-section heading (same banner color, compact).
   return (
     <div id={id}>
       <div onClick={() => setOpen(!open)} style={{
         cursor: "pointer", marginTop: 28, marginBottom: open ? 12 : 4,
-        background: T.blue, padding: "12px 16px", borderRadius: 12,
+        background: T.banner, padding: "12px 16px", borderRadius: 12,
         display: "flex", alignItems: "center", gap: 10,
       }}>
         <span style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>▾</span>
@@ -272,8 +272,8 @@ export default function OverviewTab(props) {
           is what gets sent. */}
       {vis("new") && <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}
         headerRight={setTab ? (
-          <button type="button" onClick={() => setTab("summary")}
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: isDesktop ? "5px 12px" : "4px 10px", borderRadius: 9999, border: "none", background: "#fff", color: T.blue, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap" }}>
+          <button type="button" className="bp-rainbow-pill" onClick={() => setTab("summary")}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: isDesktop ? "3.5px 10.5px" : "2.5px 8.5px", borderRadius: 9999, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap" }}>
             <Icon name="share" size={12} />{shareLabel || "Share"}
           </button>
         ) : null}>

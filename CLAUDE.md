@@ -44,6 +44,7 @@
   control lives in Settings → Appearance; the canvas honors
   `prefers-reduced-motion`.
 - Pill buttons (`border-radius: 9999px`); no emojis in UI (shared `Icon`).
+- **Section banners use `T.banner` (2026-11-18), never `T.blue`:** Plaid navy `#0B2545` in light mode and on colored backgrounds, Grange blue on the dark navy canvas, where navy would vanish. Blue banners disappeared on blue backgrounds. The banner's Share / Send to pill is `.bp-rainbow-pill` (`src/index.css`), the same ink pill with a rainbow edge as Ops' Plaid theme.
 - **Light is the default (2026-11-04)**, whatever the OS is set to. Dark only
   from a saved choice (`bp_theme_mode`), `?theme=dark`, or Match Ops inside the
   Ops panel. Pre-React CSS keys off `html[data-theme="dark"]`, never

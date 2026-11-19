@@ -267,7 +267,7 @@ let T = DARK;
 // keeps its theme text colors: segmented toggles went blue-on-blue (Learn tab,
 // 2026-10-31). Near-solid pills read on any color. Constant objects so T's
 // reference stays stable per mode.
-const DARK_ON_COLOR = { ...DARK, pillBg: "rgba(14,22,40,0.86)" };
+const DARK_ON_COLOR = { ...DARK, pillBg: "rgba(14,22,40,0.86)", banner: LIGHT.banner };
 const LIGHT_ON_COLOR = { ...LIGHT, pillBg: "rgba(255,255,255,0.9)" };
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
@@ -506,14 +506,14 @@ function Card({ children, style: s, onClick, pad }) {
  return (<div onClick={onClick} style={{ background: T.card, borderRadius: 16, padding: pad || 18, boxShadow: T.cardShadow, marginBottom: 12, cursor: onClick ? "pointer" : "default", ...s, ...(bg ? { background: bg } : {}) }}>{children}</div>);
 }
 function Sec({ title, color, children, action, onAction, hero }) {
- // `hero` renders the same full-width blue banner OverviewTab uses for its
+ // `hero` renders the same full-width banner OverviewTab uses for its
  // top-level sections (Quick Start), so a section that reads as a peer of
  // those looks like one (Christo 2026-07-28). No chevron: Sec doesn't
  // collapse, and borrowing the affordance would promise a control that
  // isn't there.
  if (hero) {
   return (<>
-   <div style={{ marginTop: 20, marginBottom: 10, background: T.blue, padding: "10px 18px", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+   <div style={{ marginTop: 20, marginBottom: 10, background: T.banner, padding: "10px 18px", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
     <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{title}</h2>
     {action && <button onClick={onAction} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>{action}</button>}
    </div>
