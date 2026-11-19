@@ -17,15 +17,43 @@
 
 export const HOMEOWNERS_EXEMPTION = 7000;
 
+// Disabled veterans' exemption under SB 296 (Rev. & Tax. Code 205.5.1), lien
+// dates 2027 through 2031. The basic amount and income limit rise every year
+// with the Board of Equalization's inflation factor, so refresh them each May.
+export const VET_VALUE_CAP = 1000000;
+export const VET_BASIC_EXEMPTION = 185889;
+export const VET_INCOME_LIMIT = 83474;
+
+export const EXEMPTION_NAMES = {
+  home: "Homeowners' exemption",
+  vet: "Disabled veteran exemption",
+  "vet-low": "Disabled veteran exemption",
+  none: "No exemption",
+};
+
 /**
- * @param {{ price: number, ratePct: number, primary: boolean, fixed: number }} v
+ * Dollars off the assessed value. A home gets one exemption, never two. Veterans
+ * exempt half of the first $1M (all of it at or under the income limit); homes
+ * up to twice the basic amount keep the basic exemption, which is worth more there.
+ * @param {"home" | "vet" | "vet-low" | "none"} mode
+ */
+export function exemptionAmount(mode, price) {
+  const capped = Math.min(price, VET_VALUE_CAP);
+  if (mode === "home") return Math.min(HOMEOWNERS_EXEMPTION, price);
+  if (mode === "vet-low") return capped;
+  if (mode === "vet") return Math.max(capped * 0.5, Math.min(price, VET_BASIC_EXEMPTION));
+  return 0;
+}
+
+/**
+ * @param {{ price: number, ratePct: number, primary?: boolean, mode?: "home" | "vet" | "vet-low" | "none", fixed: number }} v  mode wins over primary
  * @returns {{ exemption: number, taxable: number, base: number, fixed: number, annual: number, monthly: number, effectivePct: number }}
  */
-export function computeTax({ price, ratePct, primary, fixed }) {
+export function computeTax({ price, ratePct, primary, mode, fixed }) {
   const p = Number.isFinite(price) && price > 0 ? price : 0;
   const r = Number.isFinite(ratePct) && ratePct > 0 ? ratePct / 100 : 0;
   const f = Number.isFinite(fixed) && fixed > 0 ? fixed : 0;
-  const exemption = primary ? Math.min(HOMEOWNERS_EXEMPTION, p) : 0;
+  const exemption = exemptionAmount(mode ?? (primary ? "home" : "none"), p);
   const taxable = Math.max(0, p - exemption);
   const base = taxable * r;
   const annual = base + f;
@@ -105,6 +133,7 @@ function init(form) {
   const bill = form.querySelector("[data-bill]");
   const fyOut = form.querySelector("[data-fy]");
   const fixedNote = form.querySelector("[data-fixednote]");
+  const vetNote = form.querySelector("[data-vetnote]");
   let fixedTouched = false; // once someone enters their own figure, picking a city keeps it
   let data = null;
   let map = null;
@@ -112,11 +141,21 @@ function init(form) {
   let results = [];
   let active = -1;
 
+  // The hub and county pages choose an exemption; city pages have the primary-residence box.
+  const exemptionMode = () => {
+    const choice = $("exemption")?.value;
+    if (!choice) return primary.checked ? "home" : "none";
+    return choice === "vet" && $("vetlow").checked ? "vet-low" : choice;
+  };
   const render = () => {
-    const out = formatTax(computeTax({ price: num(price.value), ratePct: num(rate.value), primary: primary.checked, fixed: num(fixed.value) }));
+    const mode = exemptionMode();
+    const out = formatTax(computeTax({ price: num(price.value), ratePct: num(rate.value), mode, fixed: num(fixed.value) }));
     for (const [k, v] of Object.entries(out)) {
       for (const el of form.querySelectorAll(`[data-out="${k}"]`)) el.textContent = v;
     }
+    for (const el of form.querySelectorAll("[data-exname]")) el.textContent = EXEMPTION_NAMES[mode];
+    for (const el of form.querySelectorAll("[data-ratepct]")) el.textContent = `${num(rate.value).toFixed(4)}%`;
+    if (vetNote) vetNote.hidden = !mode.startsWith("vet");
   };
   const setBill = (county) => {
     const url = data?.bills[county];

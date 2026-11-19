@@ -34,6 +34,7 @@ const STATE_CODE = { Arizona: "AZ", California: "CA", Colorado: "CO", Hawaii: "H
 const UNITS = [1, 2, 3, 4];
 const TAX_PRICES = [500000, 750000, 1000000, 1500000, 2000000];
 const PRICE_EXAMPLE = 1000000;
+const VET_SOURCE_URL = "https://www.boe.ca.gov/proptaxes/pdf/lta26019.pdf";
 const TRUE_RATE = "Your true tax rate is the two together, the tax at the city rate plus fixed assessments, divided by the purchase price on a newly purchased home.";
 
 export const FOOTER_TEXT =
@@ -466,6 +467,7 @@ export function buildSite({ now, limitSource }) {
     return s.length === 1 ? splitRate(s[0].rate).total : `${splitRate(s[0].rate).total} to ${splitRate(s[s.length - 1].rate).total}`;
   };
   const current = [...caByCounty.keys()].filter((k) => caByCounty.get(k)[0].fy === CA_TAX_CURRENT_FY);
+  const vetSource = p("The disabled veteran exemption follows SB 296 (Chapter 727, Statutes of 2026) and the ", link(VET_SOURCE_URL, "State Board of Equalization's 2027 exemption amounts"), ".");
   const computedCounties = [...caByCounty.keys()].filter((k) => caByCounty.get(k)[0].computed).map(countyLabel);
   const computedNote = computedCounties.length ? ` ${computedCounties.join(", ")} hasn't published its ${CA_TAX_CURRENT_FY} rate book yet, so its rates are added up from the district rates on its tax bills.` : "";
   const rankTable = (list, caption) => ({
@@ -535,7 +537,7 @@ export function buildSite({ now, limitSource }) {
       },
       {
         heading: "Source",
-        blocks: [p(`Each county's published tax rate book or rate schedule (San Francisco: the Treasurer's secured rate), linked on each county's page.${computedNote} Each rate is the total ad valorem rate for the city's primary or most common tax rate area; other areas in the same city can differ. Map boundaries are from the U.S. Census Bureau's 2024 cartographic boundary files.`)],
+        blocks: [p(`Each county's published tax rate book or rate schedule (San Francisco: the Treasurer's secured rate), linked on each county's page.${computedNote} Each rate is the total ad valorem rate for the city's primary or most common tax rate area; other areas in the same city can differ. Map boundaries are from the U.S. Census Bureau's 2024 cartographic boundary files.`), vetSource],
       },
     ],
   }));
@@ -578,7 +580,7 @@ export function buildSite({ now, limitSource }) {
         { heading: "Your property tax bill", grid: true, blocks: billBlocks },
         { heading: "Loan limits", grid: true, blocks: [p(link(llPath(cc), `${cc.name} ${year} conforming loan limit: ${money(cc.limits[0])}`))] },
         { heading: "Related", grid: true, blocks: [{ type: "list", items: [[link(TAX_HUB, "California property tax rates by city and county")]] }] },
-        { heading: "Source", blocks: [p("Rates from ", link(cs[0].url, cs[0].source), ". Each rate is for the city's primary or most common tax rate area; other areas in the same city can differ.")] },
+        { heading: "Source", blocks: [p("Rates from ", link(cs[0].url, cs[0].source), ". Each rate is for the city's primary or most common tax rate area; other areas in the same city can differ."), vetSource] },
         { blocks: [{ type: "cta", href: prefillLink({ st: "CA", county, src: "seo-ptax" }), text: `Run your numbers for ${label} in Mortgage Blueprint` }] },
       ],
     }));

@@ -234,6 +234,32 @@ describe("property tax calculator", () => {
     expect(fremont).toMatch(/<a class="pill" data-bill href="[^"]*propertytax\.alamedacountyca\.gov[^"]*"[^>]*>Look up your Alameda County tax bill<\/a>/);
   });
 
+  it("applies one exemption at a time, with SB 296's veteran rules", async () => {
+    const { computeTax, exemptionAmount: ex } = await import("./tax-calc.client.js");
+    expect(ex("home", 1000000)).toBe(7000);
+    expect(ex("home", 5000)).toBe(5000);
+    expect(ex("none", 1000000)).toBe(0);
+    // Half of the first $1M, capped there
+    expect(ex("vet", 1000000)).toBe(500000);
+    expect(ex("vet", 2000000)).toBe(500000);
+    expect(ex("vet", 400000)).toBe(200000);
+    // At or under $371,778 the basic exemption is worth more than half, and can't exceed the value
+    expect(ex("vet", 371778)).toBe(185889);
+    expect(ex("vet", 300000)).toBe(185889);
+    expect(ex("vet", 150000)).toBe(150000);
+    // At or under the income limit: all of the first $1M
+    expect(ex("vet-low", 300000)).toBe(300000);
+    expect(ex("vet-low", 1000000)).toBe(1000000);
+    expect(ex("vet-low", 2000000)).toBe(1000000);
+    // (1,000,000 - 500,000) x 1.215% = 6,075; + 3,000 fixed, which no exemption reduces
+    const vet = computeTax({ price: 1000000, ratePct: 1.215, mode: "vet", fixed: 3000 });
+    expect(vet.taxable).toBe(500000);
+    expect(vet.base).toBeCloseTo(6075, 6);
+    expect(vet.annual).toBeCloseTo(9075, 6);
+    expect(computeTax({ price: 1000000, ratePct: 1.215, mode: "vet-low", fixed: 3000 })).toMatchObject({ taxable: 0, base: 0, annual: 3000 });
+    expect(computeTax({ price: 1000000, ratePct: 1.215, primary: true, fixed: 3000 }).exemption).toBe(7000);
+  });
+
   it("never defaults fixed assessments to $0, and leads with annual tax and the true rate", async () => {
     const { computeTax, formatTax, fixedEstimate } = await import("./tax-calc.client.js");
     const font = { fontHref: "/fonts/fonts.css" };
@@ -275,7 +301,9 @@ describe("property tax calculator", () => {
     expect(html).toContain('data-region="Bay Area"');
     expect(html).not.toContain('class="crumbs"');
     expect(html.indexOf('name="price"')).toBeLessThan(html.indexOf('name="rate"'));
-    expect(html).toMatch(/<input type="checkbox" name="primary" checked \/>/);
+    expect(html).toContain('<input type="radio" name="exemption" value="home" checked />');
+    expect(html).toContain('<div class="hub-vet" data-vetnote hidden>');
+    for (const line of ["Home price", "Taxable value", "City tax rate", "Fixed assessments", "Annual property tax"]) expect(html.slice(html.indexOf('class="hub-receipt"'))).toContain(line);
     expect(html).toContain('<b data-out="exemption">-$7,000</b>');
     expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
     // The year of each county's rates still has to be stated somewhere on the page.
