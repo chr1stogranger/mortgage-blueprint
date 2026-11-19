@@ -553,7 +553,8 @@ describe("city link-preview cards", () => {
   it("points each city page at its own card, with the rate in the URL", () => {
     const html = renderPage(byPath.get("/property-tax/california/berkeley/"), { fontHref: "/fonts/fonts.css" });
     expect(html).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-tax?city=Berkeley&amp;r=1.2313" />');
-    expect(renderPage(byPath.get("/property-tax/california/alameda-county/"), { fontHref: "/fonts/fonts.css" })).toContain('content="https://blueprint.realstack.app/og-ca-tax.png"');
+    expect(renderPage(byPath.get("/property-tax/california/alameda-county/"), { fontHref: "/fonts/fonts.css" })).toMatch(/<meta property="og:image" content="https:\/\/blueprint\.realstack\.app\/api\/og-tax\?county=Alameda&amp;r=0\.\d+-0\.\d+" \/>/);
+    expect(renderPage(byPath.get("/property-tax/california/"), { fontHref: "/fonts/fonts.css" })).toContain('content="https://blueprint.realstack.app/og-ca-tax.png"');
   });
 
   it("measures path boxes like the map geometry encodes them", async () => {
@@ -580,5 +581,18 @@ describe("city link-preview cards", () => {
     expect(ok.headers["content-type"]).toBe("image/png");
     expect(ok.body.subarray(1, 4).toString()).toBe("PNG");
     expect(await call({ city: "Atlantis" })).toMatchObject({ status: 302, location: "/og-ca-tax.png" });
+    const county = await call({ county: "Alameda" });
+    expect(county.status).toBe(200);
+    expect(county.body.subarray(1, 4).toString()).toBe("PNG");
+    expect(await call({ county: "Alpine" })).toMatchObject({ status: 302, location: "/og-ca-tax.png" }); // no listed cities, no tax page
+  }, 30000);
+
+  it("has a map shape and cities for every county tax page's card", async () => {
+    const { taxCardCountyCities } = await import("../../api/_taxCard.js");
+    const geo = JSON.parse(readFileSync(new URL("./ca-map-geo.json", import.meta.url), "utf8"));
+    for (const c of CA_TAX_COUNTIES) {
+      expect(taxCardCountyCities(c.county).length, c.county).toBeGreaterThan(0);
+      expect(geo.counties.some((g) => g.county === c.county), c.county).toBe(true);
+    }
   }, 20000);
 });

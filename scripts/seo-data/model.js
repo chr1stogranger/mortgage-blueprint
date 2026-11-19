@@ -635,6 +635,8 @@ export function buildSite({ now, limitSource }) {
       path: taxCountyPath(county),
       titleCore: `${label} Property Tax Rates and Bill Lookup`,
       shareTitle: `${label} Property Tax Calculator`,
+      // The county's own card (api/og-tax.js); its rate range in the URL refreshes the CDN copy when rates change.
+      ogImage: `${ORIGIN}/api/og-tax?${new URLSearchParams({ county, r: `${s[0].rate}-${s[s.length - 1].rate}` })}`,
       description: `${label}, CA property tax rates (FY ${fy}) for ${cs.length === 1 ? "the city" : `${cs.length} cities`}: ${rateRange(cs)}. Plus where to look up and pay your tax bill.`,
       layout: "taxhub",
       h1: `${label} Property Tax Rates (FY ${fy})`,
