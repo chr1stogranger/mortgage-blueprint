@@ -491,3 +491,16 @@ describe("loan-limit checker and map", () => {
     expect(bucketOf(1933200, 1288800)).toBe(4); // 3 units at the ceiling
   });
 });
+
+describe("live commas", () => {
+  it("groups digits as you type and keeps the caret after the same digit", async () => {
+    const { groupDigits } = await import("./num-input.js");
+    expect(groupDigits("1234", 4)).toEqual({ text: "1,234", caret: 5 });
+    expect(groupDigits("12345", 5)).toEqual({ text: "12,345", caret: 6 });
+    expect(groupDigits("123,4567", 8)).toEqual({ text: "1,234,567", caret: 9 });
+    expect(groupDigits("1,2345,678", 6)).toEqual({ text: "12,345,678", caret: 6 }); // typed mid-number
+    expect(groupDigits("$9a9", 4)).toEqual({ text: "99", caret: 2 });
+    expect(groupDigits("", 0)).toEqual({ text: "", caret: 0 });
+    expect(groupDigits("0012", 4)).toEqual({ text: "12", caret: 2 });
+  });
+});

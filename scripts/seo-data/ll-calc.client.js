@@ -11,6 +11,8 @@
 // Hawaii's statutory one) is standard conforming; above that up to the county
 // limit is high-balance conforming; above the county limit is jumbo.
 
+import { liveCommas } from "./num-input.js";
+
 export const KIND_NAMES = { standard: "Standard conforming", high: "High-balance", jumbo: "Jumbo" };
 
 /**
@@ -215,6 +217,7 @@ function init(form) {
   form.addEventListener("submit", (e) => e.preventDefault());
   form.addEventListener("input", (e) => { if (e.target !== county) render(); });
   form.addEventListener("change", (e) => { if (e.target.name === "units") render(); });
+  liveCommas(price);
   price.addEventListener("blur", () => { price.value = commas(num(price.value)); render(); });
   down.addEventListener("blur", () => { down.value = String(Math.min(100, Math.max(0, Math.round(num(down.value) * 10) / 10))); render(); });
   form.classList.add("live");

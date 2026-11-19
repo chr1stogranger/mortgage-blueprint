@@ -15,6 +15,8 @@
 // the tests import computeTax from this file, so the static and live numbers
 // can't disagree.
 
+import { liveCommas } from "./num-input.js";
+
 export const HOMEOWNERS_EXEMPTION = 7000;
 
 // Disabled veterans' exemption under SB 296 (Rev. & Tax. Code 205.5.1), lien
@@ -267,6 +269,7 @@ function init(form) {
     if (e.target === fixed) fixedTouched = true;
     if (e.target !== city) render();
   });
+  for (const el of [price, fixed]) liveCommas(el);
   for (const el of [price, fixed]) el.addEventListener("blur", () => { el.value = commas(num(el.value)) || (el === fixed ? "0" : ""); render(); });
   form.classList.add("live");
 
