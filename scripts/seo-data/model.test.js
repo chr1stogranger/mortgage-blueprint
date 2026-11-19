@@ -197,7 +197,9 @@ describe("helpers", () => {
     const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
     // Two JSON-LD blocks, plus the loan-limit checker's module (an external file, no inline code).
     expect(scripts.filter(([, attrs]) => attrs === ' type="module" src="/seo/ll-calc.js"').length).toBe(1);
-    const ld = scripts.filter(([, attrs]) => !attrs.includes("module"));
+    // Plus the analytics loader (also external): public/va.js.
+    expect(scripts.filter(([, attrs]) => attrs === ' defer src="/va.js"').length).toBe(1);
+    const ld = scripts.filter(([, attrs]) => !attrs.includes("module") && !attrs.includes("va.js"));
     expect(ld.length).toBe(2);
     for (const [, attrs, body] of ld) {
       expect(attrs).toBe(' type="application/ld+json"');
@@ -636,4 +638,17 @@ describe("loan-limit link-preview cards", () => {
     }
     for (const q of [{ state: "GU" }, { fips: "66010" }, { fips: "x" }, {}]) expect(await call(q), JSON.stringify(q)).toMatchObject({ status: 302, location: "/og-loan-limits.png" });
   }, 30000);
+});
+
+describe("visit analytics", () => {
+  it("loads the cookieless loader on every static page and in the app, disclosed in the privacy policy", () => {
+    for (const path of ["/property-tax/california/", "/loan-limits/", "/loan-limits/texas/", "/property-tax/california/oakland/"]) {
+      expect(renderPage(byPath.get(path), { fontHref: "/fonts/fonts.css" }), path).toContain('<script defer src="/va.js"></script>');
+    }
+    expect(readFileSync(new URL("../../index.html", import.meta.url), "utf8")).toContain('<script defer src="/va.js"></script>');
+    const va = readFileSync(new URL("../../public/va.js", import.meta.url), "utf8");
+    expect(va).toContain('"/_vercel/insights/script.js"');
+    expect(va).toMatch(/realstack\\\.app/);
+    expect(readFileSync(new URL("../../public/privacy.html", import.meta.url), "utf8")).toContain("we use Vercel Web Analytics");
+  });
 });

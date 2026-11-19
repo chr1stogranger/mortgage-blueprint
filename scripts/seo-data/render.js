@@ -263,6 +263,7 @@ ${hub ? '<meta name="theme-color" content="#e8f2f9" />' : `<meta name="theme-col
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="${esc(fontHref)}" />
 <link rel="stylesheet" href="${CSS_PATH}" />
+<script defer src="/va.js"></script>
 ${page.jsonLd.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n")}
 ${page.sections.some((x) => x.blocks.some((b) => b.type === "taxcalc")) ? `<script type="module" src="${TAX_CALC_JS}"></script>\n` : ""}${page.sections.some((x) => x.blocks.some((b) => b.type === "llcalc")) ? `<script type="module" src="${LL_CALC_JS}"></script>\n` : ""}</head>
 <body${hub ? ` class="taxhub${page.layout === "llhub" ? " llhub" : ""}"` : ""}>

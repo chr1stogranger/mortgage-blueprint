@@ -143,6 +143,7 @@ function init(form) {
   // A county someone picks becomes the page's address, so the link they copy or
   // share opens on it (and carries its own preview card where it has a page).
   const follow = (c) => {
+    window.va?.("event", { name: "Loan limit county picked", data: { county: `${c.name}, ${c.st}` } });
     const here = location.pathname + location.search;
     if (!c.share || c.share === here) return;
     try { history.replaceState(history.state, "", c.share); } catch { /* sandboxed frames can refuse */ }
@@ -245,6 +246,8 @@ function init(form) {
   });
 
   form.addEventListener("submit", (e) => e.preventDefault());
+  // Counted in Vercel Web Analytics (public/va.js): who goes on to open Blueprint.
+  cta?.addEventListener("click", () => window.va?.("event", { name: "Open app from loan limits", data: { county: cur ? `${cur.name}, ${cur.st}` : "" } }));
   form.addEventListener("input", (e) => { if (e.target !== county) render(); });
   form.addEventListener("change", (e) => { if (e.target.name === "units") render(); });
   liveCommas(price);

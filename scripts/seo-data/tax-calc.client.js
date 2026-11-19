@@ -169,6 +169,7 @@ function init(form) {
   // A city someone picks becomes the page's address, so the link they copy or
   // share is that city's own page (and its own preview card), not the hub's.
   const followCity = (x) => {
+    window.va?.("event", { name: "Tax city picked", data: { city: x.city, county: x.county } });
     if (!x.path || x.path === location.pathname) return;
     try { history.replaceState(history.state, "", x.path); } catch { /* sandboxed frames can refuse */ }
   };
@@ -272,6 +273,8 @@ function init(form) {
   });
 
   form.addEventListener("submit", (e) => e.preventDefault());
+  // Counted in Vercel Web Analytics (public/va.js): who goes on to look up a real bill.
+  bill?.addEventListener("click", () => window.va?.("event", { name: "Tax bill lookup", data: { county: bill.textContent.replace(/^Look up your | tax bill$/g, "") } }));
   form.addEventListener("input", (e) => {
     if (e.target === fixed) fixedTouched = true;
     if (e.target !== city) render();
