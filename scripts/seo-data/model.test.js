@@ -100,7 +100,8 @@ describe("page set", () => {
     expect(tax.h1).toMatch(/^Fresno County Property Tax Rates \(FY 20\d\d-\d\d\)$/);
     expect(pageText(tax)).toContain("/loan-limits/california/#fresno-county");
     expect(pageText(byPath.get("/property-tax/california/fresno/"))).toContain("/property-tax/california/fresno-county/");
-    const row = byPath.get("/loan-limits/california/").sections[0].blocks[0].rows.find((r) => r.id === "fresno-county");
+    const table = byPath.get("/loan-limits/california/").sections.find((x) => x.heading === "California county limits").blocks[0];
+    const row = table.rows.find((r) => r.id === "fresno-county");
     expect(row.cells).toEqual(["Fresno County", "$832,750", "$1,066,250", "$1,288,800", "$1,601,750"]);
   });
 
@@ -194,8 +195,11 @@ describe("helpers", () => {
     expect(html).toContain('<link rel="canonical" href="https://blueprint.realstack.app/loan-limits/california/alameda-county/" />');
     expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
     const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
-    expect(scripts.length).toBe(2);
-    for (const [, attrs, body] of scripts) {
+    // Two JSON-LD blocks, plus the loan-limit checker's module (an external file, no inline code).
+    expect(scripts.filter(([, attrs]) => attrs === ' type="module" src="/seo/ll-calc.js"').length).toBe(1);
+    const ld = scripts.filter(([, attrs]) => !attrs.includes("module"));
+    expect(ld.length).toBe(2);
+    for (const [, attrs, body] of ld) {
       expect(attrs).toBe(' type="application/ld+json"');
       expect(() => JSON.parse(body)).not.toThrow();
     }
@@ -309,10 +313,9 @@ describe("property tax calculator", () => {
     // The year of each county's rates still has to be stated somewhere on the page.
     expect(pageText(hub)).toMatch(/\d+ of these \d+ counties have fiscal year 2026-27 rates/);
     for (const heading of ["Rates by county", "Lowest rates", "Highest rates", "Look up a property tax bill", "Source"]) expect(html).toContain(`<h2>${heading}</h2>`);
-    expect(renderPage(byPath.get("/loan-limits/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
   });
 
-  it("uses the Plaid theme on tax pages only, light on every device", () => {
+  it("uses the Plaid theme on tax and loan-limit pages, light on every device", () => {
     const font = { fontHref: "/fonts/fonts.css" };
     const css = renderCss();
     expect(css).toMatch(/\.taxhub \{ color-scheme: light;/);
@@ -320,7 +323,7 @@ describe("property tax calculator", () => {
     expect(css).toMatch(/\.hub-bill \{[^}]*linear-gradient\(#111, #111\) padding-box, conic-gradient\(from 210deg, #3DF59A/);
     expect(css).toContain("linear-gradient(150deg, #0B4AA8 0%, #0A78CC 45%, #13C4C2 100%)");
     expect(renderPage(byPath.get("/property-tax/california/"), font)).toContain('<meta name="theme-color" content="#e8f2f9" />');
-    expect(renderPage(byPath.get("/loan-limits/"), font)).not.toContain('content="#e8f2f9"');
+    expect(renderPage(byPath.get("/loan-limits/"), font)).toContain('<body class="taxhub llhub">');
   });
 
   it("gives every city page the full math, and says when its rate isn't current", () => {
@@ -397,5 +400,94 @@ describe("property tax calculator", () => {
     expect(site.taxData.cities[0].county).toBe("Alameda");
     for (const c of site.taxData.cities) expect(c.pct, c.city).toBeGreaterThanOrEqual(1);
     expect(Object.keys(site.taxData.bills)).toHaveLength(58);
+  });
+});
+
+describe("loan-limit checker and map", () => {
+  const font = { fontHref: "/fonts/fonts.css" };
+
+  it("puts the checker and county map first on every loan-limit page", () => {
+    const ll = site.pages.filter((p) => p.path.startsWith("/loan-limits/"));
+    expect(ll).toHaveLength(55);
+    for (const p of ll) {
+      const html = renderPage(p, font);
+      expect(p.layout, p.path).toBe("llhub");
+      expect(html, p.path).toContain("data-llcalc");
+      expect(html, p.path).toContain('data-llmap data-js="/seo/ll-map.js" data-src="/seo/ll-map-geo.json"');
+      expect(html.indexOf('name="price"'), p.path).toBeLessThan(html.indexOf("<h2>"));
+      expect(html.match(/POWERED BY REALSTACK/g), p.path).toHaveLength(1);
+      expect(html, p.path).toContain('class="lead hub-lead"');
+    }
+    const hub = renderPage(byPath.get("/loan-limits/"), font);
+    expect(hub).toContain('value="Alameda County, CA"');
+    expect(hub).not.toContain("data-state=");
+    expect(renderPage(byPath.get("/loan-limits/texas/"), font)).toContain('value="Harris County, TX"');
+    expect(renderPage(byPath.get("/loan-limits/texas/"), font)).toContain('data-state="TX"');
+    const king = renderPage(byPath.get("/loan-limits/washington/king-county/"), font);
+    expect(king).toContain('value="King County, WA"');
+    expect(king).toContain('<strong data-out="limit">$1,063,750</strong>');
+    expect(king).toContain('href="https://blueprint.realstack.app/?st=WA&amp;county=King&amp;src=seo-ll"');
+  });
+
+  it("pre-renders the default example: $1.25M with 20% down", () => {
+    const html = renderPage(byPath.get("/loan-limits/california/alameda-county/"), font);
+    expect(html).toContain('<strong class="ll-kind" data-out="kind">High-balance</strong>');
+    expect(html).toContain('<span data-out="loan">$1,000,000</span>');
+    expect(html).toContain('<b data-out="high">$832,751 to $1,249,125</b>');
+    expect(html).toContain('<b data-out="mindown">$875 (0.1%)</b>');
+    const tx = renderPage(byPath.get("/loan-limits/texas/"), font);
+    expect(tx).toContain('<strong class="ll-kind" data-out="kind">Jumbo</strong>');
+    expect(tx).toContain('<div data-band="high" class="off">');
+    expect(tx).toContain('<b data-out="mindown">$417,250 (33.4%)</b>');
+  });
+
+  it("classifies a loan against the standard limit and the county limit", async () => {
+    const { computeLoan, formatLoan } = await import("./ll-calc.client.js");
+    const alameda = { std: 832750, limit: 1249125 };
+    expect(computeLoan({ price: 1000000, downPct: 20, ...alameda }).kind).toBe("standard");
+    expect(computeLoan({ price: 1040937.5, downPct: 20, ...alameda }).kind).toBe("standard"); // loan rounds to $832,750
+    expect(computeLoan({ price: 1100000, downPct: 20, ...alameda }).kind).toBe("high");
+    expect(computeLoan({ price: 2000000, downPct: 20, ...alameda })).toMatchObject({ loan: 1600000, kind: "jumbo", minDown: 750875 });
+    expect(formatLoan(computeLoan({ price: 800000, downPct: 3, ...alameda })).mindown).toBe("any amount");
+    // Hawaii: the standard limit is the HERA baseline, so Honolulu has no high-balance band.
+    const hon = computeLoan({ price: 1500000, downPct: 10, std: 1249125, limit: 1249125 });
+    expect(hon.kind).toBe("jumbo");
+    expect(formatLoan(hon).high).toBe("none here");
+    expect(computeLoan({ price: Number.NaN, downPct: 20, ...alameda })).toMatchObject({ loan: 0, kind: "standard" });
+  });
+
+  it("ships every licensed county to the checker, each with a map shape", () => {
+    const geo = JSON.parse(readFileSync(new URL("./ll-map-geo.json", import.meta.url), "utf8"));
+    const shapes = new Set(geo.counties.map((c) => c.fips));
+    expect(site.llData.counties).toHaveLength(488);
+    for (const c of site.llData.counties) {
+      expect(shapes.has(c.fips), c.name).toBe(true);
+      expect(c.limits, c.name).toEqual([1, 2, 3, 4].map((u) => getCountyLimits(c.st, c.name, u).highBalance));
+      expect(c.std, c.name).toEqual([1, 2, 3, 4].map((u) => getCountyLimits(c.st, c.name, u).conforming));
+      expect(c.path === "/loan-limits/" || byPath.has(c.path.replace(/#.*$/, "")), c.path).toBe(true);
+    }
+    expect(geo.states.map((s) => s.st)).toEqual(["AZ", "CA", "CO", "HI", "NV", "OR", "TX", "WA"]);
+  });
+
+  it("finds counties by name, narrowed by a trailing state", async () => {
+    const { searchCounties } = await import("./ll-calc.client.js");
+    const find = (q) => searchCounties(site.llData.counties, q).map((c) => `${c.name}, ${c.st}`);
+    expect(find("king wa")).toEqual(["King County, WA"]);
+    expect(find("king")).toEqual(expect.arrayContaining(["King County, TX", "King County, WA", "Kings County, CA"]));
+    expect(find("harris texas")[0]).toBe("Harris County, TX");
+    expect(find("orange county ca")).toEqual(["Orange County, CA"]);
+    expect(find("hawaii").slice(0, 1)).toEqual(["Hawaii County, HI"]);
+    expect(find("zzzz")).toEqual([]);
+  });
+
+  it("shades by the limit's multiple of the baseline", async () => {
+    const { bucketOf } = await import("./ll-map.client.js");
+    expect(bucketOf(832750, 832750)).toBe(0);
+    expect(bucketOf(862500, 832750)).toBe(1);
+    expect(bucketOf(1104000, 832750)).toBe(2);
+    expect(bucketOf(1209750, 832750)).toBe(3);
+    expect(bucketOf(1249125, 832750)).toBe(4);
+    expect(bucketOf(1299500, 832750)).toBe(4);
+    expect(bucketOf(1933200, 1288800)).toBe(4); // 3 units at the ceiling
   });
 });

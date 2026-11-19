@@ -32,6 +32,12 @@ export const ORIGIN = "https://blueprint.realstack.app";
 export const BRAND = "Mortgage Blueprint, powered by RealStack";
 const STATE_CODE = { Arizona: "AZ", California: "CA", Colorado: "CO", Hawaii: "HI", Nevada: "NV", Oregon: "OR", Texas: "TX", Washington: "WA" };
 const UNITS = [1, 2, 3, 4];
+// Each state page's loan-limit checker opens on its biggest metro county.
+const STATE_DEFAULT_COUNTY = { AZ: "Maricopa County", CA: "Alameda County", CO: "Denver County", HI: "Honolulu County", NV: "Clark County", OR: "Multnomah County", TX: "Harris County", WA: "King County" };
+// The checker's starting example: $1.25M with 20% down is a $1M loan, high-balance
+// in a high-cost county and jumbo at the baseline, so the first screen shows the difference.
+const LL_PRICE = 1250000;
+const LL_DOWN_PCT = 20;
 const TAX_PRICES = [500000, 750000, 1000000, 1500000, 2000000];
 const PRICE_EXAMPLE = 1000000;
 const VET_SOURCE_URL = "https://www.boe.ca.gov/proptaxes/pdf/lta26019.pdf";
@@ -99,6 +105,7 @@ function countyRecords() {
       return {
         st, state, name: c.name, short: shortCounty(c.name), fips: c.fips, slug: slugify(c.name),
         limits: lim.map((l) => l.highBalance),
+        stds: lim.map((l) => l.conforming),
         standard: lim[0].conforming,
         isHighCost: lim[0].isHighCost,
       };
@@ -215,6 +222,7 @@ function crumbs(...items) {
 }
 
 function page({ path, titleCore, description, h1, lead, intro = null, sections, breadcrumbs, now, layout = null }) {
+  if (layout === "llhub" && sections[0]?.blocks[0]?.type !== "llcalc") throw new Error(`seo-data: ${path} needs the loan-limit checker first`);
   if (titleCore.length > 65) throw new Error(`seo-data: title over 65 chars on ${path}: ${titleCore}`);
   if (description.length > 155) throw new Error(`seo-data: description over 155 chars (${description.length}) on ${path}`);
   const url = ORIGIN + path;
@@ -265,6 +273,7 @@ export function buildSite({ now, limitSource }) {
     link(limitSource.url, `FHFA conforming loan limit values for calendar year ${year}`),
     `, announced ${limitSource.announced}.`,
   );
+  const mapSource = p("Map boundaries are from the U.S. Census Bureau's 2024 cartographic boundary files.");
   const citiesIn = (short) => cities.filter((x) => normalizeCounty(x.county) === normalizeCounty(short));
   // Property-tax calculator (render.js + tax-calc.client.js), pre-filled for one city.
   const fixedTable = { default: CA_FIXED_ASSESSMENT_DEFAULT, cities: CA_FIXED_ASSESSMENT_CITIES };
@@ -272,6 +281,24 @@ export function buildSite({ now, limitSource }) {
     type: "taxcalc", mapCounty, mapRegion, fixedTable, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
     billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
   });
+
+  // Loan-limit checker + county map (render.js, ll-calc.client.js, ll-map.client.js).
+  const llBlock = (c, { mapState = null } = {}) => ({
+    type: "llcalc", mapState, fips: c.fips, name: c.name, st: c.st, state: c.state, limits: c.limits, stds: c.stds,
+    baseline: UNITS.map((u) => CONF_BASELINE[u]), price: LL_PRICE, down: LL_DOWN_PCT,
+    app: prefillLink({ st: c.st, county: c.short, src: "seo-ll" }), year,
+  });
+  const defaultCounty = (st) => {
+    const c = counties[st].find((x) => x.name === STATE_DEFAULT_COUNTY[st]);
+    if (!c) throw new Error(`seo-data: default county ${STATE_DEFAULT_COUNTY[st]} not found in ${st}`);
+    return c;
+  };
+  const meansCards = (middle) => ({
+    heading: "Conforming, high-balance and jumbo",
+    cards: ["Conforming", "High-balance", "Jumbo"],
+    blocks: [p(MEANS_INTRO), p(middle), p(MEANS_JUMBO)],
+  });
+  const LL_INTRO = "Pick a county, enter the price, and see whether the loan is conforming, high-balance or jumbo.";
 
   // ── loan-limit hub ──
   const stateRows = LICENSED_STATES.map((state) => {
@@ -285,12 +312,17 @@ export function buildSite({ now, limitSource }) {
     path: LL_HUB,
     titleCore: `${year} Conforming Loan Limits: ${Object.values(STATE_CODE).join(", ")}`,
     description: `${year} conforming loan limits: ${money(CONF_BASELINE[1])} national baseline, ${money(CONF_CEILING[1])} high-cost ceiling. County tables for ${Object.values(STATE_CODE).join(", ")}.`,
+    layout: "llhub",
     h1: `${year} Conforming Loan Limits by State and County`,
+    intro: LL_INTRO,
     lead: `The ${year} national baseline conforming loan limit for a one-unit home is ${money(CONF_BASELINE[1])}, and the high-cost ceiling is ${money(CONF_CEILING[1])}, according to the FHFA. Each county's limit falls somewhere from the baseline to the ceiling; Hawaii and a few others have special rules.`,
     breadcrumbs: crumbs({ name: "Loan limits", path: LL_HUB }),
     sections: [
+      { heading: "Loan limit checker", blocks: [llBlock(defaultCounty("CA"))] },
+      meansCards(`A standard conforming loan is at or below the baseline (${money(CONF_BASELINE[1])} for one unit in most of the country). In a high-cost county, a loan above the baseline but at or below that county's limit is a high-balance conforming loan. Anything above the county limit is a jumbo loan.`),
       {
         heading: "Limits by state",
+        grid: true,
         blocks: [{
           type: "table",
           caption: `${year} one-unit conforming loan limits by state`,
@@ -304,6 +336,7 @@ export function buildSite({ now, limitSource }) {
       },
       {
         heading: "National baseline and ceiling",
+        grid: true,
         blocks: [{
           type: "table",
           caption: `${year} national conforming loan limits by number of units`,
@@ -312,15 +345,7 @@ export function buildSite({ now, limitSource }) {
           rows: UNITS.map((u) => ({ cells: [unitLabel(u), money(CONF_BASELINE[u]), money(CONF_CEILING[u])] })),
         }],
       },
-      {
-        heading: "Conforming, high-balance and jumbo",
-        blocks: [
-          p(MEANS_INTRO),
-          p(`A standard conforming loan is at or below the baseline (${money(CONF_BASELINE[1])} for one unit in most of the country). In a high-cost county, a loan above the baseline but at or below that county's limit is a high-balance conforming loan. Anything above the county limit is a jumbo loan.`),
-          p(MEANS_JUMBO),
-        ],
-      },
-      { heading: "Source", blocks: [sourceP] },
+      { heading: "Source", blocks: [sourceP, mapSource] },
     ],
   }));
 
@@ -344,8 +369,10 @@ export function buildSite({ now, limitSource }) {
     }
     const withPages = list.filter(hasCountyPage);
     const sections = [
+      { heading: "Loan limit checker", blocks: [llBlock(defaultCounty(st), { mapState: st })] },
       {
         heading: `${state} county limits`,
+        grid: true,
         blocks: [{
           type: "table",
           caption: `${year} conforming loan limits by county, ${state}`,
@@ -358,25 +385,17 @@ export function buildSite({ now, limitSource }) {
           })),
         }],
       },
-      {
-        heading: "What these limits mean",
-        blocks: [
-          p(MEANS_INTRO),
-          p(st === "HI"
-            ? `In Hawaii, a loan up to ${money(list[0].standard)} for one unit is a standard conforming loan. In a county with a higher limit, the amount above that up to the county limit is high-balance conforming. Above the county limit, it's a jumbo loan.`
-            : `A loan at or below ${money(CONF_BASELINE[1])} for one unit is a standard conforming loan. In a high-cost county, a loan above that up to the county limit is a high-balance conforming loan. Above the county limit, it's a jumbo loan.`),
-          p(MEANS_JUMBO),
-        ],
-      },
+      meansCards(st === "HI"
+        ? `In Hawaii, a loan up to ${money(list[0].standard)} for one unit is a standard conforming loan. In a county with a higher limit, the amount above that up to the county limit is high-balance conforming. Above the county limit, it's a jumbo loan.`
+        : `A loan at or below ${money(CONF_BASELINE[1])} for one unit is a standard conforming loan. In a high-cost county, a loan above that up to the county limit is a high-balance conforming loan. Above the county limit, it's a jumbo loan.`),
     ];
     if (withPages.length) {
-      sections.push({ heading: `${state} counties with their own page`, blocks: [{ type: "list", items: withPages.map((c) => [link(countyPath(c), `${c.name}: ${money(c.limits[0])}`)]) }] });
+      sections.push({ heading: `${state} counties with their own page`, grid: true, blocks: [{ type: "list", items: withPages.map((c) => [link(countyPath(c), `${c.name}: ${money(c.limits[0])}`)]) }] });
     }
-    if (st === "CA") sections.push({ heading: "Property tax", blocks: [p(link(TAX_HUB, "California property tax rates by city and county"), ", from county rate books and bill data, with each county's tax bill lookup.")] });
+    if (st === "CA") sections.push({ heading: "Property tax", grid: true, blocks: [p(link(TAX_HUB, "California property tax rates by city and county"), ", from county rate books and bill data, with each county's tax bill lookup.")] });
     sections.push(
-      { heading: "Other states", blocks: [{ type: "list", items: LICENSED_STATES.filter((s) => s !== state).map((s) => [link(statePath(s), `${s} loan limits`)]) }] },
-      { heading: "Source", blocks: [sourceP] },
-      { blocks: [{ type: "cta", href: `${ORIGIN}/`, text: "Run your numbers in Mortgage Blueprint" }] },
+      { heading: "Other states", grid: true, blocks: [{ type: "list", items: LICENSED_STATES.filter((s) => s !== state).map((s) => [link(statePath(s), `${s} loan limits`)]) }] },
+      { heading: "Source", blocks: [sourceP, mapSource] },
     );
     const minMax = r.min === r.max ? money(r.min) : `${money(r.min)} to ${money(r.max)}`;
     pages.push(page({
@@ -384,7 +403,9 @@ export function buildSite({ now, limitSource }) {
       path: statePath(state),
       titleCore: `${state} ${year} Conforming Loan Limits by County`,
       description: `${year} conforming loan limits for all ${list.length} ${state} counties: ${minMax} for one unit, 1 to 4 unit limits from FHFA.`,
+      layout: "llhub",
       h1: `${year} Conforming Loan Limits by County in ${state}`,
+      intro: LL_INTRO,
       lead,
       breadcrumbs: crumbs({ name: "Loan limits", path: LL_HUB }, { name: state, path: statePath(state) }),
       sections,
@@ -404,14 +425,16 @@ export function buildSite({ now, limitSource }) {
         .slice(0, 6).map((x) => x.o)
         .sort((a, b) => a.name.localeCompare(b.name));
       const sections = [
-        { heading: `${c.name} limits by number of units`, blocks: [limitTable(c, year)] },
-        { heading: "What this means", blocks: [p(MEANS_INTRO), p(bandsSentence(c)), p(MEANS_JUMBO)] },
+        { heading: "Loan limit checker", blocks: [llBlock(c, { mapState: st })] },
+        meansCards(bandsSentence(c)),
+        { heading: `${c.name} limits by number of units`, grid: true, blocks: [limitTable(c, year)] },
       ];
       if (st === "CA") {
         const cs = citiesIn(c.short);
         if (cs.length) {
           sections.push({
             heading: `Property tax rates in ${c.name}`,
+            grid: true,
             blocks: [
               p(`Fiscal year ${fyOf(cs)} rates from the county's ${cs[0].computed ? "tax bills" : "tax rate book"}, for each city's primary tax rate area. Each rate is the 1% Proposition 13 base plus voter-approved bonds.`),
               cityRateTable(cs, `Property tax rates, ${c.name} (FY ${fyOf(cs)})`),
@@ -421,15 +444,15 @@ export function buildSite({ now, limitSource }) {
         }
       } else {
         const avg = STATE_PROPERTY_TAX_RATES[state];
-        if (avg) sections.push({ heading: "Property tax", blocks: [p(`${possessive(state)} average effective property tax rate is ${pct2(avg)} of home value (statewide average; your county and city will differ).`)] });
+        if (avg) sections.push({ heading: "Property tax", grid: true, blocks: [p(`${possessive(state)} average effective property tax rate is ${pct2(avg)} of home value (statewide average; your county and city will differ).`)] });
       }
       sections.push(
-        { heading: "Source", blocks: [sourceP] },
-        { blocks: [{ type: "cta", href: prefillLink({ st, county: c.short, src: "seo-ll" }), text: `Run your numbers for ${c.name} in Mortgage Blueprint` }] },
         {
           heading: "Related",
+          grid: true,
           blocks: [{ type: "list", items: [[link(statePath(state), `All ${state} county loan limits`)], ...related.map((o) => [link(countyPath(o), `${o.name}: ${money(o.limits[0])}`)])] }],
         },
+        { heading: "Source", blocks: [sourceP, mapSource] },
       );
       const abbrName = `${c.name}, ${st}`;
       pages.push(page({
@@ -437,7 +460,9 @@ export function buildSite({ now, limitSource }) {
         path: countyPath(c),
         titleCore: `${abbrName} ${year} Loan Limits`,
         description: `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units, and what it means for jumbo loans.`,
+        layout: "llhub",
         h1: `${year} Conforming Loan Limits in ${c.name}, ${state}`,
+        intro: LL_INTRO,
         lead: countyLead(c, year),
         breadcrumbs: crumbs({ name: "Loan limits", path: LL_HUB }, { name: state, path: statePath(state) }, { name: c.name, path: countyPath(c) }),
         sections,
@@ -676,5 +701,15 @@ export function buildSite({ now, limitSource }) {
     fixed: fixedTable,
     countyPaths: Object.fromEntries([...caByCounty.keys()].map((k) => [k, taxCountyPath(k)])),
   };
-  return { pages, sitemap: pages.map((pg) => ({ loc: pg.url, lastmod: now })), taxData };
+  // Data the loan-limit checker and map load (/seo/loan-limits.json).
+  const llData = {
+    year,
+    baseline: UNITS.map((u) => CONF_BASELINE[u]),
+    states: [...LICENSED_STATES],
+    counties: LICENSED_STATES.flatMap((state) => counties[STATE_CODE[state]].map((c) => ({
+      fips: c.fips, name: c.name, st: c.st, state: c.state, limits: c.limits, std: c.stds,
+      path: llPath(c), app: prefillLink({ st: c.st, county: c.short, src: "seo-ll" }),
+    }))),
+  };
+  return { pages, sitemap: pages.map((pg) => ({ loc: pg.url, lastmod: now })), taxData, llData };
 }

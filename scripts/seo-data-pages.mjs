@@ -14,14 +14,14 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { buildSite, parseLimitSource } from "./seo-data/model.js";
-import { renderPage, renderCss, CSS_PATH, TAX_CALC_JS, TAX_DATA_JSON, TAX_MAP_JS, TAX_MAP_JSON } from "./seo-data/render.js";
+import { renderPage, renderCss, CSS_PATH, TAX_CALC_JS, TAX_DATA_JSON, TAX_MAP_JS, TAX_MAP_JSON, LL_CALC_JS, LL_DATA_JSON, LL_MAP_JS, LL_MAP_JSON } from "./seo-data/render.js";
 
 const now = new Date().toISOString().slice(0, 10);
 const limitSource = parseLimitSource(readFileSync("src/data/loanLimits.js", "utf8"));
 const fontHref = readFileSync("index.html", "utf8").match(/href="(\/fonts\/[^"]+\.css)"/)?.[1];
 if (!fontHref) throw new Error("seo-data-pages: self-hosted font stylesheet (/fonts/*.css) not found in index.html");
 
-const { pages, sitemap, taxData } = buildSite({ now, limitSource });
+const { pages, sitemap, taxData, llData } = buildSite({ now, limitSource });
 
 const write = (file, body) => {
   mkdirSync(dirname(file), { recursive: true });
@@ -34,6 +34,11 @@ write(`dist${TAX_CALC_JS}`, readFileSync("scripts/seo-data/tax-calc.client.js", 
 write(`dist${TAX_DATA_JSON}`, JSON.stringify(taxData));
 write(`dist${TAX_MAP_JS}`, readFileSync("scripts/seo-data/tax-map.client.js", "utf8"));
 write(`dist${TAX_MAP_JSON}`, readFileSync("scripts/seo-data/ca-map-geo.json", "utf8"));
+// The loan-limit pages' checker, its county data and the county map (seo-data/build-ll-map.mjs).
+write(`dist${LL_CALC_JS}`, readFileSync("scripts/seo-data/ll-calc.client.js", "utf8"));
+write(`dist${LL_DATA_JSON}`, JSON.stringify(llData));
+write(`dist${LL_MAP_JS}`, readFileSync("scripts/seo-data/ll-map.client.js", "utf8"));
+write(`dist${LL_MAP_JSON}`, readFileSync("scripts/seo-data/ll-map-geo.json", "utf8"));
 for (const p of pages) write(`dist${p.path}index.html`, renderPage(p, { fontHref: fontHref.replace(/&amp;/g, "&") }));
 
 // ── sitemap ──

@@ -10,12 +10,17 @@ import { BACKGROUNDS } from "../../src/lib/backgrounds.js";
 import { FONT, MONO } from "../../src/lib/fonts.js";
 import { ORIGIN, FOOTER_TEXT } from "./model.js";
 import { computeTax, formatTax, fixedEstimate, EXEMPTION_NAMES, VET_INCOME_LIMIT } from "./tax-calc.client.js";
+import { computeLoan, formatLoan, unitLabel } from "./ll-calc.client.js";
 
 export const CSS_PATH = "/seo/seo.css";
 export const TAX_CALC_JS = "/seo/tax-calc.js";
 export const TAX_DATA_JSON = "/seo/ca-tax-rates.json";
 export const TAX_MAP_JS = "/seo/tax-map.js";
 export const TAX_MAP_JSON = "/seo/ca-tax-map.json";
+export const LL_CALC_JS = "/seo/ll-calc.js";
+export const LL_DATA_JSON = "/seo/loan-limits.json";
+export const LL_MAP_JS = "/seo/ll-map.js";
+export const LL_MAP_JSON = "/seo/ll-map-geo.json";
 const OG_IMAGE = `${ORIGIN}/og-image.png`;
 const PLAID_WATER = BACKGROUNDS.find((b) => b.id === "plaid").css;
 // The thin rainbow edge on Ops' Plaid primary buttons (loan-pipeline src/theme.js).
@@ -117,6 +122,57 @@ ${b.billUrl ? `<a class="pill hub-bill" data-bill href="${esc(b.billUrl)}" rel="
 </form>`;
 }
 
+// The loan-limit pages' first screen: the same stage, with a loan-limit checker
+// on the left and the county map on the right. ll-calc.client.js makes it live.
+function llCalc(page, b, crumbs) {
+  const r = computeLoan({ price: b.price, downPct: b.down, std: b.stds[0], limit: b.limits[0] });
+  const out = formatLoan(r);
+  const live = (key, tag = "span") => `<${tag} data-out="${key}">${esc(out[key])}</${tag}>`;
+  const band = (kind, label) => `<div data-band="${kind}"${r.kind === kind ? ' class="on"' : kind === "high" && !(b.limits[0] > b.stds[0]) ? ' class="off"' : ""}><i aria-hidden="true"></i><span>${esc(label)}</span>${live(kind === "standard" ? "std" : kind, "b")}</div>`;
+  return `<form class="hub-stage" data-llcalc data-src="${LL_DATA_JSON}" data-fips="${esc(b.fips)}" data-name="${esc(b.name)}" data-st="${esc(b.st)}" data-std="${esc(JSON.stringify(b.stds))}" data-limits="${esc(JSON.stringify(b.limits))}" data-kind="${r.kind}" action="#" aria-label="Loan limit checker">
+<div class="hub-calc">
+<div>
+${page.breadcrumbs.length > 2 ? `<nav aria-label="Breadcrumb" class="crumbs"><ol>${crumbs}</ol></nav>\n` : ""}<h1>${esc(page.h1)}</h1>
+<p class="hub-intro">${esc(page.intro ?? page.lead)}</p>
+</div>
+<div class="hub-sheet">
+<div class="hub-pick">
+<label for="ll-county"><span>County</span> <em data-countyhint></em></label>
+<div class="combo">
+<span class="hub-box"><svg class="glass" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input id="ll-county" name="county" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ll-county-list" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Search counties" value="${esc(`${b.name}, ${b.st}`)}" /></span>
+<ul id="ll-county-list" class="city-list" role="listbox" aria-label="Matching counties" data-countylist hidden></ul>
+</div>
+</div>
+<div class="hub-fields">
+<div class="hub-ex">
+<div class="hub-ex-h"><span id="ll-units-label">Property type</span></div>
+<div class="hub-seg ll-units" role="radiogroup" aria-labelledby="ll-units-label">
+${[1, 2, 3, 4].map((u) => `<label><input type="radio" name="units" value="${u}"${u === 1 ? " checked" : ""} /><span>${unitLabel(u)}</span></label>`).join("\n")}
+</div>
+</div>
+<label class="hub-fd"><span>Home price</span><span class="hub-box"><i>$</i><input name="price" inputmode="numeric" autocomplete="off" value="${esc(b.price.toLocaleString("en-US"))}" /></span></label>
+<label class="hub-fd"><span>Down payment <small>${live("down")}</small></span><span class="hub-box"><input name="down" inputmode="decimal" autocomplete="off" value="${esc(String(b.down))}" /><i>%</i></span></label>
+</div>
+<div class="hub-answer">
+<div class="hub-stats">
+<div class="hub-stat"><span class="k">Conforming loan limit</span>${live("limit", "strong")}<span class="s" data-where>${esc(`${unitLabel(1)}, ${b.name}, ${b.st}`)}</span></div>
+<div class="hub-stat"><span class="k">Your loan is</span><strong class="ll-kind" data-out="kind">${esc(out.kind)}</strong><span class="s">${live("loan")} loan</span></div>
+</div>
+<div class="hub-receipt ll-bands">
+${band("standard", "Standard conforming")}
+${band("high", "High-balance conforming")}
+${band("jumbo", "Jumbo")}
+<div class="t"><i aria-hidden="true"></i><span>Least down payment to stay conforming</span>${live("mindown", "b")}</div>
+</div>
+</div>
+</div>
+<a class="pill hub-bill" data-cta href="${esc(b.app)}">${esc(`Run your numbers for ${b.name} in Mortgage Blueprint`)}</a>
+<p class="hub-note">FHFA ${esc(String(b.year))} limits for loans Fannie Mae and Freddie Mac buy. Lenders can add their own rules for high-balance loans.</p>
+</div>
+<div class="hub-map"><div class="taxmap llmap" data-llmap data-js="${LL_MAP_JS}" data-src="${LL_MAP_JSON}"${b.mapState ? ` data-state="${esc(b.mapState)}"` : ""} hidden></div></div>
+</form>`;
+}
+
 // Everything under that first screen, using the full page width.
 function hubMore(sections) {
   const out = [];
@@ -160,11 +216,11 @@ export function renderPage(page, { fontHref }) {
     const last = i === page.breadcrumbs.length - 1;
     return `<li>${last ? `<span aria-current="page">${esc(b.name)}</span>` : `<a href="${esc(b.path)}">${esc(b.name)}</a>`}</li>`;
   }).join("");
-  const hub = page.layout === "taxhub";
+  const hub = page.layout === "taxhub" || page.layout === "llhub";
   const hubBlock = hub ? page.sections[0].blocks[0] : null;
   const main = hub
     ? `<main>
-${hubCalc(page, hubBlock, crumbs)}
+${hubBlock.type === "llcalc" ? llCalc(page, hubBlock, crumbs) : hubCalc(page, hubBlock, crumbs)}
 <div class="wrap hub-more">
 ${page.intro ? `<p class="lead hub-lead">${esc(page.lead)}</p>\n` : ""}${hubMore(page.sections.slice(1))}
 </div>
@@ -201,8 +257,8 @@ ${hub ? '<meta name="theme-color" content="#e8f2f9" />' : `<meta name="theme-col
 <link rel="stylesheet" href="${esc(fontHref)}" />
 <link rel="stylesheet" href="${CSS_PATH}" />
 ${page.jsonLd.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n")}
-${page.sections.some((x) => x.blocks.some((b) => b.type === "taxcalc")) ? `<script type="module" src="${TAX_CALC_JS}"></script>\n` : ""}</head>
-<body${hub ? ' class="taxhub"' : ""}>
+${page.sections.some((x) => x.blocks.some((b) => b.type === "taxcalc")) ? `<script type="module" src="${TAX_CALC_JS}"></script>\n` : ""}${page.sections.some((x) => x.blocks.some((b) => b.type === "llcalc")) ? `<script type="module" src="${LL_CALC_JS}"></script>\n` : ""}</head>
+<body${hub ? ` class="taxhub${page.layout === "llhub" ? " llhub" : ""}"` : ""}>
 <header class="site">
 <div class="wrap bar">
 ${hub ? '<a class="hub-brand" href="/"><span class="wordmark">Mortgage Blueprint</span><span class="badge">POWERED BY REALSTACK</span></a>' : '<a class="wordmark" href="/">Mortgage Blueprint</a>'}
@@ -461,6 +517,25 @@ footer.site p { color: var(--text3); }
 .hub-tables thead th { position: sticky; top: 0; z-index: 1; background: var(--card); box-shadow: inset 0 -1px 0 var(--sep); }
 .hub-tables caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hub-tables table { font-size: 13.5px; }
+/* Loan-limit pages: the same stage, with the checker's own pieces. */
+.ll-units { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.llhub .hub-fd .hub-box input { font-size: 20px; }
+.ll-kind { font-size: 26px !important; line-height: 1.12 !important; }
+.ll-bands > div { color: #33465e; }
+.ll-bands i { align-self: center; width: 8px; height: 8px; border-radius: 50%; }
+.ll-bands .on, .ll-bands .on b { font-weight: 650; color: var(--hub-ink); }
+.ll-bands .on i { background: var(--accent); box-shadow: 0 0 0 3px rgba(16, 208, 183, 0.25); }
+.ll-bands .off, .ll-bands .off b { color: #8a98a8; }
+.ll-bands .t i { visibility: hidden; }
+.llmap { --q0: #e4f6f3; }
+@media (min-width: 561px) {
+  .llhub .m-legend, .llhub .m-strip { width: 204px; }
+  .llhub .m-strip { bottom: 172px; }
+}
+.m-ctx { fill: #edf3f6; stroke: rgba(11, 37, 69, 0.14); stroke-width: 0.75px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.m-inset { fill: rgba(255, 255, 255, 0.35); stroke: rgba(11, 37, 69, 0.22); stroke-width: 1px; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.m-counties path { stroke: rgba(11, 37, 69, 0.2); stroke-width: 0.5px; vector-effect: non-scaling-stroke; cursor: pointer; }
+.m-states { fill: none; stroke: rgba(11, 37, 69, 0.6); stroke-width: 1.25px; vector-effect: non-scaling-stroke; pointer-events: none; stroke-linejoin: round; }
 @media (min-width: 1081px) and (min-height: 980px) {
   .hub-fields { gap: 14px; padding: 16px 16px 15px; }
   .hub-fd .hub-box { height: 48px; }
