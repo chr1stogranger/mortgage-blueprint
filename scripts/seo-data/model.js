@@ -242,7 +242,7 @@ function crumbs(...items) {
   return [{ name: "Mortgage Blueprint", path: "/" }, ...items];
 }
 
-function page({ path, titleCore, description, h1, lead, intro = null, sections, breadcrumbs, now, layout = null }) {
+function page({ path, titleCore, shareTitle = null, description, h1, lead, intro = null, sections, breadcrumbs, now, layout = null }) {
   if (layout === "llhub" && sections[0]?.blocks[0]?.type !== "llcalc") throw new Error(`seo-data: ${path} needs the loan-limit checker first`);
   if (titleCore.length > 65) throw new Error(`seo-data: title over 65 chars on ${path}: ${titleCore}`);
   if (description.length > 155) throw new Error(`seo-data: description over 155 chars (${description.length}) on ${path}`);
@@ -257,6 +257,8 @@ function page({ path, titleCore, description, h1, lead, intro = null, sections, 
     path, url,
     title: `${titleCore} — ${BRAND}`,
     description, h1, lead, intro, sections, breadcrumbs, layout,
+    // The short name a text or chat preview shows (og:title); the search title stays long.
+    shareTitle: shareTitle || titleCore,
     links: [...new Set(links)],
     jsonLd: [
       {
@@ -334,6 +336,7 @@ export function buildSite({ now, limitSource }) {
     now,
     path: LL_HUB,
     titleCore: `${year} Conforming Loan Limits by State and County`,
+    shareTitle: `${year} Loan Limits for Every U.S. County`,
     description: `${year} conforming loan limits for every U.S. county: ${money(CONF_BASELINE[1])} national baseline, ${money(CONF_CEILING[1])} high-cost ceiling, with a county map.`,
     layout: "llhub",
     h1: `${year} Conforming Loan Limits by State and County`,
@@ -438,6 +441,7 @@ export function buildSite({ now, limitSource }) {
       now,
       path: statePath(state),
       titleCore: list.length === 1 ? `${state} ${year} Conforming Loan Limit` : `${state} ${year} Conforming Loan Limits by County`,
+      shareTitle: list.length === 1 ? `${state} ${year} Loan Limit` : `${state} ${year} Loan Limits by County`,
       description: (list.length === 1
         ? `${year} conforming loan limit for ${state}: ${minMax} for one unit, with the 2 to 4 unit limits from FHFA.`
         : `${year} conforming loan limits for all ${list.length} ${state} ${noun}: ${minMax} for one unit, 1 to 4 unit limits from FHFA.`),
@@ -497,6 +501,7 @@ export function buildSite({ now, limitSource }) {
         now,
         path: countyPath(c),
         titleCore: `${abbrName} ${year} Loan Limits`,
+        shareTitle: `${abbrName} ${year} Loan Limit`,
         description: [
           `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units, and what it means for jumbo loans.`,
           `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units.`,
@@ -541,6 +546,7 @@ export function buildSite({ now, limitSource }) {
     now,
     path: TAX_HUB,
     titleCore: "California Property Tax Rates by City and County",
+    shareTitle: "California Property Tax Calculator",
     description: `Property tax rates for ${cities.length} California cities in ${caByCounty.size} counties, from county rate books and bill data, plus where to look up each county's tax bills.`,
     layout: "taxhub",
     h1: "California Property Tax Calculator",
@@ -627,6 +633,7 @@ export function buildSite({ now, limitSource }) {
       now,
       path: taxCountyPath(county),
       titleCore: `${label} Property Tax Rates and Bill Lookup`,
+      shareTitle: `${label} Property Tax Calculator`,
       description: `${label}, CA property tax rates (FY ${fy}) for ${cs.length === 1 ? "the city" : `${cs.length} cities`}: ${rateRange(cs)}. Plus where to look up and pay your tax bill.`,
       layout: "taxhub",
       h1: `${label} Property Tax Rates (FY ${fy})`,
@@ -709,6 +716,7 @@ export function buildSite({ now, limitSource }) {
       now,
       path: cityPath(x),
       titleCore: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
+      shareTitle: `${x.city}, CA Property Tax Calculator`,
       description: `${x.city}, CA property tax rate: ${total} for FY ${x.fy}. On a ${money(PRICE_EXAMPLE)} purchase that's about ${money(Math.round(ex.annual))} a year. Prop 13 basics and caveats.`,
       layout: "taxhub",
       h1: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,

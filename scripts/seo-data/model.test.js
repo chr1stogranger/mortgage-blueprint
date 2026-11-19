@@ -533,3 +533,18 @@ describe("national loan-limit pages", () => {
     expect(tx).toContain("?st=TX&amp;county=Harris&amp;src=seo-ll");
   });
 });
+
+describe("link previews", () => {
+  it("shares a short title and the Plaid card for its page family", () => {
+    const font = { fontHref: "/fonts/fonts.css" };
+    const hub = renderPage(byPath.get("/property-tax/california/"), font);
+    expect(hub).toContain('<meta property="og:title" content="California Property Tax Calculator" />');
+    expect(hub).toContain('<meta property="og:image" content="https://blueprint.realstack.app/og-ca-tax.png" />');
+    expect(hub).toContain("<title>California Property Tax Rates by City and County — Mortgage Blueprint, powered by RealStack</title>");
+    expect(renderPage(byPath.get("/property-tax/california/fremont/"), font)).toContain('<meta property="og:title" content="Fremont, CA Property Tax Calculator" />');
+    const ll = renderPage(byPath.get("/loan-limits/texas/"), font);
+    expect(ll).toContain('<meta property="og:title" content="Texas 2026 Loan Limits by County" />');
+    expect(ll).toContain('<meta name="twitter:image" content="https://blueprint.realstack.app/og-loan-limits.png" />');
+    for (const f of ["og-ca-tax.png", "og-loan-limits.png"]) expect(readFileSync(new URL(`../../public/${f}`, import.meta.url)).length).toBeGreaterThan(50000);
+  });
+});

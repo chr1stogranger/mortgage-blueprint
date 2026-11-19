@@ -22,6 +22,10 @@ export const LL_DATA_JSON = "/seo/loan-limits.json";
 export const LL_MAP_JS = "/seo/ll-map.js";
 export const LL_MAP_JSON = "/seo/ll-map-geo.json";
 const OG_IMAGE = `${ORIGIN}/og-image.png`;
+// Plaid link-preview cards from scripts/og/build-seo-og.mjs (1200x630).
+const OG_TAX = `${ORIGIN}/og-ca-tax.png`;
+const OG_LIMITS = `${ORIGIN}/og-loan-limits.png`;
+const ogImage = (page) => (page.path.startsWith("/property-tax/") ? OG_TAX : page.path.startsWith("/loan-limits/") ? OG_LIMITS : OG_IMAGE);
 const PLAID_WATER = BACKGROUNDS.find((b) => b.id === "plaid").css;
 // The thin rainbow edge on Ops' Plaid primary buttons (loan-pipeline src/theme.js).
 const PLAID_EDGE = "conic-gradient(from 210deg, #3DF59A, #18D8E8, #6B7BFF, #F08AE0, #F7A54A, #F5E14A, #3DF59A)";
@@ -242,14 +246,17 @@ ${page.sections.map(section).join("\n")}
 <link rel="canonical" href="${esc(page.url)}" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Mortgage Blueprint" />
-<meta property="og:title" content="${esc(page.title)}" />
+<meta property="og:title" content="${esc(page.shareTitle || page.title)}" />
 <meta property="og:description" content="${esc(page.description)}" />
 <meta property="og:url" content="${esc(page.url)}" />
-<meta property="og:image" content="${OG_IMAGE}" />
+<meta property="og:image" content="${ogImage(page)}" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="${esc(page.shareTitle || page.title)}, with a map" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${esc(page.title)}" />
+<meta name="twitter:title" content="${esc(page.shareTitle || page.title)}" />
 <meta name="twitter:description" content="${esc(page.description)}" />
-<meta name="twitter:image" content="${OG_IMAGE}" />
+<meta name="twitter:image" content="${ogImage(page)}" />
 ${hub ? '<meta name="theme-color" content="#e8f2f9" />' : `<meta name="theme-color" content="${DARK.bg}" media="(prefers-color-scheme: dark)" />
 <meta name="theme-color" content="${LIGHT.bg}" media="(prefers-color-scheme: light)" />`}
 <link rel="icon" href="/icons/favicon.ico" sizes="16x16 32x32 64x64" />
