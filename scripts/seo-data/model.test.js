@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { buildSite, parseLimitSource, prefillLink, slugify, splitRate, money2 } from "./model.js";
-import { renderPage, esc } from "./render.js";
+import { renderPage, renderCss, esc } from "./render.js";
 import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
 import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
@@ -310,6 +310,16 @@ describe("property tax calculator", () => {
     expect(pageText(hub)).toMatch(/\d+ of these \d+ counties have fiscal year 2026-27 rates/);
     for (const heading of ["Rates by county", "Lowest rates", "Highest rates", "Look up a property tax bill", "Source"]) expect(html).toContain(`<h2>${heading}</h2>`);
     expect(renderPage(byPath.get("/loan-limits/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
+  });
+
+  it("uses the Plaid theme on tax pages only, light on every device", () => {
+    const font = { fontHref: "/fonts/fonts.css" };
+    const css = renderCss();
+    expect(css).toMatch(/\.taxhub \{ color-scheme: light;/);
+    expect(css).toContain("--accent: #088181");
+    expect(css).toContain("linear-gradient(150deg, #0B4AA8 0%, #0A78CC 45%, #13C4C2 100%)");
+    expect(renderPage(byPath.get("/property-tax/california/"), font)).toContain('<meta name="theme-color" content="#e8f2f9" />');
+    expect(renderPage(byPath.get("/loan-limits/"), font)).not.toContain('content="#e8f2f9"');
   });
 
   it("gives every city page the full math, and says when its rate isn't current", () => {

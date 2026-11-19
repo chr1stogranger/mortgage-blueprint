@@ -6,6 +6,7 @@
 // goes through esc().
 
 import { LIGHT, DARK } from "../../src/lib/theme.js";
+import { BACKGROUNDS } from "../../src/lib/backgrounds.js";
 import { FONT, MONO } from "../../src/lib/fonts.js";
 import { ORIGIN, FOOTER_TEXT } from "./model.js";
 import { computeTax, formatTax, fixedEstimate, EXEMPTION_NAMES, VET_INCOME_LIMIT } from "./tax-calc.client.js";
@@ -16,6 +17,7 @@ export const TAX_DATA_JSON = "/seo/ca-tax-rates.json";
 export const TAX_MAP_JS = "/seo/tax-map.js";
 export const TAX_MAP_JSON = "/seo/ca-tax-map.json";
 const OG_IMAGE = `${ORIGIN}/og-image.png`;
+const PLAID_WATER = BACKGROUNDS.find((b) => b.id === "plaid").css;
 
 export const esc = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -190,8 +192,8 @@ ${page.sections.map(section).join("\n")}
 <meta name="twitter:title" content="${esc(page.title)}" />
 <meta name="twitter:description" content="${esc(page.description)}" />
 <meta name="twitter:image" content="${OG_IMAGE}" />
-<meta name="theme-color" content="${DARK.bg}" media="(prefers-color-scheme: dark)" />
-<meta name="theme-color" content="${LIGHT.bg}" media="(prefers-color-scheme: light)" />
+${hub ? '<meta name="theme-color" content="#e8f2f9" />' : `<meta name="theme-color" content="${DARK.bg}" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="${LIGHT.bg}" media="(prefers-color-scheme: light)" />`}
 <link rel="icon" href="/icons/favicon.ico" sizes="16x16 32x32 64x64" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 <link rel="stylesheet" href="${esc(fontHref)}" />
@@ -351,8 +353,11 @@ footer.site p { color: var(--text3); }
   .lead { font-size: 17px; }
   th, td { padding: 8px 10px; }
 }
-/* CA tax hub and county pages: the math on the left, the navy map pinned on the right. */
-.taxhub { --hub-head: 59px; --hub-gut: 24px; --hub-navy: #0a1120; --hub-screen: clamp(640px, calc(100vh - var(--hub-head) - 36px), 820px); }
+/* CA tax pages: the math on the left, the map on the right, in RealStack Ops' Plaid theme (loan-pipeline src/theme.js). Light only, on every device. */
+.taxhub { color-scheme: light; --hub-head: 59px; --hub-gut: 24px; --hub-screen: clamp(640px, calc(100vh - var(--hub-head) - 36px), 820px); --hub-ink: #0b2545; --hub-tile: linear-gradient(160deg, #d9f7fa 0%, #eaf3fd 55%, #efe8fc 100%); --bg: #fff; --card: #fff; --border: #dcdcdc; --sep: #ececec; --text: #111; --text2: #555; --text3: #6e6e6e; --accent: #088181; --accent-hover: #066a6a; --link: #088181; --pill: #f2f2f2; --hl: ${LIGHT.warningBg}; --input-bg: #f5f5f5; --input-border: #dcdcdc; }
+.taxhub header.site { background: rgba(232, 242, 249, 0.88); }
+.taxhub .wordmark, .taxhub header.site nav a, .hub-calc h1, .hub-more h2, .hub-card h3 { color: var(--hub-ink); }
+.taxhub header.site nav a:hover { color: var(--accent); }
 .taxhub .wrap { max-width: none; padding-left: var(--hub-gut); padding-right: var(--hub-gut); }
 .taxhub header.site .bar { min-height: var(--hub-head); padding-top: 8px; padding-bottom: 8px; }
 .hub-brand { display: flex; flex-direction: column; line-height: 1.15; text-decoration: none; }
@@ -364,12 +369,12 @@ footer.site p { color: var(--text3); }
 .hub-calc h1 { margin: 2px 0 0; font-size: 31px; line-height: 1.12; letter-spacing: -0.025em; }
 .hub-calc .crumbs ol { margin: 0 0 4px; font-size: 12px; }
 .hub-intro { margin: 5px 0 0; font-size: 15px; line-height: 1.4; }
-.hub-sheet { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 18px; background: var(--card); box-shadow: 0 14px 34px -22px rgba(10, 17, 32, 0.3); }
+.hub-sheet { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 20px; background: var(--card); box-shadow: 0 1px 2px rgba(11, 37, 69, 0.05), 0 14px 32px -16px rgba(11, 37, 69, 0.28); }
 .hub-pick { padding: 11px 16px 10px; border-bottom: 1px solid var(--sep); }
 .hub-pick label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 5px; font-size: 13px; font-weight: 600; }
 .hub-pick label em { font-style: normal; font-size: 12px; font-weight: 400; color: var(--text3); }
 .hub-box { display: flex; align-items: center; gap: 4px; height: 38px; padding: 0 11px; border: 1px solid var(--input-border); border-radius: 10px; background: var(--input-bg); }
-.hub-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 107, 245, 0.18); }
+.hub-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16, 208, 183, 0.28); }
 .hub-box i { font-style: normal; font-size: 14px; color: var(--text3); }
 .hub-box input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .hub-pick .hub-box { height: 44px; }
@@ -390,9 +395,9 @@ footer.site p { color: var(--text3); }
 .hub-seg label { position: relative; display: block; cursor: pointer; }
 .hub-seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .hub-seg span { display: block; padding: 6px 4px; border-radius: 9999px; font-size: 12.5px; font-weight: 600; color: var(--text2); text-align: center; white-space: nowrap; }
-.hub-seg input:checked + span { background: #3b6bf5; color: #fff; }
+.hub-seg input:checked + span { background: var(--accent); color: #fff; }
 .hub-seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
-.hub-vet { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--input-bg); }
+.hub-vet { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: #e2f7f3; }
 .hub-vet[hidden] { display: none; }
 .hub-vet .hub-sw { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .hub-vet p { margin: 4px 0 0; font-size: 12px; line-height: 1.35; color: var(--text2); }
@@ -403,32 +408,32 @@ footer.site p { color: var(--text3); }
 .hub-sw input:checked + u { background: var(--accent); }
 .hub-sw input:checked + u::after { transform: translateX(12px); }
 .hub-sw input:focus-visible + u { outline: 2px solid var(--accent); outline-offset: 2px; }
-.hub-answer { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; margin: 0 8px 8px; padding: 12px 18px 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #fff; background-color: var(--hub-navy); background-image: linear-gradient(rgba(147, 173, 250, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(147, 173, 250, 0.09) 1px, transparent 1px); background-size: 22px 22px; }
+.hub-answer { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; margin: 0 8px 8px; padding: 12px 18px 10px; border: 1px solid rgba(8, 129, 129, 0.14); border-radius: 12px; color: var(--hub-ink); background: var(--hub-tile); }
 .hub-stats { flex: 1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: center; gap: 14px; }
-.hub-stat + .hub-stat { padding-left: 16px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
-.hub-stat .k { display: block; font-family: ${MONO}; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: #a9bbe6; }
+.hub-stat + .hub-stat { padding-left: 16px; border-left: 1px solid rgba(11, 37, 69, 0.16); }
+.hub-stat .k { display: block; font-family: ${MONO}; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--accent-hover); }
 .hub-stat strong { display: block; margin-top: 3px; font-size: 34px; line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.hub-stat .s { display: block; margin-top: 3px; font-size: 13px; color: #c7d3ee; font-variant-numeric: tabular-nums; }
-.hub-receipt { padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.16); font-size: 13px; color: #c7d3ee; font-variant-numeric: tabular-nums; }
+.hub-stat .s { display: block; margin-top: 3px; font-size: 13px; color: #3b4f68; font-variant-numeric: tabular-nums; }
+.hub-receipt { padding-top: 6px; border-top: 1px solid rgba(11, 37, 69, 0.16); font-size: 13px; color: #33465e; font-variant-numeric: tabular-nums; }
 .hub-receipt > div { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: baseline; gap: 4px; padding: 2px 0; }
-.hub-receipt i { font-style: normal; color: #93adfa; }
-.hub-receipt b { font-weight: 500; color: #eef3ff; }
-.hub-receipt .st, .hub-receipt .st b { font-weight: 600; color: #fff; }
-.hub-receipt .t { margin-top: 3px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.16); font-weight: 700; color: #fff; }
-.hub-receipt .t b { font-weight: 700; color: #fff; }
-.hub-bill { display: block; padding: 13px 20px; background: linear-gradient(135deg, #3b6bf5, #2b4fce); font-size: 16px; line-height: 1.3; text-align: center; box-shadow: 0 10px 22px -12px rgba(43, 79, 206, 0.8); }
-.hub-bill:hover { background: linear-gradient(135deg, #3b6bf5, #2b4fce); filter: brightness(1.08); }
+.hub-receipt i { font-style: normal; color: var(--accent); }
+.hub-receipt b { font-weight: 500; color: var(--hub-ink); }
+.hub-receipt .st, .hub-receipt .st b { font-weight: 600; color: var(--hub-ink); }
+.hub-receipt .t { margin-top: 3px; padding-top: 6px; border-top: 1px solid rgba(11, 37, 69, 0.16); font-weight: 700; color: var(--hub-ink); }
+.hub-receipt .t b { font-weight: 700; color: var(--hub-ink); }
+.hub-bill { display: block; padding: 13px 20px; background: #111; font-size: 16px; line-height: 1.3; text-align: center; }
+.hub-bill:hover { background: var(--accent); }
 .hub-bill[hidden] { display: none; }
 .hub-note { margin: 0 2px; font-size: 12px; line-height: 1.4; color: var(--text3); }
-.hub-map { position: relative; min-width: 0; border-radius: 18px; background: var(--hub-navy); }
-.taxhub .taxmap { position: relative; height: 100%; --map-water: #0a1120; --map-land: #15213a; --map-land-hover: #1d2c4b; --map-line: rgba(255, 255, 255, 0.2); --hub-glass: rgba(15, 24, 43, 0.84); --hub-grid-a: rgba(147, 173, 250, 0.13); --hub-grid-b: rgba(147, 173, 250, 0.05); --card: #0a1120; --border: rgba(255, 255, 255, 0.15); --sep: rgba(255, 255, 255, 0.12); --pill: rgba(255, 255, 255, 0.1); --text: #f2f5fc; --text2: #bccae6; --text3: #8fa1c4; --link: #93adfa; --accent-hover: #bccdfc; --q0: #2f4a8f; --q1: #3f66c9; --q2: #5f86f7; --q3: #93adfa; --q4: #dbe5ff; }
+.hub-map { position: relative; min-width: 0; border-radius: 20px; background: ${PLAID_WATER}; }
+.taxhub .taxmap { position: relative; height: 100%; --map-land: #f7fcfd; --map-land-hover: #e9f7f8; --map-line: rgba(11, 37, 69, 0.22); --hub-glass: rgba(255, 255, 255, 0.92); --text: var(--hub-ink); --text2: #3b4f68; --q0: #b5ece4; --q1: #55d6c4; --q2: #0fa9a5; --q3: #0a78cc; --q4: #0b3f94; }
 .taxhub .taxmap:empty { height: 100%; }
 @media (min-width: 1081px) { .taxhub .taxmap { position: absolute; inset: 0; height: auto; } }
-.taxhub .m-frame { height: 100%; border-radius: 18px; background-color: var(--map-water); background-image: linear-gradient(var(--hub-grid-a) 1px, transparent 1px), linear-gradient(90deg, var(--hub-grid-a) 1px, transparent 1px), linear-gradient(var(--hub-grid-b) 1px, transparent 1px), linear-gradient(90deg, var(--hub-grid-b) 1px, transparent 1px); background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; }
+.taxhub .m-frame { height: 100%; border-color: transparent; border-radius: 20px; background: ${PLAID_WATER}; }
 .taxhub .m-chips { position: absolute; z-index: 6; top: 14px; left: 14px; right: 62px; gap: 5px; margin: 0; }
 .taxhub .m-chip { padding: 5px 11px; border-color: var(--border); background: var(--hub-glass); color: var(--text); font-size: 12.5px; font-weight: 500; white-space: nowrap; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-.taxhub .m-chip:hover { background: #1d2c4b; }
-.taxhub .m-chip[aria-pressed="true"] { border-color: #3b6bf5; background: #3b6bf5; }
+.taxhub .m-chip:hover { background: #fff; }
+.taxhub .m-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
 .taxhub .m-zoom { top: 14px; right: 14px; background: var(--hub-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .taxhub .m-legend, .taxhub .m-strip { position: absolute; z-index: 6; left: 14px; width: 164px; margin: 0; padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; background: var(--hub-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .taxhub .m-legend { bottom: 14px; flex-direction: column; align-items: flex-start; gap: 5px; }
@@ -437,13 +442,13 @@ footer.site p { color: var(--text3); }
 .hub-lead { max-width: 92ch; margin: 18px 0 0; font-size: 16px; line-height: 1.5; }
 .hub-more h2 { margin: 26px 0 12px; font-size: 22px; letter-spacing: -0.015em; }
 .hub-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
-.hub-card { padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.hub-card { padding: 16px 18px; border: 1px solid rgba(8, 129, 129, 0.14); border-radius: 20px; background: var(--hub-tile); }
 .hub-card h3 { margin: 0 0 6px; font-size: 15px; line-height: 1.3; }
-.hub-card p { margin: 0; font-size: 14px; line-height: 1.5; }
+.hub-card p { margin: 0; font-size: 14px; line-height: 1.5; color: #33465e; }
 .hub-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px 16px; align-items: start; }
 .hub-tables h2 { margin-top: 10px; font-size: 17px; }
 .hub-tables p { font-size: 14px; }
-.hub-tables .table-wrap { max-height: 420px; overflow: auto; margin: 0; border-radius: 14px; }
+.hub-tables .table-wrap { max-height: 420px; overflow: auto; margin: 0; border-radius: 20px; }
 .hub-tables caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hub-tables table { font-size: 13.5px; }
 @media (min-width: 1081px) and (min-height: 980px) {
