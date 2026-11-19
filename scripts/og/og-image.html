@@ -1,0 +1,95 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!--
+  Source for public/og-image.png (1200x630): the card iMessage, Slack, LinkedIn
+  etc. show when a blueprint.realstack.app link is shared. White look
+  (2026-11-18), matching the CA property tax card (scripts/og/build-seo-og.mjs)
+  and realstack.app: white ground with the faint blueprint grid, navy headline,
+  pastel answer tile, black rainbow-edge pill, Plaid water panel.
+
+  Sample loan: $1,000,000 Berkeley home, 20% down, 6.25% 30-yr fixed,
+  Berkeley 1.2313% after the $7,000 homeowners' exemption, $150/mo insurance:
+  P&I $4,926 + tax $1,019 + insurance $150 = $6,095/mo.
+
+  Re-render from the repo root:
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+      --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --allow-file-access-from-files \
+      --window-size=1200,630 --virtual-time-budget=5000 \
+      --screenshot="$PWD/public/og-image.png" "file://$PWD/scripts/og/og-image.html"
+
+  Fonts load from public/fonts (never Google Fonts). iMessage caches a card per
+  URL, so bump the ?v= on og:image when this changes.
+-->
+<style>
+@font-face{font-family:Inter;font-weight:100 900;src:url("../../public/fonts/inter-latin.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:100 900;src:url("../../public/fonts/geist-mono-latin.woff2") format("woff2")}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1200px;height:630px;overflow:hidden}
+body{color:#0b2545;font-family:Inter,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;position:relative;
+  background:#fff;
+  background-image:linear-gradient(rgba(43,79,206,0.075) 1px,transparent 1px),linear-gradient(90deg,rgba(43,79,206,0.075) 1px,transparent 1px);
+  background-size:32px 32px;background-position:-1px -1px}
+.mono{font-family:"Geist Mono",monospace;text-transform:uppercase}
+.left{position:absolute;left:64px;top:56px;bottom:56px;width:500px;display:flex;flex-direction:column}
+.brand b{display:block;font-size:26px;font-weight:750;letter-spacing:-0.02em}
+.brand span{display:block;margin-top:5px;font-size:11px;letter-spacing:0.15em;color:#2B5BE6}
+h1{margin-top:34px;font-size:60px;line-height:1.0;font-weight:800;letter-spacing:-0.045em}
+.sub{margin-top:16px;font-size:22px;line-height:1.35;color:#46566b}
+.tile{margin-top:auto;padding:18px 24px;border:1px solid #d3e2f2;border-radius:20px;background:linear-gradient(135deg,#ddf5f2 0%,#e5eeff 55%,#eee7fb 100%)}
+.tile .k{font-size:12px;letter-spacing:0.13em;color:#2B4FCE}
+.tile strong{display:block;margin-top:4px;font-size:46px;line-height:1.05;font-weight:800;letter-spacing:-0.035em}
+.tile strong small{font-size:20px;font-weight:600;color:#46566b;letter-spacing:0}
+.tile .s{margin-top:4px;font-size:16px;color:#46566b}
+.pill{margin-top:16px;padding:17px 0;border:2px solid transparent;border-radius:9999px;background:linear-gradient(#111,#111) padding-box,conic-gradient(from 210deg,#3DF59A,#18D8E8,#6B7BFF,#F08AE0,#F7A54A,#F5E14A,#3DF59A) border-box;color:#fff;font-size:22px;font-weight:650;text-align:center}
+.water{position:absolute;right:32px;top:32px;bottom:32px;width:568px;border-radius:28px;overflow:hidden;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='9'%3E%3Cpath d='M0 4.5 C40 0 120 0 160 4.5 S280 9 320 4.5' fill='none' stroke='rgba(255,255,255,0.13)' stroke-width='0.9'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='14'%3E%3Cpath d='M0 7 C70 0 210 0 280 7 S490 14 560 7' fill='none' stroke='rgba(110,255,215,0.14)' stroke-width='0.9'/%3E%3C/svg%3E"),linear-gradient(150deg,#0B4AA8 0%,#0A78CC 45%,#13C4C2 100%)}
+.pay{position:absolute;left:36px;right:36px;top:40px;padding:26px 28px;border-radius:22px;background:rgba(255,255,255,0.97);box-shadow:0 16px 40px -14px rgba(11,37,69,0.55)}
+.pay .k{font-size:12px;letter-spacing:0.13em;color:#46566b}
+.row{display:flex;align-items:center;gap:24px;margin-top:14px}
+.donut{flex:0 0 164px;height:164px;border-radius:50%;position:relative;
+  background:conic-gradient(#156EF5 0 80.8%,#6748D8 80.8% 97.5%,#10D0B7 97.5% 100%)}
+.donut::after{content:"";position:absolute;inset:22px;border-radius:50%;background:#fff}
+.donut div{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut b{font-size:26px;font-weight:800;letter-spacing:-0.035em}
+.donut span{font-size:13px;color:#46566b}
+.lines{flex:1;display:flex;flex-direction:column;gap:12px}
+.lines div{display:flex;align-items:center;gap:10px;font-size:17px;white-space:nowrap;color:#46566b}
+.lines i{width:11px;height:11px;border-radius:50%;flex:0 0 11px}
+.lines b{margin-left:auto;color:#0b2545;font-weight:700}
+.lines .tot{padding-top:12px;border-top:1px solid #dfe5ee;color:#0b2545;font-weight:700}
+.tip{position:absolute;left:36px;bottom:36px;padding:14px 20px;border:1px solid #dcdcdc;border-radius:16px;background:rgba(255,255,255,0.96);box-shadow:0 10px 30px -10px rgba(11,37,69,0.45)}
+.tip b{display:block;font-size:20px;font-weight:650}
+.tip strong{display:block;margin-top:2px;font-size:26px;font-weight:800;letter-spacing:-0.02em}
+.tip span{display:block;margin-top:2px;font-size:14px;color:#46566b}
+.qual{position:absolute;right:36px;bottom:36px;display:flex;gap:8px;padding:14px 18px;border-radius:16px;background:rgba(255,255,255,0.96);box-shadow:0 10px 30px -10px rgba(11,37,69,0.45);align-items:center}
+.qual .ok{width:30px;height:30px;border-radius:50%;background:#0e8a43;display:flex;align-items:center;justify-content:center}
+.qual .ok svg{width:16px;height:16px}
+.qual b{font-size:19px;font-weight:700;margin-left:6px}
+.qual span{display:block;font-size:13px;color:#46566b;font-weight:500}
+</style></head><body>
+<div class="left">
+  <div class="brand"><b>Mortgage Blueprint</b><span class="mono">Powered by RealStack</span></div>
+  <h1>See every dollar before you buy.</h1>
+  <p class="sub">Payment, cash to close, tax savings and every scenario, side by side.</p>
+  <div class="tile"><span class="k mono">Monthly payment</span><strong>$6,095<small> /mo</small></strong><p class="s">$1,000,000 home · 20% down · 6.25% fixed</p></div>
+  <div class="pill">Try Blueprint free</div>
+</div>
+<div class="water">
+  <div class="pay">
+    <span class="k mono">Where the payment goes</span>
+    <div class="row">
+      <div class="donut"><div><b>$800,000</b><span>loan amount</span></div></div>
+      <div class="lines">
+        <div><i style="background:#156EF5"></i>Principal &amp; interest<b>$4,926</b></div>
+        <div><i style="background:#6748D8"></i>Property tax<b>$1,019</b></div>
+        <div><i style="background:#10D0B7"></i>Insurance<b>$150</b></div>
+        <div class="tot">Total<b>$6,095</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="tip"><b>Berkeley</b><strong>1.2313%</strong><span>Alameda County tax rate</span></div>
+  <div class="qual">
+    <div class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <div><b>Pre-Qualified</b><span style="margin-left:6px">5 of 5 pillars</span></div>
+  </div>
+</div>
+</body></html>
