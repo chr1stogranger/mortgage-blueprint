@@ -8,10 +8,11 @@
 // county search is the keyboard route to the same selection. Pan and zoom work
 // like the CA tax map (tax-map.client.js).
 
-const MAX_K = 40;
+const MAX_K = 120; // deep enough for Virginia's small independent cities
 const LABEL_MIN_PX = 64; // a county this wide on screen earns its name
 const MAX_LABELS = 60;
-const OVERLAY_PX = 230; // width of the floating readout and legend, plus their margin
+const OVERLAY_PX = 230;
+const MIN_FRAME = 260; // map units (130 km) // width of the floating readout and legend, plus their margin
 // Shade by the limit as a multiple of the national baseline, the same steps at
 // every unit count: baseline, then up to 1.2x, 1.35x, under the 1.5x ceiling,
 // and the ceiling or above (Hawaii's statutory floor is the ceiling).
@@ -67,12 +68,10 @@ export async function initLimitMap(el, { data, units: startUnits, onPick }) {
   el.setAttribute("role", "group");
   el.setAttribute("aria-label", "Map of conforming loan limits by county. The county search reaches the same counties by keyboard.");
 
-  const [ix, iy, iw, ih] = geo.inset;
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("aria-hidden", "true");
   svg.innerHTML =
-    `<path class="m-ctx" d="${geo.context}"/>` +
-    `<rect class="m-inset" x="${ix}" y="${iy}" width="${iw}" height="${ih}" rx="12"/>` +
+    geo.insets.map(({ box: [x, y, w, ht] }) => `<rect class="m-inset" x="${x}" y="${y}" width="${w}" height="${ht}" rx="12"/>`).join("") +
     `<g class="m-counties">${rows.map((r, i) => `<path data-i="${i}" d="${r.d}"/>`).join("")}</g>` +
     `<path class="m-states" d="${geo.states.map((s) => s.d).join("")}"/>` +
     `<path class="m-hover"/><path class="m-sel"/><g class="m-labels"></g>`;
@@ -196,7 +195,10 @@ export async function initLimitMap(el, { data, units: startUnits, onPick }) {
   };
 
   // Frame what's asked for in the space the overlay leaves.
-  const boxView = ([x, y, w, ht]) => {
+  const boxView = ([x0, y0, w0, h0]) => {
+    // Never frame tighter than MIN_FRAME units, so DC opens with its neighbors around it.
+    const w = Math.max(w0, MIN_FRAME), ht = Math.max(h0, MIN_FRAME);
+    const x = x0 + w0 / 2 - w / 2, y = y0 + h0 / 2 - ht / 2;
     const inset = overlayPx();
     const k = Math.max(1, Math.min((vpW - inset) / (w * 1.12), vpH / (ht * 1.12)) / base);
     return { x: x + w / 2 - inset / 2 / (base * k), y: y + ht / 2, k };
@@ -220,7 +222,7 @@ export async function initLimitMap(el, { data, units: startUnits, onPick }) {
   const bandOf = (r) => {
     const lim = r.limits[units - 1], std = r.std[units - 1];
     if (lim > std) return "High-cost area";
-    return r.st === "HI" ? "Hawaii statutory baseline" : "National baseline";
+    return std > data.baseline[units - 1] ? "Statutory baseline (HERA)" : "National baseline";
   };
   const showStrip = () => {
     if (!selected) {
@@ -374,24 +376,28 @@ export async function initLimitMap(el, { data, units: startUnits, onPick }) {
     svg.style.cursor = "pointer";
   }
 
-  // ── state chips ──
-  const chipList = [["All states", null], ...[...stateBox.keys()].sort((a, b) => stateName.get(a).localeCompare(stateName.get(b))).map((st) => [stateName.get(st), st])];
-  const chipEls = chipList.map(([label, st]) => {
-    const b = h("button", "m-chip", label);
-    b.type = "button";
-    b.setAttribute("aria-pressed", "false");
-    b.addEventListener("click", () => {
-      markChip(b);
-      if (!st) animateTo(geo.width / 2, geo.height / 2, 1);
-      else fitBox(stateBox.get(st));
-    });
-    chips.append(b);
-    return b;
+  // ── state controls: the whole country, or zoom to one state ──
+  const all = h("button", "m-chip", "All states");
+  all.type = "button";
+  all.addEventListener("click", () => { markChip("all"); animateTo(geo.width / 2, geo.height / 2, 1); });
+  const pickState = h("select", "m-chip m-state");
+  pickState.setAttribute("aria-label", "Zoom the map to a state");
+  pickState.append(new Option("Zoom to a state", ""));
+  for (const st of [...stateBox.keys()].sort((a, b) => stateName.get(a).localeCompare(stateName.get(b)))) pickState.append(new Option(stateName.get(st), st));
+  pickState.addEventListener("change", () => {
+    const st = pickState.value;
+    if (!st) return;
+    markChip(st);
+    fitBox(stateBox.get(st));
   });
+  chips.append(all, pickState);
+  // "all", a state code, or null once the view is panned or zoomed by hand.
   function markChip(on) {
-    for (const b of chipEls) b.setAttribute("aria-pressed", b === on ? "true" : "false");
+    all.setAttribute("aria-pressed", on === "all" ? "true" : "false");
+    pickState.value = on && on !== "all" ? on : "";
+    pickState.classList.toggle("on", !!on && on !== "all");
   }
-  markChip(chipEls[Math.max(0, chipList.findIndex(([, st]) => st === startState))]);
+  markChip(startState || "all");
 
   // ── size ──
   const resize = () => {

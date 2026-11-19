@@ -75,8 +75,8 @@ describe("page set", () => {
   it("has the expected counts", () => {
     const n = (re) => site.pages.filter((p) => re.test(p.path)).length;
     expect(n(/^\/loan-limits\/$/)).toBe(1);
-    expect(n(/^\/loan-limits\/[^/]+\/$/)).toBe(8);
-    expect(n(/^\/loan-limits\/[^/]+\/[^/]+\/$/)).toBe(46);
+    expect(n(/^\/loan-limits\/[^/]+\/$/)).toBe(56); // 50 states, DC and 5 territories
+    expect(n(/^\/loan-limits\/[^/]+\/[^/]+\/$/)).toBe(159);
     expect(n(/^\/property-tax\/california\/$/)).toBe(1);
     expect(n(/^\/property-tax\/california\/[^/]+-county\/$/)).toBe(CA_TAX_COUNTIES.length);
     expect(n(/^\/property-tax\/california\/[^/]+\/$/)).toBe(CA_TAX_COUNTIES.length + Object.keys(CA_CITY_COUNTY).length);
@@ -408,7 +408,7 @@ describe("loan-limit checker and map", () => {
 
   it("puts the checker and county map first on every loan-limit page", () => {
     const ll = site.pages.filter((p) => p.path.startsWith("/loan-limits/"));
-    expect(ll).toHaveLength(55);
+    expect(ll).toHaveLength(1 + 56 + 159);
     for (const p of ll) {
       const html = renderPage(p, font);
       expect(p.layout, p.path).toBe("llhub");
@@ -456,22 +456,29 @@ describe("loan-limit checker and map", () => {
     expect(computeLoan({ price: Number.NaN, downPct: 20, ...alameda })).toMatchObject({ loan: 0, kind: "standard" });
   });
 
-  it("ships every licensed county to the checker, each with a map shape", () => {
+  it("ships every FHFA county to the checker, each with a map shape outside the small territories", async () => {
+    const { expandLimitData } = await import("./ll-calc.client.js");
     const geo = JSON.parse(readFileSync(new URL("./ll-map-geo.json", import.meta.url), "utf8"));
     const shapes = new Set(geo.counties.map((c) => c.fips));
-    expect(site.llData.counties).toHaveLength(488);
-    for (const c of site.llData.counties) {
-      expect(shapes.has(c.fips), c.name).toBe(true);
+    const data = expandLimitData(JSON.parse(JSON.stringify(site.llData)));
+    expect(data.counties).toHaveLength(3235);
+    for (const c of data.counties) {
+      expect(shapes.has(c.fips), c.name).toBe(!["AS", "GU", "MP", "VI"].includes(c.st));
+      // The app pre-fills a county only where Christo is licensed.
+      const licensed = Object.keys(LICENSED_COUNTIES).includes(c.st);
+      expect(c.app, c.name).toBe(licensed ? prefillLink({ st: c.st, county: c.name.replace(/ County$/, ""), src: "seo-ll" }) : "https://blueprint.realstack.app/");
       expect(c.limits, c.name).toEqual([1, 2, 3, 4].map((u) => getCountyLimits(c.st, c.name, u).highBalance));
       expect(c.std, c.name).toEqual([1, 2, 3, 4].map((u) => getCountyLimits(c.st, c.name, u).conforming));
       expect(c.path === "/loan-limits/" || byPath.has(c.path.replace(/#.*$/, "")), c.path).toBe(true);
     }
-    expect(geo.states.map((s) => s.st)).toEqual(["AZ", "CA", "CO", "HI", "NV", "OR", "TX", "WA"]);
+    expect(geo.states).toHaveLength(52); // 50 states, DC and Puerto Rico
+    expect(geo.insets.map((i) => i.st)).toEqual(["AK", "HI", "PR"]);
   });
 
   it("finds counties by name, narrowed by a trailing state", async () => {
-    const { searchCounties } = await import("./ll-calc.client.js");
-    const find = (q) => searchCounties(site.llData.counties, q).map((c) => `${c.name}, ${c.st}`);
+    const { searchCounties, expandLimitData } = await import("./ll-calc.client.js");
+    const all = expandLimitData(JSON.parse(JSON.stringify(site.llData))).counties;
+    const find = (q) => searchCounties(all, q).map((c) => `${c.name}, ${c.st}`);
     expect(find("king wa")).toEqual(["King County, WA"]);
     expect(find("king")).toEqual(expect.arrayContaining(["King County, TX", "King County, WA", "Kings County, CA"]));
     expect(find("harris texas")[0]).toBe("Harris County, TX");
@@ -502,5 +509,27 @@ describe("live commas", () => {
     expect(groupDigits("$9a9", 4)).toEqual({ text: "99", caret: 2 });
     expect(groupDigits("", 0)).toEqual({ text: "", caret: 0 });
     expect(groupDigits("0012", 4)).toEqual({ text: "12", caret: 2 });
+  });
+});
+
+describe("national loan-limit pages", () => {
+  const font = { fontHref: "/fonts/fonts.css" };
+  it("covers every state, with honest wording for single areas and HERA states", () => {
+    const dc = byPath.get("/loan-limits/district-of-columbia/");
+    expect(dc.title).toMatch(/^District of Columbia 2026 Conforming Loan Limit — /);
+    expect(dc.lead).toBe("District of Columbia is a single loan limit area. Its 2026 one-unit conforming loan limit is $1,249,125, the FHFA high-cost ceiling. Loans above that amount are jumbo loans.");
+    expect([...byPath.keys()].some((k) => k.startsWith("/loan-limits/district-of-columbia/") && k !== "/loan-limits/district-of-columbia/")).toBe(false);
+    expect(byPath.get("/loan-limits/alaska/").lead).toMatch(/^Every one of Alaska's 30 boroughs and census areas has a 2026 one-unit conforming loan limit of at least \$1,249,125/);
+    expect(byPath.get("/loan-limits/louisiana/").lead).toContain("parishes");
+    expect(byPath.get("/loan-limits/new-york/kings-county/").lead).toContain("$1,209,750");
+    expect(byPath.get("/loan-limits/").title).toBe("2026 Conforming Loan Limits by State and County — Mortgage Blueprint, powered by RealStack");
+  });
+
+  it("only pre-fills the app where Christo is licensed", () => {
+    const ny = renderPage(byPath.get("/loan-limits/new-york/"), font);
+    expect(ny).toContain('<a class="pill hub-bill" data-cta href="https://blueprint.realstack.app/">Run your numbers in Mortgage Blueprint</a>');
+    expect(ny).toContain('value="Kings County, NY"');
+    const tx = renderPage(byPath.get("/loan-limits/texas/"), font);
+    expect(tx).toContain("?st=TX&amp;county=Harris&amp;src=seo-ll");
   });
 });

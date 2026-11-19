@@ -166,7 +166,7 @@ ${band("jumbo", "Jumbo")}
 </div>
 </div>
 </div>
-<a class="pill hub-bill" data-cta href="${esc(b.app)}">${esc(`Run your numbers for ${b.name} in Mortgage Blueprint`)}</a>
+<a class="pill hub-bill" data-cta href="${esc(b.app)}">${esc(b.app.includes("?") ? `Run your numbers for ${b.name} in Mortgage Blueprint` : "Run your numbers in Mortgage Blueprint")}</a>
 <p class="hub-note">FHFA ${esc(String(b.year))} limits for loans Fannie Mae and Freddie Mac buy. Lenders can add their own rules for high-balance loans.</p>
 </div>
 <div class="hub-map"><div class="taxmap llmap" data-llmap data-js="${LL_MAP_JS}" data-src="${LL_MAP_JSON}"${b.mapState ? ` data-state="${esc(b.mapState)}"` : ""} hidden></div></div>
@@ -532,6 +532,10 @@ footer.site p { color: var(--text3); }
   .llhub .m-legend, .llhub .m-strip { width: 204px; }
   .llhub .m-strip { bottom: 172px; }
 }
+.taxhub .m-state { padding-right: 30px; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%230b2545' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
+.taxhub .m-state.on { border-color: var(--accent); background-color: var(--accent); color: #fff; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3C/svg%3E"); }
+.hub-tables ul:has(> li:nth-child(13)) { columns: 3 170px; column-gap: 24px; }
+.hub-tables ul:has(> li:nth-child(13)) li { break-inside: avoid; }
 .m-ctx { fill: #edf3f6; stroke: rgba(11, 37, 69, 0.14); stroke-width: 0.75px; vector-effect: non-scaling-stroke; pointer-events: none; }
 .m-inset { fill: rgba(255, 255, 255, 0.35); stroke: rgba(11, 37, 69, 0.22); stroke-width: 1px; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 .m-counties path { stroke: rgba(11, 37, 69, 0.2); stroke-width: 0.5px; vector-effect: non-scaling-stroke; cursor: pointer; }

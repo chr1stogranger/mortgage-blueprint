@@ -47,6 +47,25 @@ export function formatLoan(r) {
 
 export const unitLabel = (u) => (u === 1 ? "1 unit" : `${u} units`);
 
+/**
+ * /seo/loan-limits.json is compact (3,235 rows); this turns it back into county
+ * objects. A row is [fips, name, st, slug, hasPage, limits or 0 for the state's
+ * standard limits]. The app link pre-fills the county only in a licensed state,
+ * matching model.js prefillLink().
+ */
+export function expandLimitData(d) {
+  const counties = d.counties.map(([fips, name, st, slug, page, lim]) => {
+    const s = d.states[st];
+    const q = new URLSearchParams({ st, county: name.replace(/ County$/, ""), src: "seo-ll" });
+    return {
+      fips, name, st, state: s.name, std: s.std, limits: lim || s.std,
+      path: page ? `${s.path}${slug}/` : `${s.path}#${slug}`,
+      app: s.licensed ? `${d.origin}/?${q}` : `${d.origin}/`,
+    };
+  });
+  return { ...d, counties };
+}
+
 const fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /**
@@ -125,7 +144,7 @@ function init(form) {
     county.value = label(c);
     if (cta) {
       cta.href = c.app;
-      cta.textContent = `Run your numbers for ${c.name} in Mortgage Blueprint`;
+      cta.textContent = c.app.includes("?") ? `Run your numbers for ${c.name} in Mortgage Blueprint` : "Run your numbers in Mortgage Blueprint";
     }
     map?.select(c.fips, mapOpts);
     render();
@@ -157,7 +176,7 @@ function init(form) {
     if (!results.length) {
       const li = document.createElement("li");
       li.className = "none";
-      li.textContent = `No match. Limits cover all ${data.counties.length} counties in ${data.states.join(", ")}.`;
+      li.textContent = `No match. Try a county name, or a state like "TX".`;
       list.append(li);
     }
     const u = units();
@@ -226,9 +245,10 @@ function init(form) {
 
   fetch(form.dataset.src)
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((d) => {
+    .then((raw) => {
+      const d = expandLimitData(raw);
       data = d;
-      if (hint) hint.textContent = `Search ${d.counties.length} counties by name or state`;
+      if (hint) hint.textContent = `Search ${d.counties.length.toLocaleString("en-US")} counties by name or state`;
       cur = d.counties.find((x) => x.fips === cur.fips) || cur;
       render();
       const mapEl = form.querySelector("[data-llmap]");

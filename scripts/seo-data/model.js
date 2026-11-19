@@ -19,21 +19,39 @@
 
 import { LIMIT_YEAR, CONF_BASELINE, CONF_CEILING, getCountyLimits, normalizeCounty } from "../../src/data/loanLimits.js";
 import { LICENSED_COUNTIES } from "../../src/data/licensedCounties.js";
+import { US_COUNTIES, US_STATE_NAMES } from "../../src/data/usCounties.js";
 import { CA_CITY_COUNTY } from "../../src/data/caCityCounty.js";
 import { CA_CITY_TAX_RATES } from "../../src/citiesData.js";
 import { CA_CITY_TAX_INFO, BAY_AREA_COUNTIES, CA_TAX_CURRENT_FY } from "../../src/data/caTaxRates.js";
 import { CA_TAX_BILL_LOOKUP } from "../../src/data/caTaxBillLookup.js";
 import { STATE_PROPERTY_TAX_RATES } from "../../src/data/propertyTax.js";
-import { LICENSED_STATES, LICENSED_STATES_TEXT } from "../../src/data/licensing.js";
+import { LICENSED_STATES_TEXT, isLicensedState } from "../../src/data/licensing.js";
 import { CA_FIXED_ASSESSMENT_DEFAULT, CA_FIXED_ASSESSMENT_CITIES } from "../../src/data/caFixedAssessments.js";
 import { slugify, caCityTaxPath, caCountyTaxPath, CA_TAX_HUB_PATH } from "../../src/lib/seoPaths.js";
 
 export const ORIGIN = "https://blueprint.realstack.app";
 export const BRAND = "Mortgage Blueprint, powered by RealStack";
-const STATE_CODE = { Arizona: "AZ", California: "CA", Colorado: "CO", Hawaii: "HI", Nevada: "NV", Oregon: "OR", Texas: "TX", Washington: "WA" };
+// Every state, DC and territory FHFA publishes, in name order.
+const LL_STATES = Object.values(US_STATE_NAMES);
+const STATE_CODE = Object.fromEntries(Object.entries(US_STATE_NAMES).map(([st, name]) => [name, st]));
+// What a state calls its county equivalents, where "counties" is wrong.
+const AREA_NOUN = { AK: "boroughs and census areas", CT: "planning regions", LA: "parishes", PR: "municipios", VA: "counties and cities", VI: "islands", MP: "municipalities", AS: "districts" };
+const areas = (st) => AREA_NOUN[st] || "counties";
 const UNITS = [1, 2, 3, 4];
-// Each state page's loan-limit checker opens on its biggest metro county.
-const STATE_DEFAULT_COUNTY = { AZ: "Maricopa County", CA: "Alameda County", CO: "Denver County", HI: "Honolulu County", NV: "Clark County", OR: "Multnomah County", TX: "Harris County", WA: "King County" };
+// Each state page's loan-limit checker opens on its biggest metro county (Alameda for California, Christo's home market).
+const STATE_DEFAULT_COUNTY = {
+  AL: "Jefferson County", AK: "Anchorage Municipality", AS: "Eastern District", AZ: "Maricopa County", AR: "Pulaski County",
+  CA: "Alameda County", CO: "Denver County", CT: "Capitol Planning Region", DE: "New Castle County", DC: "District of Columbia",
+  FL: "Miami-Dade County", GA: "Fulton County", GU: "Guam", HI: "Honolulu County", ID: "Ada County", IL: "Cook County",
+  IN: "Marion County", IA: "Polk County", KS: "Johnson County", KY: "Jefferson County", LA: "East Baton Rouge Parish",
+  ME: "Cumberland County", MD: "Montgomery County", MA: "Middlesex County", MI: "Wayne County", MN: "Hennepin County",
+  MS: "Hinds County", MO: "St. Louis County", MT: "Yellowstone County", NE: "Douglas County", NV: "Clark County",
+  NH: "Hillsborough County", NJ: "Bergen County", NM: "Bernalillo County", NY: "Kings County", NC: "Wake County",
+  ND: "Cass County", MP: "Saipan Municipality", OH: "Franklin County", OK: "Oklahoma County", OR: "Multnomah County",
+  PA: "Philadelphia County", PR: "San Juan Municipio", RI: "Providence County", SC: "Greenville County", SD: "Minnehaha County",
+  TN: "Shelby County", TX: "Harris County", UT: "Salt Lake County", VT: "Chittenden County", VI: "St. Thomas Island",
+  VA: "Fairfax County", WA: "King County", WV: "Kanawha County", WI: "Milwaukee County", WY: "Laramie County",
+};
 // The checker's starting example: $1.25M with 20% down is a $1M loan, high-balance
 // in a high-cost county and jumbo at the baseline, so the first screen shows the difference.
 const LL_PRICE = 1250000;
@@ -95,9 +113,9 @@ export function parseLimitSource(loanLimitsSource) {
 
 function countyRecords() {
   const out = {};
-  for (const state of LICENSED_STATES) {
+  for (const state of LL_STATES) {
     const st = STATE_CODE[state];
-    const list = LICENSED_COUNTIES[st];
+    const list = US_COUNTIES[st];
     if (!list?.length) throw new Error(`seo-data: no counties for ${st}`);
     out[st] = list.map((c) => {
       const lim = UNITS.map((u) => getCountyLimits(st, c.name, u));
@@ -134,6 +152,8 @@ const fyOf = (list) => [...new Set(list.map((x) => x.fy))].sort().join(" & ");
 
 /** True when a county gets its own page (see the header comment). */
 export function hasCountyPage(c) {
+  // A state that is one loan limit area (DC, Guam) has only its state page.
+  if (US_COUNTIES[c.st].length === 1) return false;
   return c.limits[0] > CONF_BASELINE[1] || (c.st === "CA" && BAY_KEYS.has(normalizeCounty(c.name)));
 }
 
@@ -171,11 +191,12 @@ const MEANS_JUMBO = "Jumbo loans follow each lender's own guidelines and usually
 function countyLead(c, year) {
   const base = `The ${year} conforming loan limit for a one-unit home in ${c.name}, ${c.state} is ${money(c.limits[0])}`;
   const tail = "Loans above that amount are jumbo loans.";
-  if (c.st === "HI" && c.limits[0] > CONF_CEILING[1]) {
-    return `${base}, higher than Hawaii's ${money(c.standard)} statutory baseline. ${tail}`;
+  // Alaska, Hawaii, Guam and the U.S. Virgin Islands have a statutory baseline equal to the national ceiling.
+  if (c.standard > CONF_BASELINE[1] && c.limits[0] > CONF_CEILING[1]) {
+    return `${base}, higher than ${possessive(c.state)} ${money(c.standard)} statutory baseline. ${tail}`;
   }
-  if (c.st === "HI") {
-    return `${base}, Hawaii's statutory baseline under the Housing and Economic Recovery Act (HERA), which equals the national high-cost ceiling. ${tail}`;
+  if (c.standard > CONF_BASELINE[1]) {
+    return `${base}, ${possessive(c.state)} statutory baseline under the Housing and Economic Recovery Act (HERA), which equals the national high-cost ceiling. ${tail}`;
   }
   if (c.limits[0] === CONF_CEILING[1]) return `${base}, the FHFA high-cost ceiling. ${tail}`;
   if (c.isHighCost) return `${base}, above the ${money(CONF_BASELINE[1])} national baseline because ${c.name} is a high-cost area. ${tail}`;
@@ -282,11 +303,13 @@ export function buildSite({ now, limitSource }) {
     billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
   });
 
+  // The app pre-fills the county only where Christo can lend; elsewhere it opens Blueprint as is.
+  const appLink = (c) => (isLicensedState(c.st) ? prefillLink({ st: c.st, county: c.short, src: "seo-ll" }) : `${ORIGIN}/`);
   // Loan-limit checker + county map (render.js, ll-calc.client.js, ll-map.client.js).
   const llBlock = (c, { mapState = null } = {}) => ({
     type: "llcalc", mapState, fips: c.fips, name: c.name, st: c.st, state: c.state, limits: c.limits, stds: c.stds,
     baseline: UNITS.map((u) => CONF_BASELINE[u]), price: LL_PRICE, down: LL_DOWN_PCT,
-    app: prefillLink({ st: c.st, county: c.short, src: "seo-ll" }), year,
+    app: appLink(c), year,
   });
   const defaultCounty = (st) => {
     const c = counties[st].find((x) => x.name === STATE_DEFAULT_COUNTY[st]);
@@ -301,7 +324,7 @@ export function buildSite({ now, limitSource }) {
   const LL_INTRO = "Pick a county, enter the price, and see whether the loan is conforming, high-balance or jumbo.";
 
   // ── loan-limit hub ──
-  const stateRows = LICENSED_STATES.map((state) => {
+  const stateRows = LL_STATES.map((state) => {
     const list = counties[STATE_CODE[state]];
     const ones = list.map((c) => c.limits[0]);
     const above = list.filter((c) => c.limits[0] > CONF_BASELINE[1]).length;
@@ -310,12 +333,12 @@ export function buildSite({ now, limitSource }) {
   pages.push(page({
     now,
     path: LL_HUB,
-    titleCore: `${year} Conforming Loan Limits: ${Object.values(STATE_CODE).join(", ")}`,
-    description: `${year} conforming loan limits: ${money(CONF_BASELINE[1])} national baseline, ${money(CONF_CEILING[1])} high-cost ceiling. County tables for ${Object.values(STATE_CODE).join(", ")}.`,
+    titleCore: `${year} Conforming Loan Limits by State and County`,
+    description: `${year} conforming loan limits for every U.S. county: ${money(CONF_BASELINE[1])} national baseline, ${money(CONF_CEILING[1])} high-cost ceiling, with a county map.`,
     layout: "llhub",
     h1: `${year} Conforming Loan Limits by State and County`,
     intro: LL_INTRO,
-    lead: `The ${year} national baseline conforming loan limit for a one-unit home is ${money(CONF_BASELINE[1])}, and the high-cost ceiling is ${money(CONF_CEILING[1])}, according to the FHFA. Each county's limit falls somewhere from the baseline to the ceiling; Hawaii and a few others have special rules.`,
+    lead: `The ${year} national baseline conforming loan limit for a one-unit home is ${money(CONF_BASELINE[1])}, and the high-cost ceiling is ${money(CONF_CEILING[1])}, according to the FHFA. Each county's limit falls somewhere from the baseline to the ceiling. Alaska, Hawaii, Guam and the U.S. Virgin Islands have a statutory baseline equal to the ceiling.`,
     breadcrumbs: crumbs({ name: "Loan limits", path: LL_HUB }),
     sections: [
       { heading: "Loan limit checker", blocks: [llBlock(defaultCounty("CA"))] },
@@ -354,24 +377,37 @@ export function buildSite({ now, limitSource }) {
     const { state, list } = r;
     const st = STATE_CODE[state];
     let lead;
-    if (st === "HI") {
+    const std = list[0].standard;
+    const noun = areas(st);
+    if (list.length === 1) {
+      const c = list[0];
+      lead = `${state} is a single loan limit area. Its ${year} one-unit conforming loan limit is ${money(c.limits[0])}` +
+        (std > CONF_BASELINE[1] ? `, its statutory baseline under the Housing and Economic Recovery Act (HERA), equal to the national high-cost ceiling.`
+          : c.limits[0] === CONF_CEILING[1] ? ", the FHFA high-cost ceiling."
+            : c.limits[0] > CONF_BASELINE[1] ? `, above the national baseline of ${money(CONF_BASELINE[1])}.` : ", the national baseline.") +
+        " Loans above that amount are jumbo loans.";
+    } else if (st === "HI") {
       const hiStd = list[0].standard;
       const higher = list.filter((c) => c.limits[0] > hiStd);
       const atBase = list.filter((c) => c.limits[0] === hiStd).map((c) => c.short);
       const atBaseText = atBase.length > 1 ? `${atBase.slice(0, -1).join(", ")} and ${atBase[atBase.length - 1]} counties are` : `${atBase[0]} County is`;
       lead = `Every Hawaii county has a ${year} one-unit conforming loan limit of at least ${money(hiStd)}. That's Hawaii's statutory baseline under the Housing and Economic Recovery Act (HERA), equal to the national high-cost ceiling, so ${atBaseText} at ${money(hiStd)} without being high-cost areas. ` +
         `${higher.map((c) => c.short).join(" and ")} ${higher.length === 1 ? "County is" : "counties are"} higher, at ${money(Math.max(...higher.map((c) => c.limits[0])))}.`;
+    } else if (std > CONF_BASELINE[1]) {
+      const higher = list.filter((c) => c.limits[0] > std);
+      lead = `Every one of ${possessive(state)} ${list.length} ${noun} has a ${year} one-unit conforming loan limit of at least ${money(std)}, its statutory baseline under the Housing and Economic Recovery Act (HERA), equal to the national high-cost ceiling.` +
+        (higher.length ? ` ${higher.length} ${higher.length === 1 ? "is" : "are"} higher, up to ${money(Math.max(...higher.map((c) => c.limits[0])))}.` : " Loans above that amount are jumbo loans.");
     } else if (r.above === 0) {
-      lead = `All ${list.length} ${state} counties use the national baseline of ${money(CONF_BASELINE[1])} for a one-unit home in ${year}. Loans above that amount are jumbo loans.`;
+      lead = `All ${list.length} ${state} ${noun} use the national baseline of ${money(CONF_BASELINE[1])} for a one-unit home in ${year}. Loans above that amount are jumbo loans.`;
     } else {
       const top = r.max === CONF_CEILING[1] ? `the high-cost ceiling of ${money(r.max)}` : money(r.max);
-      lead = `In ${year}, ${r.above} of ${possessive(state)} ${list.length} counties have conforming loan limits above the national baseline of ${money(CONF_BASELINE[1])} for a one-unit home, up to ${top}. The other ${list.length - r.above} use the baseline.`;
+      lead = `In ${year}, ${r.above} of ${possessive(state)} ${list.length} ${noun} have conforming loan limits above the national baseline of ${money(CONF_BASELINE[1])} for a one-unit home, up to ${top}. The other ${list.length - r.above} use the baseline.`;
     }
     const withPages = list.filter(hasCountyPage);
     const sections = [
       { heading: "Loan limit checker", blocks: [llBlock(defaultCounty(st), { mapState: st })] },
       {
-        heading: `${state} county limits`,
+        heading: list.length === 1 ? `${state} limits` : `${state} ${noun === "counties" ? "county" : "local"} limits`,
         grid: true,
         blocks: [{
           type: "table",
@@ -385,26 +421,28 @@ export function buildSite({ now, limitSource }) {
           })),
         }],
       },
-      meansCards(st === "HI"
-        ? `In Hawaii, a loan up to ${money(list[0].standard)} for one unit is a standard conforming loan. In a county with a higher limit, the amount above that up to the county limit is high-balance conforming. Above the county limit, it's a jumbo loan.`
+      meansCards(std > CONF_BASELINE[1]
+        ? `In ${state}, a loan up to ${money(std)} for one unit is a standard conforming loan. In a county with a higher limit, the amount above that up to the county limit is high-balance conforming. Above the county limit, it's a jumbo loan.`
         : `A loan at or below ${money(CONF_BASELINE[1])} for one unit is a standard conforming loan. In a high-cost county, a loan above that up to the county limit is a high-balance conforming loan. Above the county limit, it's a jumbo loan.`),
     ];
     if (withPages.length) {
-      sections.push({ heading: `${state} counties with their own page`, grid: true, blocks: [{ type: "list", items: withPages.map((c) => [link(countyPath(c), `${c.name}: ${money(c.limits[0])}`)]) }] });
+      sections.push({ heading: `${state} ${noun} with their own page`, grid: true, blocks: [{ type: "list", items: withPages.map((c) => [link(countyPath(c), `${c.name}: ${money(c.limits[0])}`)]) }] });
     }
     if (st === "CA") sections.push({ heading: "Property tax", grid: true, blocks: [p(link(TAX_HUB, "California property tax rates by city and county"), ", from county rate books and bill data, with each county's tax bill lookup.")] });
     sections.push(
-      { heading: "Other states", grid: true, blocks: [{ type: "list", items: LICENSED_STATES.filter((s) => s !== state).map((s) => [link(statePath(s), `${s} loan limits`)]) }] },
+      { heading: "Other states", grid: true, blocks: [{ type: "list", items: LL_STATES.filter((s) => s !== state).map((s) => [link(statePath(s), s)]) }] },
       { heading: "Source", blocks: [sourceP, mapSource] },
     );
     const minMax = r.min === r.max ? money(r.min) : `${money(r.min)} to ${money(r.max)}`;
     pages.push(page({
       now,
       path: statePath(state),
-      titleCore: `${state} ${year} Conforming Loan Limits by County`,
-      description: `${year} conforming loan limits for all ${list.length} ${state} counties: ${minMax} for one unit, 1 to 4 unit limits from FHFA.`,
+      titleCore: list.length === 1 ? `${state} ${year} Conforming Loan Limit` : `${state} ${year} Conforming Loan Limits by County`,
+      description: (list.length === 1
+        ? `${year} conforming loan limit for ${state}: ${minMax} for one unit, with the 2 to 4 unit limits from FHFA.`
+        : `${year} conforming loan limits for all ${list.length} ${state} ${noun}: ${minMax} for one unit, 1 to 4 unit limits from FHFA.`),
       layout: "llhub",
-      h1: `${year} Conforming Loan Limits by County in ${state}`,
+      h1: list.length === 1 ? `${year} Conforming Loan Limits in ${state}` : `${year} Conforming Loan Limits by County in ${state}`,
       intro: LL_INTRO,
       lead,
       breadcrumbs: crumbs({ name: "Loan limits", path: LL_HUB }, { name: state, path: statePath(state) }),
@@ -413,7 +451,7 @@ export function buildSite({ now, limitSource }) {
   }
 
   // ── county pages ──
-  for (const state of LICENSED_STATES) {
+  for (const state of LL_STATES) {
     const st = STATE_CODE[state];
     const list = counties[st].filter(hasCountyPage);
     for (const [i, c] of list.entries()) {
@@ -459,7 +497,10 @@ export function buildSite({ now, limitSource }) {
         now,
         path: countyPath(c),
         titleCore: `${abbrName} ${year} Loan Limits`,
-        description: `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units, and what it means for jumbo loans.`,
+        description: [
+          `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units, and what it means for jumbo loans.`,
+          `${year} FHFA conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit, ${money(c.limits[3])} for four units.`,
+        ].find((d) => d.length <= 155) || `${year} conforming loan limit in ${abbrName}: ${money(c.limits[0])} for one unit.`,
         layout: "llhub",
         h1: `${year} Conforming Loan Limits in ${c.name}, ${state}`,
         intro: LL_INTRO,
@@ -701,15 +742,22 @@ export function buildSite({ now, limitSource }) {
     fixed: fixedTable,
     countyPaths: Object.fromEntries([...caByCounty.keys()].map((k) => [k, taxCountyPath(k)])),
   };
-  // Data the loan-limit checker and map load (/seo/loan-limits.json).
+  // Data the loan-limit checker and map load (/seo/loan-limits.json), compact
+  // for 3,235 rows: ll-calc.client.js expandLimitData() turns it back into objects.
+  // A row is [fips, name, st, slug, hasPage, limits or 0 for the state's standard limits].
   const llData = {
     year,
+    origin: ORIGIN,
     baseline: UNITS.map((u) => CONF_BASELINE[u]),
-    states: [...LICENSED_STATES],
-    counties: LICENSED_STATES.flatMap((state) => counties[STATE_CODE[state]].map((c) => ({
-      fips: c.fips, name: c.name, st: c.st, state: c.state, limits: c.limits, std: c.stds,
-      path: llPath(c), app: prefillLink({ st: c.st, county: c.short, src: "seo-ll" }),
-    }))),
+    states: Object.fromEntries(LL_STATES.map((state) => {
+      const st = STATE_CODE[state];
+      return [st, { name: state, path: statePath(state), std: counties[st][0].stds, licensed: isLicensedState(st) }];
+    })),
+    counties: LL_STATES.flatMap((state) => counties[STATE_CODE[state]].map((c) => {
+      if (c.stds.some((v, i) => v !== counties[c.st][0].stds[i])) throw new Error(`seo-data: ${c.name} ${c.st} has its own standard limit`);
+      const same = c.limits.every((v, i) => v === c.stds[i]);
+      return [c.fips, c.name, c.st, c.slug, hasCountyPage(c) ? 1 : 0, same ? 0 : c.limits];
+    })),
   };
   return { pages, sitemap: pages.map((pg) => ({ loc: pg.url, lastmod: now })), taxData, llData };
 }
