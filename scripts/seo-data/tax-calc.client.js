@@ -46,14 +46,14 @@ export function exemptionAmount(mode, price) {
 }
 
 /**
- * @param {{ price: number, ratePct: number, primary?: boolean, mode?: "home" | "vet" | "vet-low" | "none", fixed: number }} v  mode wins over primary
+ * @param {{ price: number, ratePct: number, mode: "home" | "vet" | "vet-low" | "none", fixed: number }} v
  * @returns {{ exemption: number, taxable: number, base: number, fixed: number, annual: number, monthly: number, effectivePct: number }}
  */
-export function computeTax({ price, ratePct, primary, mode, fixed }) {
+export function computeTax({ price, ratePct, mode, fixed }) {
   const p = Number.isFinite(price) && price > 0 ? price : 0;
   const r = Number.isFinite(ratePct) && ratePct > 0 ? ratePct / 100 : 0;
   const f = Number.isFinite(fixed) && fixed > 0 ? fixed : 0;
-  const exemption = exemptionAmount(mode ?? (primary ? "home" : "none"), p);
+  const exemption = exemptionAmount(mode, p);
   const taxable = Math.max(0, p - exemption);
   const base = taxable * r;
   const annual = base + f;
@@ -127,7 +127,7 @@ const commas = (n) => (n ? Math.round(n).toLocaleString("en-US") : "");
 
 function init(form) {
   const $ = (name) => form.elements.namedItem(name);
-  const city = $("city"), price = $("price"), rate = $("rate"), primary = $("primary"), fixed = $("fixed");
+  const city = $("city"), price = $("price"), rate = $("rate"), fixed = $("fixed");
   const list = form.querySelector("[data-citylist]");
   const hint = form.querySelector("[data-cityhint]");
   const bill = form.querySelector("[data-bill]");
@@ -141,10 +141,8 @@ function init(form) {
   let results = [];
   let active = -1;
 
-  // The hub and county pages choose an exemption; city pages have the primary-residence box.
   const exemptionMode = () => {
-    const choice = $("exemption")?.value;
-    if (!choice) return primary.checked ? "home" : "none";
+    const choice = $("exemption").value;
     return choice === "vet" && $("vetlow").checked ? "vet-low" : choice;
   };
   const render = () => {
@@ -155,7 +153,7 @@ function init(form) {
     }
     for (const el of form.querySelectorAll("[data-exname]")) el.textContent = EXEMPTION_NAMES[mode];
     for (const el of form.querySelectorAll("[data-ratepct]")) el.textContent = `${num(rate.value).toFixed(4)}%`;
-    if (vetNote) vetNote.hidden = !mode.startsWith("vet");
+    vetNote.hidden = !mode.startsWith("vet");
   };
   const setBill = (county) => {
     const url = data?.bills[county];

@@ -2,8 +2,7 @@
 // /seo/tax-map.js (an ES module, copied as-is by scripts/seo-data-pages.mjs).
 // tax-calc.client.js loads it only when the page has a [data-taxmap] element;
 // a data-county attribute on that element opens the map framed on that county,
-// data-region opens it on one of the REGIONS, and data-compact leaves the tax
-// figures out of the readout when the calculator sits right beside the map.
+// and data-region opens it on one of the REGIONS.
 //
 // Geometry comes from /seo/ca-tax-map.json (see build-ca-map.mjs), already
 // projected to map units, so this file draws SVG and handles the pointer. Rates
@@ -74,7 +73,6 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
 
   const focus = el.dataset.county || null;
   const startRegion = REGIONS.find(([label]) => label === el.dataset.region) || null;
-  const compact = "compact" in el.dataset;
   const byName = new Map(data.cities.map((c) => [c.city, c]));
   const breaks = rateBreaks(data.cities.map((c) => c.pct));
   const rows = geo.cities.filter((g) => byName.has(g.city)).map((g) => ({ ...g, ...byName.get(g.city) }));
@@ -235,7 +233,7 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
 
   // Beside the calculator the readout and legend float over the map's left edge, so frame what's asked for in the space they leave.
   const boxView = ([x, y, w, ht]) => {
-    const inset = compact && vpW >= 700 ? OVERLAY_PX : 0;
+    const inset = vpW >= 700 ? OVERLAY_PX : 0;
     const k = Math.max(1, Math.min((vpW - inset) / (w * 1.15), vpH / (ht * 1.15)) / base);
     return { x: x + w / 2 - inset / 2 / (base * k), y: y + ht / 2, k };
   };
@@ -281,16 +279,8 @@ export async function initTaxMap(el, { data, onPick, onCounty }) {
     who.append(h("strong", null, c.city), h("span", null, countyLabel(c.county)));
     const rate = h("span", "m-rate");
     rate.append(h("strong", null, pct4(c.pct)), h("span", null, `city rate, FY ${c.fy}`));
-    // The calculator keeps every data-out figure current; start from its numbers.
-    const outStat = (key, label) => {
-      const stat = h("span", "m-rate");
-      const value = h("strong", null, el.closest("form")?.querySelector(`.calc-hero [data-out="${key}"]`)?.textContent || "");
-      value.dataset.out = key;
-      stat.append(value, h("span", null, label));
-      return stat;
-    };
-    const stats = compact ? [] : [outStat("annual", "annual tax"), outStat("effective", "true tax rate")];
-    strip.replaceChildren(who, rate, ...stats, link(c.path, `${c.city} rate page`));
+    // A city's own page doesn't need a link back to itself.
+    strip.replaceChildren(who, rate, ...(c.path === location.pathname ? [] : [link(c.path, `${c.city} rate page`)]));
   };
   const showCountyStrip = (county) => {
     const stats = countyStats.get(county);

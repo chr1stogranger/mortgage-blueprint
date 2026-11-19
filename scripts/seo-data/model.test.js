@@ -207,13 +207,13 @@ describe("property tax calculator", () => {
   it("matches Blueprint's Tax breakdown (Alameda, $1M, primary, $1,500 fixed)", async () => {
     const { computeTax, formatTax } = await import("./tax-calc.client.js");
     // (1,000,000 - 7,000) x 1.2127% = 12,042.11; + 1,500 = 13,542.11; / 1,000,000 = 1.354%
-    const t = computeTax({ price: 1000000, ratePct: 1.2127, primary: true, fixed: 1500 });
+    const t = computeTax({ price: 1000000, ratePct: 1.2127, mode: "home", fixed: 1500 });
     expect(formatTax(t)).toEqual({
       price: "$1,000,000", exemption: "-$7,000", taxable: "$993,000", base: "$12,042.11", fixed: "$1,500.00",
       annual: "$13,542.11", monthly: "$1,128.51", effective: "1.354%",
     });
-    expect(computeTax({ price: 1000000, ratePct: 1.2127, primary: false, fixed: 0 }).annual).toBeCloseTo(12127, 6);
-    expect(computeTax({ price: 0, ratePct: 1.2, primary: true, fixed: 0 })).toMatchObject({ annual: 0, effectivePct: 0 });
+    expect(computeTax({ price: 1000000, ratePct: 1.2127, mode: "none", fixed: 0 }).annual).toBeCloseTo(12127, 6);
+    expect(computeTax({ price: 0, ratePct: 1.2, mode: "home", fixed: 0 })).toMatchObject({ annual: 0, effectivePct: 0 });
   });
 
   it("is on every CA tax page, pre-filled and readable without JS; never on loan-limit pages", () => {
@@ -231,7 +231,7 @@ describe("property tax calculator", () => {
     const pct = CA_CITY_TAX_RATES.Fremont * 100;
     const base = ((1000000 - 7000) * pct) / 100;
     expect(fremont).toContain(`data-out="base">$${base.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<`);
-    expect(fremont).toMatch(/<a class="pill" data-bill href="[^"]*propertytax\.alamedacountyca\.gov[^"]*"[^>]*>Look up your Alameda County tax bill<\/a>/);
+    expect(fremont).toMatch(/<a class="pill hub-bill" data-bill href="[^"]*propertytax\.alamedacountyca\.gov[^"]*"[^>]*>Look up your Alameda County tax bill<\/a>/);
   });
 
   it("applies one exemption at a time, with SB 296's veteran rules", async () => {
@@ -257,7 +257,7 @@ describe("property tax calculator", () => {
     expect(vet.base).toBeCloseTo(6075, 6);
     expect(vet.annual).toBeCloseTo(9075, 6);
     expect(computeTax({ price: 1000000, ratePct: 1.215, mode: "vet-low", fixed: 3000 })).toMatchObject({ taxable: 0, base: 0, annual: 3000 });
-    expect(computeTax({ price: 1000000, ratePct: 1.215, primary: true, fixed: 3000 }).exemption).toBe(7000);
+    expect(computeTax({ price: 1000000, ratePct: 1.215, mode: "home", fixed: 3000 }).exemption).toBe(7000);
   });
 
   it("never defaults fixed assessments to $0, and leads with annual tax and the true rate", async () => {
@@ -276,20 +276,20 @@ describe("property tax calculator", () => {
     // Pre-rendered with the estimate included: (1,000,000 - 7,000) x rate + 5,000
     const berkeley = renderPage(byPath.get("/property-tax/california/berkeley/"), font);
     expect(berkeley).toContain('value="5,000"');
-    const out = formatTax(computeTax({ price: 1000000, ratePct: CA_CITY_TAX_RATES.Berkeley * 100, primary: true, fixed: 5000 }));
+    const out = formatTax(computeTax({ price: 1000000, ratePct: CA_CITY_TAX_RATES.Berkeley * 100, mode: "home", fixed: 5000 }));
     expect(berkeley).toContain(`<strong data-out="annual">${out.annual}</strong>`);
     expect(berkeley).toContain(`<strong data-out="effective">${out.effective}</strong>`);
   });
 
-  it("puts the map on the hub and county pages, opened on the county; never on city pages", () => {
+  it("puts the map on every CA tax page, opened on the county; never on loan-limit pages", () => {
     const font = { fontHref: "/fonts/fonts.css" };
     for (const p of site.pages) {
-      const onMapPage = p.path === "/property-tax/california/" || /^\/property-tax\/california\/[^/]+-county\/$/.test(p.path);
-      expect(renderPage(p, font).includes("data-taxmap"), p.path).toBe(onMapPage);
+      expect(renderPage(p, font).includes("data-taxmap"), p.path).toBe(p.path.startsWith("/property-tax/"));
     }
     expect(renderPage(byPath.get("/property-tax/california/"), font)).not.toContain("data-county");
     expect(renderPage(byPath.get("/property-tax/california/marin-county/"), font)).toContain('data-county="Marin"');
     expect(renderPage(byPath.get("/property-tax/california/san-francisco-county/"), font)).toContain('data-county="San Francisco"');
+    expect(renderPage(byPath.get("/property-tax/california/fremont/"), font)).toContain('data-county="Alameda"');
   });
 
   it("opens the hub on the math, with the navy map beside it and the explainer below", () => {
@@ -309,7 +309,23 @@ describe("property tax calculator", () => {
     // The year of each county's rates still has to be stated somewhere on the page.
     expect(pageText(hub)).toMatch(/\d+ of these \d+ counties have fiscal year 2026-27 rates/);
     for (const heading of ["Rates by county", "Lowest rates", "Highest rates", "Look up a property tax bill", "Source"]) expect(html).toContain(`<h2>${heading}</h2>`);
-    expect(renderPage(byPath.get("/property-tax/california/fremont/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
+    expect(renderPage(byPath.get("/loan-limits/"), { fontHref: "/fonts/fonts.css" })).not.toContain("taxhub");
+  });
+
+  it("gives every city page the full math, and says when its rate isn't current", () => {
+    const font = { fontHref: "/fonts/fonts.css" };
+    for (const c of CA_TAX_COUNTIES) {
+      for (const city of Object.keys(c.rates)) {
+        const p = site.pages.find((x) => x.h1.startsWith(`${city}, CA Property Tax Rate`));
+        const html = renderPage(p, font);
+        expect(html, city).toContain('class="hub-receipt"');
+        expect(html, city).toContain('name="exemption" value="vet"');
+        expect(html, city).toContain(`value="${city}"`);
+        expect(html.match(/POWERED BY REALSTACK/g), city).toHaveLength(1);
+        if (c.computed) expect(p.intro, city).toMatch(/added up from the county's/);
+        if (c.fy !== CA_TAX_CURRENT_FY) expect(p.intro, city).toContain(`FY ${c.fy} rates are the county's latest published.`);
+      }
+    }
   });
 
   it("gives every county page the same first screen, keeping its rate-year notes", () => {

@@ -268,16 +268,9 @@ export function buildSite({ now, limitSource }) {
   const citiesIn = (short) => cities.filter((x) => normalizeCounty(x.county) === normalizeCounty(short));
   // Property-tax calculator (render.js + tax-calc.client.js), pre-filled for one city.
   const fixedTable = { default: CA_FIXED_ASSESSMENT_DEFAULT, cities: CA_FIXED_ASSESSMENT_CITIES };
-  const calcBlock = (x, { map = false, mapCounty = null, mapRegion = null } = {}) => ({
-    type: "taxcalc", map, mapCounty, mapRegion, fixedTable, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
+  const calcBlock = (x, { mapCounty = null, mapRegion = null } = {}) => ({
+    type: "taxcalc", mapCounty, mapRegion, fixedTable, city: x.city, county: x.county, pct: CA_CITY_TAX_INFO[x.city].pct, fy: x.fy, price: PRICE_EXAMPLE,
     billUrl: CA_TAX_BILL_LOOKUP[x.county]?.url || null, billLabel: `Look up your ${countyLabel(x.county)} tax bill`,
-  });
-  const calcSection = (x, opts = {}) => ({
-    heading: "Property tax calculator",
-    blocks: [
-      p(`${opts.map ? "Search for a city or pick one on the map, then change" : "Search for a city, then change"} the price, rate or fixed assessments to estimate a first-year bill. It uses the same math as Mortgage Blueprint's tax breakdown.`),
-      calcBlock(x, opts),
-    ],
   });
 
   // ── loan-limit hub ──
@@ -488,7 +481,7 @@ export function buildSite({ now, limitSource }) {
     lead: "Pick a city, enter the price, and see the whole bill.",
     breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }),
     sections: [
-      { heading: "Property tax calculator", blocks: [calcBlock(cities.find((x) => x.city === "Berkeley") || cities[0], { map: true, mapRegion: "Bay Area" })] },
+      { heading: "Property tax calculator", blocks: [calcBlock(cities.find((x) => x.city === "Berkeley") || cities[0], { mapRegion: "Bay Area" })] },
       {
         heading: "How California property tax works",
         cards: ["Your price sets the tax", "The 2% yearly cap", "The supplemental bill", "Your true tax rate", "When it's due"],
@@ -575,7 +568,7 @@ export function buildSite({ now, limitSource }) {
       intro,
       breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: label, path: taxCountyPath(county) }),
       sections: [
-        { heading: "Property tax calculator", blocks: [calcBlock([...cs].sort((a, b) => a.city.localeCompare(b.city))[0], { map: true, mapCounty: county })] },
+        { heading: "Property tax calculator", blocks: [calcBlock([...cs].sort((a, b) => a.city.localeCompare(b.city))[0], { mapCounty: county })] },
         { heading: "Rates by city", grid: true, blocks: [cityRateTable(cs, `Property tax rates, ${label} (FY ${fy})`)] },
         { heading: "Your property tax bill", grid: true, blocks: billBlocks },
         { heading: "Loan limits", grid: true, blocks: [p(link(llPath(cc), `${cc.name} ${year} conforming loan limit: ${money(cc.limits[0])}`))] },
@@ -599,8 +592,10 @@ export function buildSite({ now, limitSource }) {
     const ex = rows.find((r) => r.price === PRICE_EXAMPLE);
     const neighbors = citiesIn(x.county).filter((o) => o.city !== x.city);
     const sections = [
+      { heading: "Property tax calculator", blocks: [calcBlock(x, { mapCounty: x.county })] },
       {
         heading: "First-year property tax by purchase price",
+        grid: true,
         blocks: [
           p(`Under Proposition 13 the purchase price becomes the assessed value, so the first-year tax at the city rate is the price times ${total}. Fixed assessments come on top. ${TRUE_RATE}`),
           {
@@ -612,9 +607,9 @@ export function buildSite({ now, limitSource }) {
           },
         ],
       },
-      calcSection(x),
       {
         heading: "What this rate leaves out",
+        grid: true,
         blocks: [{
           type: "list",
           items: [
@@ -627,6 +622,7 @@ export function buildSite({ now, limitSource }) {
       },
       {
         heading: "Look up a tax bill",
+        grid: true,
         blocks: [p(
           ...(bill?.url ? [link(bill.url, `Look up your ${label} property tax bill`), ` on the ${bill.office} site. `] : []),
           link(taxCountyPath(x.county), `${label} property tax rates and due dates`), ".",
@@ -634,12 +630,13 @@ export function buildSite({ now, limitSource }) {
       },
       {
         heading: "Loan limits",
+        grid: true,
         blocks: [p(`${x.city} is in ${cc.name}, where the ${year} conforming loan limit for a one-unit home is ${money(cc.limits[0])}. `, link(llPath(cc), `${cc.name} loan limits`), ".")],
       },
     ];
-    if (neighbors.length) sections.push({ heading: `Other cities in ${label}`, blocks: [cityRateTable(neighbors, `Property tax rates, ${label} (FY ${fyOf(neighbors)})`)] });
+    if (neighbors.length) sections.push({ heading: `Other cities in ${label}`, grid: true, blocks: [cityRateTable(neighbors, `Property tax rates, ${label} (FY ${fyOf(neighbors)})`)] });
     sections.push(
-      { heading: "Source", blocks: [p("Rate from ", link(x.url, x.source), ". ", link(TAX_HUB, "All California city rates"), ".")] },
+      { heading: "Source", blocks: [p("Rate from ", link(x.url, x.source), ". ", link(TAX_HUB, "All California city rates"), "."), vetSource] },
       { blocks: [{ type: "cta", href: prefillLink({ st: "CA", county: x.county, city: x.city, src: "seo-ptax" }), text: `See ${possessive(x.city)} taxes in your payment in Mortgage Blueprint` }] },
     );
     pages.push(page({
@@ -647,7 +644,11 @@ export function buildSite({ now, limitSource }) {
       path: cityPath(x),
       titleCore: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
       description: `${x.city}, CA property tax rate: ${total} for FY ${x.fy}. On a ${money(PRICE_EXAMPLE)} purchase that's about ${money(Math.round(ex.annual))} a year. Prop 13 basics and caveats.`,
+      layout: "taxhub",
       h1: `${x.city}, CA Property Tax Rate (FY ${x.fy})`,
+      intro: "Enter the price and see the whole bill."
+        + (x.computed ? ` Rates are added up from the county's ${x.fy} tax bills until its rate book is out.` : "")
+        + (x.fy === CA_TAX_CURRENT_FY ? "" : ` FY ${x.fy} rates are the county's latest published.`),
       lead: `${possessive(x.city)} property tax rate is ${total} for fiscal year ${x.fy} in its primary tax rate area: the 1% Proposition 13 base plus ${bonds} in voter-approved bonds.`,
       breadcrumbs: crumbs({ name: "California property tax", path: TAX_HUB }, { name: label, path: taxCountyPath(x.county) }, { name: x.city, path: cityPath(x) }),
       sections,
