@@ -84,7 +84,7 @@ export default function handler(req, res) {
 // Serve HTML with OG tags, then JS redirect to the SPA.
 function sendOgPage(res, { title, description, canonicalUrl, redirectTo, image }) {
   // Static branded fallback (dynamic @vercel/og not supported in Vite Edge functions)
-  const ogImageUrl = image || `https://pricepoint.realstack.app/og-pricepoint.png`;
+  const ogImageUrl = image || `https://pricepoint.realstack.app/og-pricepoint.png?v=2`;
   const isBrandCard = !image; // only the static card is a known 1200x630
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600');

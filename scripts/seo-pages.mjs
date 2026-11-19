@@ -23,7 +23,7 @@ const PAGES = [
     title: 'PricePoint: The Home Price Guessing Game, powered by RealStack',
     ogTitle: 'PricePoint: The Home Price Guessing Game',
     description: 'Guess what real homes sold for. Daily challenges, streaks, and leaderboards on real sold listings. Powered by RealStack.',
-    image: `${ORIGIN}/og-pricepoint.png`,
+    image: `${ORIGIN}/og-pricepoint.png?v=2`,
   },
   {
     file: 'markets.html',
@@ -31,7 +31,7 @@ const PAGES = [
     title: 'Markets: Real Estate Prediction Markets, powered by RealStack',
     ogTitle: 'Markets: Real Estate Prediction Markets',
     description: 'Forecast home prices, rate movements, and housing policy. Crowd intelligence meets real estate data. Powered by RealStack.',
-    image: `${ORIGIN}/og-image.png?v=3`,
+    image: `${ORIGIN}/og-markets.png?v=1`,
   },
 ];
 

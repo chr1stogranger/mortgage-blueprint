@@ -1,81 +1,97 @@
 <!doctype html><html><head><meta charset="utf-8">
 <!--
-  Source for public/og-pricepoint.png (1200x630) — the card iMessage/Slack/etc.
-  show when a PricePoint link is shared (api/challenge.js brand card,
-  scripts/seo-pages.mjs). Follows CLAUDE.md "Product naming": PricePoint is the
-  headline, one POWERED BY REALSTACK microline. Grange palette (src/lib/theme.js),
-  Inter text, Geist Mono only for uppercase labels. Rings mirror the "target"
-  canvas in src/components/AppBackground.jsx.
+  Source for public/og-pricepoint.png (1200x630): the card iMessage, Slack etc.
+  show when a PricePoint link is shared (scripts/seo-pages.mjs, and api/challenge.js
+  when a challenge has no property photo). Same white look as the Blueprint,
+  Ops and realstack.app cards (2026-11-19). Sample game, made-up numbers: guess
+  $1,850,000 vs sold $1,905,000 = off by $55,000, 97% accuracy. No address, the
+  same as PricePoint's own sold links.
 
-  Re-render (needs network for Google Fonts):
+  Re-render from the repo root:
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
-      --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
-      --window-size=1200,630 --virtual-time-budget=8000 \
+      --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --allow-file-access-from-files \
+      --window-size=1200,630 --virtual-time-budget=5000 \
       --screenshot="$PWD/public/og-pricepoint.png" "file://$PWD/scripts/og/og-pricepoint.html"
 
-  iMessage caches unfurls per URL — old shares keep the old card.
+  Fonts load from public/fonts (never Google Fonts). iMessage caches a card per
+  URL, so bump the ?v= on the image URL when this changes.
 -->
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=block" rel="stylesheet">
 <style>
+@font-face{font-family:Inter;font-weight:100 900;src:url("../../public/fonts/inter-latin.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:100 900;src:url("../../public/fonts/geist-mono-latin.woff2") format("woff2")}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:1200px;height:630px;overflow:hidden}
-body{background:#0a1120;color:#EDEDED;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;position:relative;-webkit-font-smoothing:antialiased}
-.mono{font-family:'Geist Mono',monospace;text-transform:uppercase}
-.wash{position:absolute;inset:0;background:
- radial-gradient(900px 600px at 85% 10%, rgba(59,107,245,0.16), transparent 60%),
- radial-gradient(700px 500px at 0% 100%, rgba(43,79,206,0.10), transparent 60%)}
-svg.rings{position:absolute;inset:0}
-.card{position:absolute;background:rgba(18,28,48,0.82);border:1px solid rgba(255,255,255,0.10);border-radius:24px;
- box-shadow:0 1px 2px rgba(0,0,0,0.3),0 30px 60px -20px rgba(0,0,0,0.7);backdrop-filter:blur(8px)}
-.hood{font-size:13px;letter-spacing:0.15em;color:#6E90FF}
-.addr{font-weight:700;color:#EDEDED;letter-spacing:-0.01em}
-.sub{color:#A1A1A1}
-.stats{display:flex;gap:10px}
-.stat{flex:1;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);border-radius:14px;text-align:center;padding:14px 0 12px}
-.stat b{display:block;font-size:24px;font-weight:700}
-.stat span{display:block;font-size:10px;letter-spacing:0.15em;color:#8A8A8A;margin-top:6px}
-.btn{border-radius:9999px;background:linear-gradient(135deg,#3B6BF5,#2B4FCE);color:#fff;font-weight:700;text-align:center;box-shadow:0 10px 30px -8px rgba(59,107,245,0.6)}
-.bar{height:8px;border-radius:9999px;background:rgba(255,255,255,0.08);overflow:hidden}
-.bar i{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#2B4FCE,#3B6BF5 60%,#6E90FF)}
-.foot{position:absolute;left:84px;bottom:44px;font-size:22px;color:#8A8A8A;font-weight:500}
-.pb{font-size:13px;letter-spacing:0.15em;color:#8A8A8A}
-</style><style>
-.left{position:absolute;left:84px;top:0;height:630px;width:600px;display:flex;flex-direction:column;justify-content:center;padding-bottom:20px}
-h1{font-size:122px;font-weight:800;letter-spacing:-0.05em;line-height:0.95}
-h1 .pt{color:#3B6BF5}
-.pb{margin-top:20px;font-size:14px}
-.rule{width:64px;height:3px;border-radius:9999px;background:linear-gradient(90deg,#3B6BF5,#2B4FCE);margin-top:40px}
-.tag{font-size:34px;line-height:1.25;color:#EDEDED;margin-top:26px;font-weight:600;letter-spacing:-0.02em}
-.tag span{color:#A1A1A1;font-weight:400}
-.card{left:736px;top:118px;width:368px;padding:28px 26px 26px}
-.addr{font-size:25px;margin-top:10px}.sub{font-size:15px;margin-top:6px}
-.stats{margin-top:20px}
-.row{display:flex;justify-content:space-between;align-items:baseline;margin-top:20px}
-.row .mono{font-size:11px;letter-spacing:0.15em;color:#8A8A8A}
-.row b{font-size:26px;font-weight:700}
-.row.sold b{color:#6E90FF}
-.hr{height:1px;background:rgba(255,255,255,0.08);margin-top:16px}
-.bar{margin-top:20px}
-.accl{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;letter-spacing:0.15em;color:#8A8A8A}
-.accl b{font-family:Inter;font-size:15px;letter-spacing:0;color:#EDEDED}
-.foot{left:84px}
-</style></head><body><div class="wash"></div>
-<svg class="rings" width="1200" height="630"><g fill="none" stroke="rgba(59,107,245,0.17)" stroke-width="1"><circle cx="905" cy="315" r="48"/><circle cx="905" cy="315" r="100"/><circle cx="905" cy="315" r="160"/><circle cx="905" cy="315" r="228"/><circle cx="905" cy="315" r="304"/><circle cx="905" cy="315" r="388"/><path d="M946 315L960 315M850 315L864 315M905 356L905 370M905 260L905 274M998 315L1012 315M798 315L812 315M905 408L905 422M905 208L905 222M1058 315L1072 315M738 315L752 315M905 468L905 482M905 148L905 162M1126 315L1140 315M670 315L684 315M905 536L905 550M905 80L905 94M1202 315L1216 315M594 315L608 315M905 612L905 626M905 4L905 18M1286 315L1300 315M510 315L524 315M905 696L905 710M905 -80L905 -66"/></g><circle cx="905" cy="315" r="3.5" fill="rgba(110,144,255,0.5)"/></svg><div class="left">
-<h1>Price<span class="pt">Point</span></h1>
-<div class="mono pb">Powered by RealStack</div>
-<div class="rule"></div>
-<div class="tag">Guess what real homes sell for.<br><span>Closest to the sold price wins.</span></div>
+body{color:#0b2545;font-family:Inter,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;position:relative;
+  background:#fff;
+  background-image:linear-gradient(rgba(43,79,206,0.075) 1px,transparent 1px),linear-gradient(90deg,rgba(43,79,206,0.075) 1px,transparent 1px);
+  background-size:32px 32px;background-position:-1px -1px}
+.mono{font-family:"Geist Mono",monospace;text-transform:uppercase}
+.left{position:absolute;left:64px;top:56px;bottom:56px;width:500px;display:flex;flex-direction:column}
+.brand b{display:block;font-size:26px;font-weight:750;letter-spacing:-0.02em}
+.brand b em{font-style:normal;color:#2B5BE6}
+.brand span{display:block;margin-top:5px;font-size:11px;letter-spacing:0.15em;color:#2B5BE6}
+h1{margin-top:34px;font-size:60px;line-height:1.0;font-weight:800;letter-spacing:-0.045em}
+.sub{margin-top:16px;font-size:22px;line-height:1.35;color:#46566b}
+.tile{margin-top:auto;padding:18px 24px;border:1px solid #d3e2f2;border-radius:20px;background:linear-gradient(135deg,#ddf5f2 0%,#e5eeff 55%,#eee7fb 100%)}
+.tile .k{font-size:12px;letter-spacing:0.13em;color:#2B4FCE}
+.tile strong{display:block;margin-top:4px;font-size:46px;line-height:1.05;font-weight:800;letter-spacing:-0.035em}
+.tile strong small{font-size:20px;font-weight:600;color:#46566b;letter-spacing:0}
+.tile .s{margin-top:4px;font-size:16px;color:#46566b}
+.pill{margin-top:16px;padding:17px 0;border:2px solid transparent;border-radius:9999px;background:linear-gradient(#111,#111) padding-box,conic-gradient(from 210deg,#3DF59A,#18D8E8,#6B7BFF,#F08AE0,#F7A54A,#F5E14A,#3DF59A) border-box;color:#fff;font-size:22px;font-weight:650;text-align:center}
+.water{position:absolute;right:32px;top:32px;bottom:32px;width:568px;border-radius:28px;overflow:hidden;padding:28px;display:flex;flex-direction:column;gap:18px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='9'%3E%3Cpath d='M0 4.5 C40 0 120 0 160 4.5 S280 9 320 4.5' fill='none' stroke='rgba(255,255,255,0.13)' stroke-width='0.9'/%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='14'%3E%3Cpath d='M0 7 C70 0 210 0 280 7 S490 14 560 7' fill='none' stroke='rgba(110,255,215,0.14)' stroke-width='0.9'/%3E%3C/svg%3E"),linear-gradient(150deg,#0B4AA8 0%,#0A78CC 45%,#13C4C2 100%)}
+.card{border-radius:20px;background:rgba(255,255,255,0.97);box-shadow:0 14px 36px -14px rgba(11,37,69,0.55)}
+.k{font-family:"Geist Mono",monospace;text-transform:uppercase;font-size:12px;letter-spacing:0.13em;color:#46566b}
+.duo{flex:0 0 auto;display:flex;gap:18px}
+.duo .card{flex:1;padding:20px 22px;display:flex;flex-direction:column}
+.big{display:block;margin-top:6px;font-size:36px;line-height:1.05;font-weight:800;letter-spacing:-0.035em}
+.big small{font-size:18px;font-weight:600;color:#46566b;letter-spacing:0}
+.mini{margin-top:14px;padding-top:12px;border-top:1px solid #dfe5ee;display:flex;flex-direction:column;gap:7px}
+.mini div{display:flex;font-size:15px;color:#46566b}.mini b{margin-left:auto;color:#0b2545;font-weight:650}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;font-size:13px;font-weight:650;white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.home{flex:1;padding:22px 26px;display:flex;flex-direction:column}
+.home .top{display:flex;align-items:center}
+.home .top .chip{margin-left:auto}
+.home h2{margin-top:10px;font-size:28px;font-weight:800;letter-spacing:-0.03em}
+.home .where{margin-top:4px;font-size:15px;color:#667085}
+.facts{margin-top:16px;display:flex;gap:10px}
+.facts div{flex:1;padding:10px 0;border:1px solid #e3e9f1;border-radius:14px;text-align:center}
+.facts b{display:block;font-size:22px;font-weight:750}
+.facts span{display:block;margin-top:3px;font-family:"Geist Mono",monospace;font-size:10px;letter-spacing:0.14em;color:#667085;text-transform:uppercase}
+.res{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.res div{display:flex;align-items:baseline;font-size:16px;color:#46566b}
+.res b{margin-left:auto;font-size:22px;font-weight:800;color:#0b2545;letter-spacing:-0.02em}
+.res .sold b{color:#156EF5}
+.acc{display:flex;align-items:center;gap:12px;margin-top:6px}
+.bar{flex:1;height:10px;border-radius:9999px;background:#e6edf5;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#156EF5,#10D0B7)}
+.acc b{font-size:16px;font-weight:750}
+</style></head><body>
+<div class="left">
+  <div class="brand"><b>Price<em>Point</em></b><span class="mono">Powered by RealStack</span></div>
+  <h1>Guess what real homes sell for.</h1>
+  <p class="sub">A new home every day. Closest guess wins.</p>
+  <div class="tile"><span class="k mono">You were off by</span><strong>$55,000</strong><p class="s">97% accuracy on an Inner Sunset home</p></div>
+  <div class="pill">Play today's home</div>
 </div>
-<div class="card">
-<div class="mono hood">Pacific Heights</div>
-<div class="addr">2655 Steiner St</div>
-<div class="sub">San Francisco, CA · Single Family</div>
-<div class="stats"><div class="stat"><b>4</b><span class="mono">Beds</span></div><div class="stat"><b>5</b><span class="mono">Baths</span></div><div class="stat"><b>4,411</b><span class="mono">Sqft</span></div></div>
-<div class="row"><span class="mono">Your guess</span><b>$5,150,000</b></div>
-<div class="hr"></div>
-<div class="row sold"><span class="mono">Sold for</span><b>$5,925,000</b></div>
-<div class="bar"><i style="width:87%"></i></div>
-<div class="accl mono"><span>Accuracy</span><b>87%</b></div>
+<div class="water">
+  <div class="card home">
+    <div class="top"><span class="k">Today's home</span><span class="chip" style="color:#0e7a3c;background:rgba(14,138,67,0.1)">Sold</span></div>
+    <h2>Inner Sunset</h2>
+    <p class="where">San Francisco, CA · Single family</p>
+    <div class="facts"><div><b>3</b><span>Beds</span></div><div><b>2</b><span>Baths</span></div><div><b>1,640</b><span>Sqft</span></div></div>
+    <div class="res">
+      <div>Your guess<b>$1,850,000</b></div>
+      <div class="sold">Sold for<b>$1,905,000</b></div>
+      <div class="acc"><span class="bar"><i style="width:97%"></i></span><b>97%</b></div>
+    </div>
+  </div>
+  <div class="duo">
+    <div class="card"><span class="k">Streak</span><strong class="big">12<small> days</small></strong>
+      <div class="mini"><div>Best<b>21 days</b></div></div></div>
+    <div class="card"><span class="k">Leaderboard</span><strong class="big">#3<small> this week</small></strong>
+      <div class="mini"><div>Average accuracy<b>94%</b></div></div></div>
+  </div>
 </div>
-<div class="foot">pricepoint.realstack.app</div></body></html>
+</body></html>
