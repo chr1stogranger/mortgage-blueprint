@@ -54,8 +54,8 @@
   Blueprint default (the per-mode canvas above) / Match Ops / any of Ops'
   backgrounds (`src/lib/backgrounds.js`, VENDORED from loan-pipeline
   `src/theme.js` `BACKGROUNDS` — keep in sync). Signed-in LOs default to Match
-  Ops (read from Ops `?_route=appearance`); share-link borrowers always get the
-  default canvas. Ribbons appear only when the person picks them (directly or
+  Ops (read from Ops `?_route=appearance`); share-link borrowers start on Plaid and
+  can pick any background themselves, never Match Ops (2026-11-20). Ribbons appear only when the person picks them (directly or
   via Match Ops) — never as a default.
 - **Embedded modes (`src/lib/embed.js`, 2026-10-31):** `EMBED === "ops"` when
   ops.realstack.app frames us (its Blueprint side panel): compact header, no

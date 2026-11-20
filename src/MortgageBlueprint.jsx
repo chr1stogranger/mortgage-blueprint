@@ -1425,14 +1425,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  // Background (Settings → Appearance, 2026-10-31; lib/backgrounds.js).
  // null = never chosen: signed-in LOs follow Ops, everyone else gets the
- // Blueprint canvas. Share-link borrowers always see the Blueprint canvas.
+ // Blueprint canvas. Share-link borrowers start on Plaid (Chris 2026-11-20)
+ // and can pick any background themselves; "ops" means nothing to them.
  const [bgChoice, setBgChoice] = useState(readBgChoice);
  const saveBgChoice = (v) => { setBgChoice(v); try { localStorage.setItem(BG_CHOICE_KEY, v); } catch { /* private mode */ } };
  // The LO's Ops look for "Match Ops": bg from Ops (panel message or the
  // appearance route); dark only from the Ops panel (Ops keeps light/dark per
  // browser, so standalone Blueprint keeps its own Light/Dark).
  const [opsLook, setOpsLook] = useState({ bg: null, dark: null });
- const bgEffective = isBorrower ? "default" : (bgChoice || (isCloud ? "ops" : "default"));
+ const bgEffective = isBorrower ? (bgChoice && bgChoice !== "ops" ? bgChoice : "plaid") : (bgChoice || (isCloud ? "ops" : "default"));
  const bgResolved = bgEffective === "ops" ? backgroundById(opsLook.bg) : bgEffective === "default" ? null : backgroundById(bgEffective);
  // Ops side panel state, mirrored into the header controls (EMBED === "ops").
  const [opsPanel, setOpsPanel] = useState({ frac: 0.5, follow: true });
@@ -11444,10 +11445,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     } />
    {!isDesktop && <SetRow title="On this page button" sub={sectionPillHidden ? 'Hidden: the section jump pill stays off for screenshots' : 'On: the pill under the header jumps between Overview sections'}
     right={<SetSwitch on={!sectionPillHidden} label="On this page button" onClick={() => { setSectionPillHiddenPersist(!sectionPillHidden); Haptics.light(); }} />} />}
-   {!isBorrower && <SetRow title="Background" sub={bgEffective === "ops" ? `Match Ops: ${(bgResolved?.label || "loading your Ops background")}${EMBED === "ops" ? ", light/dark follows Ops too" : ""}` : bgEffective === "default" ? "Blueprint default: house here, target in PricePoint, stock line in Markets" : (bgResolved?.label || "")}>
-    <BackgroundPicker T={T} value={bgEffective} showOps={isCloud} onChange={(v) => { saveBgChoice(v); Haptics.light(); }} />
-   </SetRow>}
-   <SetRow last title="Animated background" sub={`${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
+   <SetRow title="Background" sub={bgEffective === "ops" ? `Match Ops: ${(bgResolved?.label || "loading your Ops background")}${EMBED === "ops" ? ", light/dark follows Ops too" : ""}` : bgEffective === "default" ? "Blueprint default: house here, target in PricePoint, stock line in Markets" : (bgResolved?.label || "")}>
+    <BackgroundPicker T={T} value={bgEffective} showOps={isCloud && !isBorrower} onChange={(v) => { saveBgChoice(v); Haptics.light(); }} />
+   </SetRow>
+   <SetRow last title="Animated background" sub={bgResolved && bgResolved.kind !== "ribbons" ? "Only moves on the Blueprint default background" : `${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
     right={<SetSwitch on={!bgPaused} label="Animated background" onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} />} />
  </SetShell>
  {/* Share-link borrowers had no way to see who they're signed in as, sign
