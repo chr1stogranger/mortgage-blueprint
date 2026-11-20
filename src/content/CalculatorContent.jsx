@@ -849,7 +849,6 @@ export default function CalculatorContent(props) {
      <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[30, 25, 20, 15, 10, ...Array.from({length: 26}, (_, i) => 30 - i).filter(y => ![30, 25, 20, 15, 10].includes(y))].map(y => ({value: y, label: `${y} Year${y === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
     </div>
    </div>
-   <ClusterContinue stepId="calc-pills" />
   </>);
 
   // ── One alert stack above the price card (Christo 2026-10-01) ──

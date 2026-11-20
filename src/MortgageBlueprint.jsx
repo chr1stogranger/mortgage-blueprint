@@ -6093,22 +6093,27 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Text-input steps advance on a "looks complete" signal (valid FICO range,
   // full ZIP length, debounced price/down value) so the pulse doesn't jump
   // away mid-keystroke. Toggle/select/button steps advance on guideTouched.
+  // The order follows the page top to bottom (remapped 2026-11-20):
   //  1) Transaction type     — SetupContent
   //  2) FICO score           — SetupContent
   //  3) ZIP code             — SetupContent
-  //  4) Purchase price       — CalculatorContent (purchase only)
-  //  5) Down payment         — CalculatorContent (purchase only)
-  //  6) Get Today's Rates    — CalculatorContent
-  //  7) Loan-structure pills — CalculatorContent (occupancy/type/loan/term)
+  //     — a refinance stops here and hands off to its own four steps —
+  //  4) Purchase price       — CalculatorContent
+  //  5) Down payment         — CalculatorContent
+  //  6) Rate                 — CalculatorContent
+  //  7) Payment breakdown    — CalculatorContent
   //  8) Modules              — "Add to this Blueprint", under the donut
-  //  9) Costs / Cash to Close — CostsContent (review-only, auto-calculated)
-  // 10) Assets               — AssetsContent
-  // 11) Debts                — DebtsContent
-  // 12) REO                  — ReoContent (only if they own other property)
-  // 13) Income               — IncomeContent
-  // 14) Pre-Qualified        — QualifyContent
-  // 15) Tax Savings          — TaxContent
-  // 16) Equity               — AmortContent
+  //  9) Closing costs, 10) Prepaids, 11) Credits — CostsContent
+  // 12) Assets               — AssetsContent
+  // 13) Credit & Debts       — DebtsContent
+  // 14) REO                  — ReoContent (only if they own other property)
+  // 15) Income               — IncomeContent
+  // 16) Pre-Qualified        — QualifyContent
+  // 17) Tax Savings          — TaxContent
+  // 18) Equity               — AmortContent
+  // Occupancy / Property Type / Loan Type / Term is NOT a step (Chris
+  // 2026-11-20): the defaults fit a first-time buyer and the row sits above
+  // the price on desktop, so stopping there sent the walk back up the page.
 
   // 1. Transaction type — Purchase or Refinance
   if (isRefi === null || !guideTouched.has("transaction-type-done")) return "transaction-type";
@@ -6120,26 +6125,27 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 3. ZIP code — advances once all 5 digits are in
   if (!propertyZip || propertyZip.length < 5 || !guideTouched.has("zip-code-done")) return "zip-code";
 
-  // 5. Purchase price (purchase only) — hold the pulse until a full
+  // A refinance ends the walk here. Refi Overview is its own four steps
+  // (Current loan · New loan · Costs · Review, 2026-10-31) that show one
+  // section at a time, so every later anchor below is hidden: the bar used
+  // to name 12 more steps while pointing at nothing.
+  if (isRefi) return null;
+
+  // 4. Purchase price (purchase only) — hold the pulse until a full
   //    6-digit price ($100k+) is entered. The input is debounced, but a
   //    short value (2-3 digits) would still advance prematurely, yanking
   //    the cursor to Down. Real homes here are 6+ digits.
   if (!isRefi && (salesPrice < 100000 || !guideTouched.has("calc-price-done"))) return "calc-price";
 
-  // 6. Down payment (purchase only) — a down-payment % has no predictable
+  // 5. Down payment — a down-payment % has no predictable
   //    digit count, so advance on blur (markTouched fires when the user
   //    clicks/tabs away) rather than per-keystroke.
   if (!isRefi && !guideTouched.has("calc-down-done")) return "calc-down";
 
-  // 7. Get Today's Rates — pulse the live-rates button until it's clicked
+  // 6. Rate — pulse today's rate tiles until one is picked or Continue
   if (!guideTouched.has("get-rates")) return "get-rates";
 
-  // 8. Loan-structure pills — Occupancy / Property Type / Loan Type / Term.
-  //    Cluster step: pulse stays until the user clicks "Continue" (sets
-  //    "calc-pills-done"). Changing a single pill no longer advances.
-  if (!guideTouched.has("calc-pills-done")) return "calc-pills";
-
-  // 9. Payment Breakdown — comprehension stop. The Continue chip only appears
+  // 7. Payment Breakdown — comprehension stop. The Continue chip only appears
   //    after the Tax/PMI carets are expanded (gate lives in CalculatorContent);
   //    chip sets "payment-breakdown-done".
   if (!guideTouched.has("payment-breakdown-done")) return "payment-breakdown";
@@ -6147,11 +6153,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Modules — the "Add to this Blueprint" section sits right under the donut
   //    on Overview (2026-09-23), so it follows the payment steps instead of
   //    leading them. Pulse stays on the card until "Continue" ("modules-done").
-  //    Skipped on refi: every module is purchase-only, so the card doesn't
-  //    render there and a guided refi would stall pointing at nothing.
-  if (!isRefi && !guideTouched.has("modules-done")) return "modules";
+  if (!guideTouched.has("modules-done")) return "modules";
 
-  // 9. Costs / Cash to Close — comprehension step. Costs auto-calculate, so
+  // Costs / Cash to Close — comprehension step. Costs auto-calculate, so
   //    there is nothing to type; pulse the costs section, let the buyer review
   //    where their cash-to-close goes, then advance on Continue ("costs-done").
   //    Anchor: data-field="costs". Not in inputFields → scroll, no focus steal.
@@ -6159,32 +6163,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!guideTouched.has("prepaids-done")) return "prepaids";
   if (!guideTouched.has("credits-done")) return "credits";
 
-  // 10. Assets — add an account, then fill its value and cash-for-closing.
+  // Assets — add an account, then fill its value and cash-for-closing.
   //    Current Value advances on blur (markTouched) — it has no predictable
   //    digit count. Funds-for-Closing advances once a 4-digit amount
   //    ($1,000+) is entered, which then moves the pulse to the Debts section.
   if ((!assets || assets.length === 0) && !guideTouched.has("assets-section-done")) return "add-asset";
   if (!guideTouched.has("assets-section-done")) return "assets-section";
 
-  // 11. Debts — answer the "do you own other property?" question
+  // Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
   if (!guideTouched.has("debts-section-done")) return "debts-section";
 
-  // 12. REO — only when the borrower owns other property
+  // REO — only when the borrower owns other property
   if (ownsProperties && !guideTouched.has("reo-section")) return "reo-section";
 
-  // 13. Income — at least one borrower needs income entered
+  // Income — at least one borrower needs income entered
   //     Skippable from the step bar: the welcome screen promises income is
   //     optional (QA 2026-10-27: it was a hard gate).
   if (!guideTouched.has("income-section-done")) return "income-section";
 
-  // 14. Pre-Qualified — review the qualification result
+  // Pre-Qualified — review the qualification result
   if (!guideTouched.has("qualify-section")) return "qualify-section";
 
-  // 15. Tax Savings
+  // Tax Savings
   if (!guideTouched.has("tax-filing")) return "tax-filing";
 
-  // 16. Equity (amortization)
+  // Equity (amortization)
   if (!guideTouched.has("amort-section")) return "amort-section";
 
   // All guided steps complete — no more highlights
@@ -6205,38 +6209,39 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    { id: "fico-input", label: "Credit score", on: true, keys: ["fico-input-done"], ready: creditScore >= 300,
      hint: "Type your credit score (300 to 850). Not sure? Use the score from your bank or card app." },
    { id: "zip-code", label: "ZIP code", on: true, keys: ["zip-code-done"], ready: !!propertyZip && propertyZip.length === 5,
-     hint: "Type the 5-digit ZIP code where you want to buy. It sets local taxes and loan limits." },
+     hint: isRefi ? "Type the 5-digit ZIP code of the home you're refinancing. Next you'll walk through your current loan."
+      : "Type the 5-digit ZIP code where you want to buy. It sets local taxes and loan limits." },
+   // Everything below is purchase only: a refinance stops after ZIP (see
+   // guideField) and its own four steps take over.
    { id: "calc-price", label: "Price", on: !isRefi, keys: ["calc-price-done"], ready: salesPrice >= 100000,
      hint: "Type the price of the home you have in mind." },
    { id: "calc-down", label: "Down payment", on: !isRefi, keys: ["calc-down-done"], ready: true,
      hint: "How much will you put down? Type a percent, or switch to $ to type dollars." },
-   { id: "get-rates", label: "Rate", on: true, keys: ["get-rates"], ready: true,
+   { id: "get-rates", label: "Rate", on: !isRefi, keys: ["get-rates"], ready: true,
      hint: "This is today's average rate. Keep it, or click a different loan's rate." },
-   { id: "calc-pills", label: "Loan details", on: true, keys: ["calc-pills-done"], ready: true,
-     hint: "How you'll use the home and the type of loan. The defaults fit most buyers." },
-   { id: "payment-breakdown", label: "Monthly payment", on: true, keys: ["payment-breakdown-done"], ready: true,
+   { id: "payment-breakdown", label: "Monthly payment", on: !isRefi, keys: ["payment-breakdown-done"], ready: true,
      hint: "Your monthly payment, piece by piece. Open the ▾ next to Tax to see how it's figured." },
    { id: "modules", label: "Extras", on: !isRefi, keys: ["modules-done"], ready: true,
      hint: "Optional extras. Answer Yes to any that fit you, or just continue." },
-   { id: "closing-costs", label: "Closing costs", on: true, keys: ["closing-costs-done"], ready: true,
+   { id: "closing-costs", label: "Closing costs", on: !isRefi, keys: ["closing-costs-done"], ready: true,
      hint: "One-time fees to get the loan. They're filled in for you; look them over and continue." },
-   { id: "prepaids", label: "Prepaid expenses", on: true, keys: ["prepaids-done"], ready: true,
+   { id: "prepaids", label: "Prepaid expenses", on: !isRefi, keys: ["prepaids-done"], ready: true,
      hint: "Taxes, insurance and interest you pay ahead at closing. Also filled in for you." },
-   { id: "credits", label: "Credits", on: true, keys: ["credits-done"], ready: true,
+   { id: "credits", label: "Credits", on: !isRefi, keys: ["credits-done"], ready: true,
      hint: "Money the seller, lender or agent puts toward your costs. Add any you've agreed on." },
-   { id: "assets", label: "Savings", on: true, keys: ["assets-section-done"], ready: assets.length > 0, skip: assets.length === 0,
+   { id: "assets", label: "Savings", on: !isRefi, keys: ["assets-section-done"], ready: assets.length > 0, skip: assets.length === 0,
      hint: "Add the bank or investment accounts you'll use for the down payment and closing." },
-   { id: "debts", label: "Credit & Debts", on: true, keys: ["owns-properties-toggle", "debts-section-done"], ready: true,
-     hint: "Add monthly payments on your credit report: car, student loans, credit cards. None? Continue." },
-   { id: "reo", label: "Other property", on: ownsProperties, keys: ["reo-section"], ready: true, skip: true,
+   { id: "debts", label: "Credit & Debts", on: !isRefi, keys: ["owns-properties-toggle", "debts-section-done"], ready: true,
+     hint: "Do you own any other property? Answer above, then add your monthly payments: car, student loans, credit cards. None? Continue." },
+   { id: "reo", label: "Other property", on: !isRefi && ownsProperties, keys: ["reo-section"], ready: true, skip: true,
      hint: "Tell us about the other property you own." },
-   { id: "income", label: "Income", on: true, keys: ["income-section-done"], ready: hasIncome, skip: !hasIncome,
+   { id: "income", label: "Income", on: !isRefi, keys: ["income-section-done"], ready: hasIncome, skip: !hasIncome,
      hint: "Add your income to see what you qualify for. You can skip this and still see your payment." },
-   { id: "qualify", label: "Qualify", on: true, keys: ["qualify-section"], ready: true,
+   { id: "qualify", label: "Qualify", on: !isRefi, keys: ["qualify-section"], ready: true,
      hint: "How you measure up on the 5 things lenders check." },
-   { id: "tax", label: "Tax savings", on: true, keys: ["tax-filing"], ready: true,
+   { id: "tax", label: "Tax savings", on: !isRefi, keys: ["tax-filing"], ready: true,
      hint: "Pick how you file taxes to estimate what owning saves you." },
-   { id: "equity", label: "Equity", on: true, keys: ["amort-section"], ready: true,
+   { id: "equity", label: "Equity", on: !isRefi, keys: ["amort-section"], ready: true,
      hint: "How your home builds value over time as you pay it down." },
   ].filter(s => s.on);
   const groupOf = (f) => {
@@ -6250,7 +6255,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    return f;
   };
   const total = ladder.length;
-  if (!guideField) return { current: total, total, label: "All done", done: true, ladder, idx: total };
+  // A refinance has no "all done": its own steps carry on from here, so the
+  // progress strip, the bar and the finish card all stand down.
+  if (!guideField) return isRefi ? null : { current: total, total, label: "All done", done: true, ladder, idx: total };
   const idx = ladder.findIndex(s => s.id === groupOf(guideField));
   if (idx === -1) return null;
   return { current: idx + 1, total, label: ladder[idx].label, done: false, ladder, idx, step: ladder[idx] };
@@ -6280,7 +6287,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Only auto-advance if the previous field was on the same tab (user just completed something)
   if (!prev) return;
   // Steps whose anchor contains a text input the user should be dropped into.
-  // Non-input steps (modules, get-rates, calc-pills, section banners) just
+  // Non-input steps (modules, get-rates, section banners) just
   // scroll into view — no focus steal.
   const inputFields = ["fico-input","zip-code","calc-price","calc-down","refi-current-rate","refi-current-balance","qualify-fico"];
   const timer = setTimeout(() => {
@@ -10650,7 +10657,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <button type="button" {...press} onClick={onContinue} disabled={!step.ready}
       title={step.ready ? undefined : "Fill this in first"}
       style={{ ...btn, background: step.ready ? T.blue : T.pillBg, color: step.ready ? "#fff" : T.textTertiary, cursor: step.ready ? "pointer" : "not-allowed", padding: "8px 18px" }}>
-      {current === total ? "Finish" : "Continue"}
+      {current === total && !isRefi ? "Finish" : "Continue"}
      </button>
     </div>
    </div>
