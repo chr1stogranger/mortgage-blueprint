@@ -158,7 +158,7 @@ export default function DebtsContent(props) {
   Card, TextInp, Inp, Sel, Note, Progress,
   DEBT_TYPES, GuidedNextButton, ClusterContinue,
   openMismoImport,
-  Sec, creditReport = null, setCreditReport, canEditCredit = false, creditScore, setCreditScore, loanType,
+  Sec, creditReport = null, setCreditReport, canEditCredit = false, creditScore, setCreditScore, loanType, borrowerNames,
 } = props;
 
   const [linkOpenId, setLinkOpenId] = useState(null);
@@ -335,7 +335,7 @@ export default function DebtsContent(props) {
     `}</style>
     {/* Bureau-by-bureau scores + pull dates. First in Credit & Debts: scores, then
         the debts off the same credit report. Saving sets the scenario credit score. */}
-    <CreditReportCard T={T} isDesktop={isDesktop} Sec={Sec} Card={Card} creditReport={creditReport} setCreditReport={setCreditReport} canEdit={canEditCredit} creditScore={creditScore} setCreditScore={setCreditScore} ficoMin={calc.ficoMin} loanType={loanType} />
+    <CreditReportCard T={T} isDesktop={isDesktop} Sec={Sec} Card={Card} creditReport={creditReport} setCreditReport={setCreditReport} canEdit={canEditCredit} creditScore={creditScore} setCreditScore={setCreditScore} ficoMin={calc.ficoMin} loanType={loanType} borrowerNames={borrowerNames} />
 
     {/* ─── Own Properties toggle — full width, structural (gates REO tab) ─── */}
     <div data-field="debts-section" style={{ marginTop: 20, marginBottom: 16 }}>

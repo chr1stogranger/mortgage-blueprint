@@ -2,8 +2,10 @@
 // bureau, each with the date it was pulled.
 //
 // Shape (scenario state key `creditReport`, null when nothing is entered):
-//   { ex: { fico, vantage, pulled }, tu: {...}, eq: {...} }
+//   { ex: { fico, vantage, pulled }, tu: {...}, eq: {...}, co?: { ex, tu, eq } }
 //   fico / vantage are integers 300–850 (0 = not entered); pulled is "YYYY-MM-DD".
+//   The top-level bureaus are the borrower's; `co` holds the co-borrower's and
+//   is absent when there isn't one.
 
 // Mortgage lenders pull the "classic" FICO models, a different one per bureau.
 export const BUREAUS = [
@@ -39,10 +41,23 @@ export function parseYmd(ymd) {
   return d.getMonth() === Number(m[2]) - 1 ? d : null;
 }
 
-// Oldest and newest pull dates, and how long the report stays usable. The
-// oldest pull sets the deadline: that bureau's data ages out first.
+// The score that qualifies the loan. Each borrower has a representative score
+// (qualifyingScore); with two borrowers the lower of the two is used. `who` is
+// "b" or "co", whichever borrower's score it is.
+export function loanQualifyingScore(report, kind = "fico") {
+  const b = qualifyingScore(report, kind);
+  const co = qualifyingScore(report?.co, kind);
+  const pick = co.score > 0 && (b.score === 0 || co.score < b.score) ? "co" : "b";
+  const q = pick === "co" ? co : b;
+  return { score: q.score, who: q.score > 0 ? pick : null, joint: b.score > 0 && co.score > 0, b, co };
+}
+
+const pullDates = (r) => BUREAUS.map((b) => parseYmd(r?.[b.key]?.pulled)).filter(Boolean);
+
+// Oldest and newest pull dates across both borrowers, and how long the report
+// stays usable. The oldest pull sets the deadline: that data ages out first.
 export function reportDates(report, today = new Date()) {
-  const dates = BUREAUS.map((b) => parseYmd(report?.[b.key]?.pulled)).filter(Boolean).sort((a, b) => a - b);
+  const dates = [...pullDates(report), ...pullDates(report?.co)].sort((a, b) => a - b);
   if (dates.length === 0) return null;
   const oldest = dates[0];
   const newest = dates[dates.length - 1];
@@ -52,8 +67,7 @@ export function reportDates(report, today = new Date()) {
   return { oldest, newest, sameDay: oldest.getTime() === newest.getTime(), goodThrough, daysLeft };
 }
 
-// Drop anything that isn't a real score or date; null when nothing is left.
-export function cleanReport(report) {
+function cleanOne(report) {
   const out = {};
   let any = false;
   for (const b of BUREAUS) {
@@ -64,7 +78,17 @@ export function cleanReport(report) {
     out[b.key] = { fico, vantage, pulled };
     if (fico || vantage) any = true;
   }
-  return any ? out : null;
+  return { out, any };
 }
 
-export const hasVantage = (report) => BUREAUS.some((b) => validScore(Number(report?.[b.key]?.vantage)));
+// Drop anything that isn't a real score or date; null when nothing is left.
+// A co-borrower with no scores is dropped.
+export function cleanReport(report) {
+  const b = cleanOne(report);
+  const co = report?.co ? cleanOne(report.co) : { any: false };
+  if (!b.any && !co.any) return null;
+  return co.any ? { ...b.out, co: co.out } : b.out;
+}
+
+const anyVantage = (r) => BUREAUS.some((b) => validScore(Number(r?.[b.key]?.vantage)));
+export const hasVantage = (report) => anyVantage(report) || anyVantage(report?.co);

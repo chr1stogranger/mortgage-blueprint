@@ -1,13 +1,14 @@
 import React from "react";
 import { FONT } from "../lib/fonts.js";
 import Icon from "../Icon";
-import { BUREAUS, SCORE_MAX, qualifyingScore, reportDates, cleanReport, hasVantage } from "../lib/creditReport.js";
+import { BUREAUS, SCORE_MAX, loanQualifyingScore, reportDates, cleanReport, hasVantage } from "../lib/creditReport.js";
 
 // First block of Credit & Debts: Credit Report. The three bureaus side by side:
 // FICO, VantageScore, and the date each was pulled. The middle FICO is the
 // one that qualifies the loan, so it is marked and offered to the scenario's
-// credit score. LO-entered; a share-link borrower sees it read-only, and only
-// once it has scores in it.
+// credit score. A co-borrower gets a second set of three; the loan then
+// qualifies on the lower of the two middle scores. LO-entered; a share-link
+// borrower sees it read-only, and only once it has scores in it.
 
 const RULE_LABEL = { middle: "Middle score", lower: "Lower of two", only: "Only score" };
 const fmtLong = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -15,33 +16,40 @@ const fmtShort = (d) => d.toLocaleDateString("en-US", { month: "numeric", day: "
 const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const parse = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
 
-export default function CreditReportCard({ T, isDesktop, Sec, Card, creditReport, setCreditReport, canEdit, creditScore, setCreditScore, ficoMin, loanType }) {
+export default function CreditReportCard({ T, isDesktop, Sec, Card, creditReport, setCreditReport, canEdit, creditScore, setCreditScore, ficoMin, loanType, borrowerNames }) {
   const [draft, setDraft] = React.useState(null);
   const editing = draft !== null;
   const report = creditReport || null;
 
   if (!report && !canEdit) return null;
 
-  const startEdit = () => {
-    const d = {};
-    for (const b of BUREAUS) {
-      const r = report?.[b.key] || {};
-      d[b.key] = { fico: r.fico ? String(r.fico) : "", vantage: r.vantage ? String(r.vantage) : "", pulled: r.pulled || "" };
-    }
-    setDraft(d);
-  };
-  const patch = (key, field, value) => setDraft((d) => {
-    const next = { ...d, [key]: { ...d[key], [field]: value } };
+  const people = [
+    { id: "b", name: (borrowerNames?.[1] || "").trim() || "Borrower" },
+    { id: "co", name: (borrowerNames?.[2] || "").trim() || "Co-borrower" },
+  ];
+  const blank = (r) => Object.fromEntries(BUREAUS.map((b) => {
+    const v = r?.[b.key] || {};
+    return [b.key, { fico: v.fico ? String(v.fico) : "", vantage: v.vantage ? String(v.vantage) : "", pulled: v.pulled || "" }];
+  }));
+  const startEdit = () => setDraft({ b: blank(report), co: report?.co ? blank(report.co) : null });
+  const patch = (who, key, field, value) => setDraft((d) => {
+    const next = { ...d, [who]: { ...d[who], [key]: { ...d[who][key], [field]: value } } };
     // A tri-merge is one pull: the first date entered fills the blanks.
-    if (field === "pulled" && value) for (const b of BUREAUS) if (!next[b.key].pulled) next[b.key] = { ...next[b.key], pulled: value };
+    if (field === "pulled" && value) for (const w of ["b", "co"]) if (next[w]) {
+      next[w] = { ...next[w] };
+      for (const b of BUREAUS) if (!next[w][b.key].pulled) next[w][b.key] = { ...next[w][b.key], pulled: value };
+    }
     return next;
   });
+  const addCo = () => setDraft((d) => {
+    const first = BUREAUS.map((b) => d.b[b.key].pulled).find(Boolean) || "";
+    return { ...d, co: Object.fromEntries(BUREAUS.map((b) => [b.key, { fico: "", vantage: "", pulled: first }])) };
+  });
+  const toNums = (r) => Object.fromEntries(BUREAUS.map((b) => [b.key, { fico: parseInt(r[b.key].fico, 10) || 0, vantage: parseInt(r[b.key].vantage, 10) || 0, pulled: r[b.key].pulled }]));
   const save = () => {
-    const raw = {};
-    for (const b of BUREAUS) raw[b.key] = { fico: parseInt(draft[b.key].fico, 10) || 0, vantage: parseInt(draft[b.key].vantage, 10) || 0, pulled: draft[b.key].pulled };
-    const clean = cleanReport(raw);
+    const clean = cleanReport({ ...toNums(draft.b), ...(draft.co ? { co: toNums(draft.co) } : {}) });
     setCreditReport(clean);
-    const q = qualifyingScore(clean);
+    const q = loanQualifyingScore(clean);
     if (q.score > 0) setCreditScore(q.score);
     setDraft(null);
   };
@@ -69,36 +77,48 @@ export default function CreditReportCard({ T, isDesktop, Sec, Card, creditReport
 
   // ── Editing: one row per bureau (fits a phone; date inputs are wide) ──
   if (editing) {
-    const scoreInput = (b, field, name) => (
-      <input type="text" inputMode="numeric" aria-label={`${b.name} ${name}`} placeholder="—" value={draft[b.key][field]}
-        onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 3); patch(b.key, field, v === "" ? "" : String(Math.min(parseInt(v, 10), SCORE_MAX))); }}
+    const scoreInput = (p, b, field, name) => (
+      <input type="text" inputMode="numeric" aria-label={`${p.name} ${b.name} ${name}`} placeholder="—" value={draft[p.id][b.key][field]}
+        onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 3); patch(p.id, b.key, field, v === "" ? "" : String(Math.min(parseInt(v, 10), SCORE_MAX))); }}
         style={input} />
     );
     const cols = isDesktop ? "140px 1fr 1fr 1.4fr" : "1fr 1fr 2.2fr";
+    const shown = people.filter((p) => draft[p.id]);
     return (
       <Sec title="Credit Report">
         <Card>
-          <div style={{ display: "grid", gridTemplateColumns: cols, columnGap: 10, rowGap: 8, alignItems: "center" }}>
-            {isDesktop && <div />}
-            <div style={{ ...label, textAlign: "center" }}>FICO</div>
-            <div style={{ ...label, textAlign: "center" }}>VantageScore</div>
-            <div style={{ ...label, textAlign: "center" }}>Pulled</div>
-            {BUREAUS.map((b) => (
-              <React.Fragment key={b.key}>
-                <div style={{ gridColumn: isDesktop ? "auto" : "1 / -1", marginTop: isDesktop ? 0 : 6 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>{b.name}</span>
-                  <span style={{ ...sub, marginLeft: 8 }}>{b.ficoModel}</span>
+          {shown.map((p, i) => (
+            <div key={p.id} style={i > 0 ? { marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.separator}` } : undefined}>
+              {draft.co && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>{p.name}</div>
+                  {p.id === "co" && <button onClick={() => setDraft((d) => ({ ...d, co: null }))} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT }}>Remove co-borrower</button>}
                 </div>
-                {scoreInput(b, "fico", "FICO")}
-                {scoreInput(b, "vantage", "VantageScore")}
-                <input type="date" aria-label={`${b.name} pull date`} value={draft[b.key].pulled} max={ymd(new Date())}
-                  onChange={(e) => patch(b.key, "pulled", e.target.value)}
-                  style={{ ...input, fontSize: isDesktop ? 14 : 16, fontWeight: 500, padding: "8px 4px" }} />
-              </React.Fragment>
-            ))}
-          </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: cols, columnGap: 10, rowGap: 8, alignItems: "center" }}>
+                {isDesktop && <div />}
+                <div style={{ ...label, textAlign: "center" }}>FICO</div>
+                <div style={{ ...label, textAlign: "center" }}>VantageScore</div>
+                <div style={{ ...label, textAlign: "center" }}>Pulled</div>
+                {BUREAUS.map((b) => (
+                  <React.Fragment key={b.key}>
+                    <div style={{ gridColumn: isDesktop ? "auto" : "1 / -1", marginTop: isDesktop ? 0 : 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: draft.co ? 600 : 700, color: T.text, fontFamily: FONT }}>{b.name}</span>
+                      <span style={{ ...sub, marginLeft: 8 }}>{b.ficoModel}</span>
+                    </div>
+                    {scoreInput(p, b, "fico", "FICO")}
+                    {scoreInput(p, b, "vantage", "VantageScore")}
+                    <input type="date" aria-label={`${p.name} ${b.name} pull date`} value={draft[p.id][b.key].pulled} max={ymd(new Date())}
+                      onChange={(e) => patch(p.id, b.key, "pulled", e.target.value)}
+                      style={{ ...input, fontSize: isDesktop ? 14 : 16, fontWeight: 500, padding: "8px 4px" }} />
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          ))}
+          {!draft.co && <button onClick={addCo} style={{ ...pill(false), marginTop: 14 }}><Icon name="plus" size={14} />Add co-borrower</button>}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.separator}` }}>
-            <div style={sub}>VantageScore is optional. Saving sets the scenario's credit score to the middle FICO.</div>
+            <div style={{ ...sub, flex: "1 1 220px" }}>VantageScore is optional. Saving sets the scenario's credit score to {draft.co ? "the lower of the two middle FICOs" : "the middle FICO"}.</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setDraft(null)} style={pill(false)}>Cancel</button>
               <button onClick={save} style={pill(true)}>Save scores</button>
@@ -110,8 +130,8 @@ export default function CreditReportCard({ T, isDesktop, Sec, Card, creditReport
   }
 
   // ── Read view ──
-  const q = qualifyingScore(report);
-  const showVantage = hasVantage(report);
+  const q = loanQualifyingScore(report);
+  const tables = report.co ? [{ ...people[0], r: report, rep: q.b }, { ...people[1], r: report.co, rep: q.co }] : [{ ...people[0], r: report, rep: q.b }];
   const dates = reportDates(report);
   const fmtDate = isDesktop ? fmtLong : fmtShort;
   const meets = q.score > 0 && q.score >= ficoMin;
@@ -137,47 +157,53 @@ export default function CreditReportCard({ T, isDesktop, Sec, Card, creditReport
           )}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: `${isDesktop ? 130 : 74}px repeat(3, minmax(0, 1fr))`, columnGap: isDesktop ? 8 : 4 }}>
-          <div />
-          {BUREAUS.map((b) => (
-            <div key={b.key} style={{ textAlign: "center", paddingBottom: 8, minWidth: 0 }}>
-              <div style={{ fontSize: isDesktop ? 13 : 12, fontWeight: 700, color: T.text, fontFamily: FONT }}>{b.name}</div>
-              <div style={sub}>{b.ficoModel}</div>
-            </div>
-          ))}
-
-          <div style={rowLabel}>FICO</div>
-          {BUREAUS.map((b) => {
-            const s = report[b.key]?.fico || 0;
-            const isQ = q.key === b.key;
-            return (
-              <div key={b.key} style={{ ...cell, ...(isQ ? { borderTop: "none", boxShadow: `inset 0 0 0 1.5px ${T.blue}`, borderRadius: 12 } : {}) }}>
-                <span style={{ ...num(true), color: s ? (isQ ? T.blue : T.text) : T.textTertiary }}>{s || "—"}</span>
-                {isQ && <span style={{ fontSize: 10.5, fontWeight: 700, color: T.blue, fontFamily: FONT, whiteSpace: "nowrap" }}>{RULE_LABEL[q.rule]}</span>}
+        {tables.map((t, i) => (
+          <div key={t.id} style={i > 0 ? { marginTop: 4 } : undefined}>
+            {report.co && <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT, padding: i > 0 ? "14px 0 8px" : "0 0 8px", borderTop: i > 0 ? `1px solid ${T.separator}` : "none" }}>{t.name}</div>}
+          <div style={{ display: "grid", gridTemplateColumns: `${isDesktop ? 130 : 74}px repeat(3, minmax(0, 1fr))`, columnGap: isDesktop ? 8 : 4 }}>
+            <div />
+            {BUREAUS.map((b) => (
+              <div key={b.key} style={{ textAlign: "center", paddingBottom: 8, minWidth: 0 }}>
+                <div style={{ fontSize: isDesktop ? 13 : 12, fontWeight: 700, color: T.text, fontFamily: FONT }}>{b.name}</div>
+                <div style={sub}>{b.ficoModel}</div>
               </div>
-            );
-          })}
+            ))}
 
-          {showVantage && <>
-            <div style={rowLabel}>{isDesktop ? "VantageScore" : "Vantage"}<span style={sub}>4.0</span></div>
+            <div style={rowLabel}>FICO</div>
             {BUREAUS.map((b) => {
-              const s = report[b.key]?.vantage || 0;
-              return <div key={b.key} style={cell}><span style={{ ...num(false), color: s ? T.text : T.textTertiary }}>{s || "—"}</span></div>;
+              const s = t.r[b.key]?.fico || 0;
+              const isRep = t.rep.key === b.key;
+              const isQ = isRep && q.who === t.id;
+              return (
+                <div key={b.key} style={{ ...cell, ...(isQ ? { borderTop: "none", boxShadow: `inset 0 0 0 1.5px ${T.blue}`, borderRadius: 12 } : {}) }}>
+                  <span style={{ ...num(true), color: s ? (isQ ? T.blue : T.text) : T.textTertiary }}>{s || "—"}</span>
+                  {isRep && <span style={{ fontSize: 10.5, fontWeight: 700, color: isQ ? T.blue : T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap" }}>{RULE_LABEL[t.rep.rule]}</span>}
+                </div>
+              );
             })}
-          </>}
 
-          <div style={rowLabel}>Pulled</div>
-          {BUREAUS.map((b) => {
-            const d = parse(report[b.key]?.pulled);
-            return <div key={b.key} style={cell}><span style={{ fontSize: isDesktop ? 13 : 12, fontWeight: 500, color: d ? T.text : T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>{d ? fmtDate(d) : "—"}</span></div>;
-          })}
-        </div>
+            {hasVantage({ ...t.r, co: null }) && <>
+              <div style={rowLabel}>{isDesktop ? "VantageScore" : "Vantage"}<span style={sub}>4.0</span></div>
+              {BUREAUS.map((b) => {
+                const s = t.r[b.key]?.vantage || 0;
+                return <div key={b.key} style={cell}><span style={{ ...num(false), color: s ? T.text : T.textTertiary }}>{s || "—"}</span></div>;
+              })}
+            </>}
+
+            <div style={rowLabel}>Pulled</div>
+            {BUREAUS.map((b) => {
+              const d = parse(t.r[b.key]?.pulled);
+              return <div key={b.key} style={cell}><span style={{ fontSize: isDesktop ? 13 : 12, fontWeight: 500, color: d ? T.text : T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>{d ? fmtDate(d) : "—"}</span></div>;
+            })}
+          </div>
+          </div>
+        ))}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", paddingTop: 12, borderTop: `1px solid ${T.separator}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: T.textSecondary, fontFamily: FONT, flex: "1 1 220px" }}>
             {q.score > 0 ? <>
               <Icon name={meets ? "check" : "x"} size={15} style={{ color: meets ? T.green : T.red, flexShrink: 0 }} />
-              <span>Qualifying FICO <strong style={{ color: T.text }}>{q.score}</strong> · {loanType} needs {ficoMin}+
+              <span>Qualifying FICO <strong style={{ color: T.text }}>{q.score}</strong>{q.joint ? " · lower of the two borrowers" : ""} · {loanType} needs {ficoMin}+
                 {creditScore > 0 && creditScore !== q.score && <> · this scenario is using <strong style={{ color: T.text }}>{creditScore}</strong></>}
               </span>
             </> : <span>Enter a FICO score to set the qualifying score.</span>}

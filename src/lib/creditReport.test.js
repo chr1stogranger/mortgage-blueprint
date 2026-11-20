@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { qualifyingScore, reportDates, cleanReport, hasVantage } from "./creditReport.js";
+import { qualifyingScore, loanQualifyingScore, reportDates, cleanReport, hasVantage } from "./creditReport.js";
 
 const rep = (ex, tu, eq) => ({ ex: { fico: ex }, tu: { fico: tu }, eq: { fico: eq } });
 
@@ -49,5 +49,29 @@ describe("cleanReport", () => {
   it("knows whether any VantageScore is present", () => {
     expect(hasVantage(rep(742, 728, 735))).toBe(false);
     expect(hasVantage({ tu: { vantage: 739 } })).toBe(true);
+  });
+});
+
+describe("co-borrower", () => {
+  const joint = { ...rep(742, 728, 735), co: rep(701, 688, 694) };
+  it("qualifies on the lower of the two representative scores", () => {
+    expect(loanQualifyingScore(joint)).toMatchObject({ score: 694, who: "co", joint: true });
+    expect(loanQualifyingScore({ ...rep(650, 640, 660), co: rep(742, 728, 735) })).toMatchObject({ score: 650, who: "b" });
+  });
+  it("falls back to whichever borrower has scores", () => {
+    expect(loanQualifyingScore(rep(742, 728, 735))).toMatchObject({ score: 735, who: "b", joint: false });
+    expect(loanQualifyingScore({ ...rep(0, 0, 0), co: rep(701, 688, 694) })).toMatchObject({ score: 694, who: "co", joint: false });
+    expect(loanQualifyingScore(null)).toMatchObject({ score: 0, who: null });
+  });
+  it("keeps a co-borrower with scores and drops an empty one", () => {
+    expect(cleanReport(joint).co.tu.fico).toBe(688);
+    expect(cleanReport({ ...rep(742, 728, 735), co: rep(0, 0, 0) }).co).toBeUndefined();
+    expect(cleanReport({ co: rep(701, 0, 0) }).ex.fico).toBe(0);
+  });
+  it("dates and VantageScore look at both borrowers", () => {
+    const r = { ex: { fico: 742, pulled: "2026-11-12" }, co: { ex: { fico: 701, vantage: 710, pulled: "2026-10-30" } } };
+    const d = reportDates(r, new Date(2026, 10, 19));
+    expect([d.oldest.getMonth(), d.oldest.getDate()]).toEqual([9, 30]);
+    expect(hasVantage(r)).toBe(true);
   });
 });
