@@ -113,6 +113,8 @@ import ShellAccount from "./components/ShellAccount";
 import CloudMergeSheet from "./components/CloudMergeSheet";
 import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
+import { FEE_KEYS, readFeeDefaults, writeFeeDefaults, normalizeSheet, feesMatchSheet, sheetFromScenario } from "./lib/feeDefaults.js";
+import FeeDefaultsEditor from "./components/FeeDefaultsEditor.jsx";
 import { syncNativeStatusBar } from "./lib/nativeStatusBar.js";
 import useEscape from "./hooks/useEscape.js";
 import { householdRate } from "./lib/householdRate.js";
@@ -2504,9 +2506,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [account.isSignedIn]);
  const [newScenarioName, setNewScenarioName] = useState("");
- const [feeDefaultsSavedAt, setFeeDefaultsSavedAt] = useState(() => {
-  try { return JSON.parse(localStorage.getItem("bp_lo_default_fees") || "null")?.savedAt || null; } catch { return null; }
- });
+ // The LO's default fee sheets: { purchase, refi }, each null until edited.
+ const [feeDefaults, setFeeDefaults] = useState(() => readFeeDefaults(localStorage));
  const [compareData, setCompareData] = useState([]);
  const [compareLoading, setCompareLoading] = useState(false);
  const [showCompareHint, setShowCompareHint] = useState(false);
@@ -4477,19 +4478,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Switching a scenario always lands you on that scenario's Overview.
   setTab("overview");
  };
- // ── LO default fees (Christo 2026-07-05): the LO snapshots their preferred
- //    fee sheet in Settings; every NEW scenario starts from it. Stored per
- //    device in localStorage (cloud sync is a future enhancement).
- const collectFeeDefaults = () => ({
-  savedAt: new Date().toISOString(),
-  fees: {
-   underwritingFee, adminFee, lenderWireFee, originatorComp, processingFee,
-   appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
-   titleInsurance, escrowFee, courierFee, loanTieInFee, notaryFee,
-   envProtectionLien, recordingFee, ownersTitleIns, homeWarranty,
-  },
-  customFees, hiddenFees,
- });
+ // ── LO default fees: one sheet for purchases, one for refinances, edited in
+ //    Settings (lib/feeDefaults.js, Christo 2026-11-20; first version
+ //    2026-07-05 was a single snapshot). A new scenario starts from the
+ //    purchase sheet; choosing Refinance swaps in the refinance sheet while
+ //    the fees are still untouched. Stored per device in localStorage.
  const FEE_SETTERS = {
   underwritingFee: setUnderwritingFee, adminFee: setAdminFee, lenderWireFee: setLenderWireFee,
   originatorComp: setOriginatorComp, processingFee: setProcessingFee, appraisalFee: setAppraisalFee,
@@ -4499,21 +4492,41 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   envProtectionLien: setEnvProtectionLien, recordingFee: setRecordingFee,
   ownersTitleIns: setOwnersTitleIns, homeWarranty: setHomeWarranty,
  };
- const saveMyFeeDefaults = () => {
-  try { localStorage.setItem("bp_lo_default_fees", JSON.stringify(collectFeeDefaults())); setFeeDefaultsSavedAt(new Date().toISOString()); } catch (e) { console.error(e); }
+ const currentFeeState = () => {
+  const live = {
+   underwritingFee, adminFee, lenderWireFee, originatorComp, processingFee,
+   appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
+   titleInsurance, escrowFee, courierFee, loanTieInFee, notaryFee,
+   envProtectionLien, recordingFee, ownersTitleIns, homeWarranty,
+  };
+  return { fees: Object.fromEntries(FEE_KEYS.map((k) => [k, live[k]])), customFees, hiddenFees };
  };
- const clearMyFeeDefaults = () => {
-  try { localStorage.removeItem("bp_lo_default_fees"); setFeeDefaultsSavedAt(null); } catch (e) { console.error(e); }
+ // Lay a sheet over the open scenario. A null fee (refinance title/escrow)
+ // is left to the tiered schedule.
+ const applyFeeSheet = (type) => {
+  const sheet = normalizeSheet(type, feeDefaults[type]);
+  Object.entries(sheet.fees).forEach(([k, v]) => { if (FEE_SETTERS[k] && typeof v === "number") FEE_SETTERS[k](v); });
+  setCustomFees(sheet.customFees.map((f, i) => ({ ...f, id: Date.now() + i })));
+  setHiddenFees(sheet.hiddenFees);
  };
- const applyMyFeeDefaults = () => {
-  try {
-   const raw = localStorage.getItem("bp_lo_default_fees");
-   if (!raw) return;
-   const d = JSON.parse(raw);
-   Object.entries(d.fees || {}).forEach(([k, v]) => { if (FEE_SETTERS[k] && typeof v === "number") FEE_SETTERS[k](v); });
-   if (Array.isArray(d.customFees)) setCustomFees(d.customFees);
-   if (Array.isArray(d.hiddenFees)) setHiddenFees(d.hiddenFees);
-  } catch (e) { console.error("apply fee defaults failed:", e); }
+ const saveFeeSheet = (type, sheet) => {
+  const next = { ...feeDefaults, [type]: sheet };
+  setFeeDefaults(next);
+  writeFeeDefaults(localStorage, next);
+ };
+ // Quick Start's Purchase / Refinance choice. Only swaps the fee sheet when
+ // the scenario still carries the other type's sheet exactly, so numbers the
+ // LO typed on Costs are never overwritten.
+ const pickTransactionType = (val) => {
+  const from = isRefi ? "refi" : "purchase";
+  const to = val ? "refi" : "purchase";
+  if (!isBorrower && from !== to) {
+   // "Untouched" = still on the LO's sheet for the old type, or on the
+   // standard one (a scenario started before they edited their sheet).
+   const cur = currentFeeState();
+   if (feesMatchSheet(cur, from, feeDefaults[from]) || feesMatchSheet(cur, from, null)) applyFeeSheet(to);
+  }
+  setIsRefi(val);
  };
  const createScenario = async (name) => {
   // Borrower "New scenario" starts from a copy of the one on screen (a blank
@@ -4551,10 +4564,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Reset Prop 19
   setShowProp19(false); setProp19Eligibility("age55"); setProp19OldTaxableValue(0); setProp19OldSalePrice(0);
   setProp19TransfersUsed(0); setProp19SaleDate(""); setProp19PurchaseDate(""); setProp19RateOverride(0);
-  // New scenarios reset the fee-management state, then apply the LO's saved
-  // default fee sheet (if any) on top.
-  setCustomFees([]); setHiddenFees([]);
-  applyMyFeeDefaults();
+  // New scenarios start from the LO's purchase fee sheet (the standard one
+  // until they edit it in Settings).
+  applyFeeSheet("purchase");
   // Reset completed tabs so new scenario starts fresh (fixes checkbox bug)
   saveCompletedTabs({});
   // Save the new scenario defaults immediately so Compare can read them
@@ -6466,30 +6478,36 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setClosingDay(d.getDate());
   setClosingYear(d.getFullYear());
  }, [isRefi]);
- // Auto-set Section C defaults for refi: flat escrow fee, zero title/search/settlement
+ // Section C + appraisal follow the transaction type: a refinance has no
+ // itemized title lines and takes a flat escrow fee until the tiered schedule
+ // prices it; a purchase gets the itemized lines back. The figures come from
+ // the LO's fee sheet for that type (lib/feeDefaults.js), which is the
+ // standard sheet until they edit it in Settings.
  useEffect(() => {
+  const type = isRefi ? "refi" : "purchase";
+  const f = normalizeSheet(type, feeDefaults[type]).fees;
+  setTitleSearch(0);   // retired fee (2026-07-05)
+  setSettlementFee(0); // retired fee (2026-07-05)
   if (isRefi) {
-   setTitleInsurance(0);
-   setTitleSearch(0);
-   setSettlementFee(0);
-   setEscrowFee(1995);
-   setAppraisalFee(595);
-   // Refi uses a flat title/escrow fee — zero the itemized purchase-only lines
+   setTitleInsurance(f.titleInsurance ?? 0);
+   setEscrowFee(f.escrowFee ?? 1995);
+   setAppraisalFee(f.appraisalFee);
    setCourierFee(0);
    setLoanTieInFee(0);
    setNotaryFee(0);
    setEnvProtectionLien(0);
   } else {
-   setTitleInsurance(2000);
-   setTitleSearch(0);   // retired fee (2026-07-05)
-   setSettlementFee(0); // retired fee (2026-07-05)
-   setEscrowFee(2400);
-   setAppraisalFee(850);
-   setCourierFee(150);
-   setLoanTieInFee(150);
-   setNotaryFee(175);
-   setEnvProtectionLien(100);
+   // A fee the LO removed on this scenario stays removed.
+   const v = (k) => (hiddenFees.includes(k) ? 0 : f[k]);
+   setTitleInsurance(v("titleInsurance"));
+   setEscrowFee(v("escrowFee"));
+   setAppraisalFee(v("appraisalFee"));
+   setCourierFee(v("courierFee"));
+   setLoanTieInFee(v("loanTieInFee"));
+   setNotaryFee(v("notaryFee"));
+   setEnvProtectionLien(v("envProtectionLien"));
   }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isRefi]);
  // County-aware FHFA limits, with a deliberately PERMISSIVE fallback.
  //
@@ -10727,7 +10745,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    propertyTaxesInstallment, setPropertyTaxesInstallment,
    sellersProratedTaxCredit, setSellersProratedTaxCredit,
    closingMonths: [1,2,3,4,5,6,7,8,9,10,11,12],
-   isRefi, setIsRefi,
+   isRefi, setIsRefi: pickTransactionType,
    firstTimeBuyer, setFirstTimeBuyer, creditScore, setCreditScore: setCreditScoreUi, borrowerLocks,
    married, setMarried, taxState, setTaxState,
    refiPurpose, setRefiPurpose, refiCurrentRate, refiCashOut,
@@ -10932,7 +10950,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore: setCreditScoreUi, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCurrentMIEstimated, setRefiCurrentMIEstimated, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiStatementNode, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi: pickTransactionType, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns: setAnnualInsManual, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore: setCreditScoreUi, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, showRateLadder, setShowRateLadder, showVaResidual, setShowVaResidual, skillLevel, onToggleSkillLevel: (level) => saveSkillLevel(typeof level === 'string' ? level : (skillLevel === 'guided' ? 'standard' : 'guided')), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCurrentMIEstimated, setRefiCurrentMIEstimated, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiStatementNode, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}
@@ -11506,31 +11524,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        wrong LO's application). */}
    <Inp label="Application (1003) link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
-   <SetSub title="Default fee sheet" />
-   {/* ── My Default Fees (Christo 2026-07-05): snapshot the current Costs
-       fee sheet (values + added/removed fees) as this LO's template — every
-       new scenario starts from it. Device-level (localStorage). ── */}
-   <div>
-    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 10, fontFamily: FONT }}>
-     Set up the Costs tab the way you quote (edit amounts, add or remove fees), then save it as your default fee sheet. Every new scenario will start from it.
-    </div>
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-     <button onClick={saveMyFeeDefaults} style={{ padding: "9px 16px", background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
-      Save current fees as my defaults
-     </button>
-     <button onClick={applyMyFeeDefaults} disabled={!feeDefaultsSavedAt} style={{ padding: "9px 16px", background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 9999, color: feeDefaultsSavedAt ? T.text : T.textTertiary, fontWeight: 600, fontSize: 13, cursor: feeDefaultsSavedAt ? "pointer" : "default", fontFamily: FONT }}>
-      Apply to this scenario
-     </button>
-     {feeDefaultsSavedAt && (
-      <span onClick={clearMyFeeDefaults} style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline", fontFamily: FONT }}>Clear</span>
-     )}
-    </div>
-    {feeDefaultsSavedAt && (
-     <div style={{ fontSize: 11, color: T.green, marginTop: 8, fontFamily: FONT }}>
-      ✓ Defaults saved {new Date(feeDefaultsSavedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}: applied to every new scenario on this device
-     </div>
-    )}
-   </div>
+   <SetSub title="Default fees" />
+   <FeeDefaultsEditor T={T} isDesktop={isDesktop} store={feeDefaults} onChange={saveFeeSheet}
+    scenarioType={isRefi ? "refi" : "purchase"}
+    onApply={applyFeeSheet}
+    onUseScenario={(type) => saveFeeSheet(type, sheetFromScenario(type, currentFeeState()))} />
  </SetShell>}
  {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
      Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
