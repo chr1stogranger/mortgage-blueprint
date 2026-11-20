@@ -112,7 +112,7 @@ export function findByKey(root, key) {
 // Tab id → the name people see (PresenceBar's "where they are").
 export const TAB_LABELS = {
   overview: 'Overview', calc: 'Payment', costs: 'Costs', income: 'Income', assets: 'Assets',
-  debts: 'Debts', reo: 'REO', qualify: 'Qualify', tax: 'Tax Savings', amort: 'Amortization',
+  debts: 'Credit & Debts', reo: 'REO', qualify: 'Qualify', tax: 'Tax Savings', amort: 'Amortization',
   team: 'Team', compare: 'Compare', summary: 'Share', workspace: 'Workspace', learn: 'Learn',
   settings: 'Settings', setup: 'Setup', refi: 'Refi', refi3: 'Refi', invest: 'Investment',
   rentvbuy: 'Rent vs Buy', sell: 'Selling', prop19: 'Prop 19', pipeline: 'Pipeline',

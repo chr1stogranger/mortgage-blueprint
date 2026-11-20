@@ -1943,10 +1943,10 @@ export default function SetupContent(props) {
      return (
       <div style={{ background: `${T.blue}08`, border: `1px solid ${T.blue}22`, borderRadius: 12, padding: "10px 12px", marginBottom: 12 }}>
        {debtFree ? (
-        <Note color={T.orange}>The Debts tab says debt-free. Turn that off there to consolidate debts here.</Note>
+        <Note color={T.orange}>The Credit & Debts tab says debt-free. Turn that off there to consolidate debts here.</Note>
        ) : (<>
         <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: consumerDebts.length ? 8 : 4 }}>
-         Balance, rate and payment drive the consolidation math. The balance rolls into the new loan, the payment joins the savings. These are the same debts as the Debts tab.
+         Balance, rate and payment drive the consolidation math. The balance rolls into the new loan, the payment joins the savings. These are the same debts as the Credit & Debts tab.
         </div>
         {consumerDebts.map((d) => {
          const on = d.payoff === "Yes - at Escrow";

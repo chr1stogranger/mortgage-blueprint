@@ -333,6 +333,10 @@ export default function DebtsContent(props) {
         padding-top: 0 !important; padding-bottom: 0 !important;
       }
     `}</style>
+    {/* Bureau-by-bureau scores + pull dates. First in Credit & Debts: scores, then
+        the debts off the same credit report. Saving sets the scenario credit score. */}
+    <CreditReportCard T={T} isDesktop={isDesktop} Sec={Sec} Card={Card} creditReport={creditReport} setCreditReport={setCreditReport} canEdit={canEditCredit} creditScore={creditScore} setCreditScore={setCreditScore} ficoMin={calc.ficoMin} loanType={loanType} />
+
     {/* ─── Own Properties toggle — full width, structural (gates REO tab) ─── */}
     <div data-field="debts-section" style={{ marginTop: 20, marginBottom: 16 }}>
       {guideTouched.has("owns-properties-toggle") && ClusterContinue && <ClusterContinue stepId="debts-section" />}
@@ -576,10 +580,6 @@ export default function DebtsContent(props) {
         </div>
       );
     })()}
-
-    {/* Bureau-by-bureau scores + pull dates. Lives with the debts: both come
-        off the same credit report. Saving sets the scenario credit score. */}
-    <CreditReportCard T={T} isDesktop={isDesktop} Sec={Sec} Card={Card} creditReport={creditReport} setCreditReport={setCreditReport} canEdit={canEditCredit} creditScore={creditScore} setCreditScore={setCreditScore} ficoMin={calc.ficoMin} loanType={loanType} />
 
     <GuidedNextButton />
   </>);

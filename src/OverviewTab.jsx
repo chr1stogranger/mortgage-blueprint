@@ -376,8 +376,8 @@ export default function OverviewTab(props) {
           SECTION 5: DEBTS
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Debts" T={T} id="overview-debts" heroStyle={true}>
-        <LockedSection locked={!!borrowerLocks?.debts} T={T} label="Debts"><DebtsContent {...props} /></LockedSection>
+      <CollapsibleSection title="Credit & Debts" T={T} id="overview-debts" heroStyle={true}>
+        <LockedSection locked={!!borrowerLocks?.debts} T={T} label="Credit & Debts"><DebtsContent {...props} /></LockedSection>
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════

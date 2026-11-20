@@ -5811,7 +5811,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
 
  // Build Mode: Tab display names for floating bar
- const TAB_DISPLAY_NAMES = { setup:"Setup", calc:"Calculator", costs:"Costs", qualify:"Qualify", debts:"Debts", income:"Income", assets:"Assets", tax:"Tax Savings", amort:"Amortization", learn:"Learn", compare:"Compare", summary:"Share", reo:"REO", refi:"Refi Summary", refi3:"3-Point Test", sell:"Seller Net", invest:"Investor", rentvbuy:"Rent vs Buy" };
+ const TAB_DISPLAY_NAMES = { setup:"Setup", calc:"Calculator", costs:"Costs", qualify:"Qualify", debts:"Credit & Debts", income:"Income", assets:"Assets", tax:"Tax Savings", amort:"Amortization", learn:"Learn", compare:"Compare", summary:"Share", reo:"REO", refi:"Refi Summary", refi3:"3-Point Test", sell:"Seller Net", invest:"Investor", rentvbuy:"Rent vs Buy" };
  // ═══ FLOATING "NEXT STEP" BAR ═══
  // Sticky bottom bar that guides user to the next section.
  // Turns active (blue) ONLY when: (1) all required fields on this tab are filled AND (2) user scrolled 90%+ down.
@@ -6209,7 +6209,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      hint: "Money the seller, lender or agent puts toward your costs. Add any you've agreed on." },
    { id: "assets", label: "Savings", on: true, keys: ["assets-section-done"], ready: assets.length > 0, skip: assets.length === 0,
      hint: "Add the bank or investment accounts you'll use for the down payment and closing." },
-   { id: "debts", label: "Debts", on: true, keys: ["owns-properties-toggle", "debts-section-done"], ready: true,
+   { id: "debts", label: "Credit & Debts", on: true, keys: ["owns-properties-toggle", "debts-section-done"], ready: true,
      hint: "Add monthly payments on your credit report: car, student loans, credit cards. None? Continue." },
    { id: "reo", label: "Other property", on: ownsProperties, keys: ["reo-section"], ready: true, skip: true,
      hint: "Tell us about the other property you own." },
@@ -8893,7 +8893,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ...(showRateLadder ? [{ id: "overview-rateladder", label: "Rate & Points" }] : []),
   ...(vaResidualOn ? [{ id: "overview-varesidual", label: "VA Residual" }] : []),
   { id: "overview-assets",        label: "Assets" },
-  { id: "overview-debts",         label: "Debts" },
+  { id: "overview-debts",         label: "Credit & Debts" },
   ...(ownsProperties ? [{ id: "overview-reo", label: "REO" }] : []),
   { id: "overview-income",        label: "Income" },
   { id: "overview-qualification", label: "Pre-Qualified?" },
@@ -10359,7 +10359,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <LockedSection locked={!!borrowerLocks.assets} T={T} label="Assets"><AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, openMismoImport, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} /></LockedSection>}
 {/* ═══ DEBTS ═══ */}
-{tab === "debts" && <LockedSection locked={!!borrowerLocks.debts} T={T} label="Debts"><DebtsContent {...{T, isDesktop, calc, fmt, creditReport, setCreditReport, canEditCredit: !isBorrower, creditScore, setCreditScore: setCreditScoreUi, loanType, debts, debtFree, setDebtFree, openMismoImport, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} /></LockedSection>}
+{tab === "debts" && <LockedSection locked={!!borrowerLocks.debts} T={T} label="Credit & Debts"><DebtsContent {...{T, isDesktop, calc, fmt, creditReport, setCreditReport, canEditCredit: !isBorrower, creditScore, setCreditScore: setCreditScoreUi, loanType, debts, debtFree, setDebtFree, openMismoImport, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} /></LockedSection>}
 {/* ═══ REO (Real Estate Owned) ═══ */}
 {tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, MRow, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
@@ -10506,7 +10506,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         userType="lo"
         lockableSections={{
          incomes: { label: 'Income', description: 'Annual income, sources, and frequency' },
-         debts: { label: 'Debts', description: 'Monthly debts, car payments, student loans' },
+         debts: { label: 'Credit & Debts', description: 'Bureau scores, monthly debts, car payments, student loans' },
          creditScore: { label: 'Credit Score', description: 'FICO score: verified from credit pull' },
          assets: { label: 'Assets', description: 'Bank balances, retirement, gift funds' },
          employmentInfo: { label: 'Employment', description: 'Employer, years at job, title' },

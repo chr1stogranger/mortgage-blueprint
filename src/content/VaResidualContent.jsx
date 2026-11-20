@@ -237,11 +237,11 @@ export default function VaResidualContent(props) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 14, marginBottom: 4 }}>
               <Overline T={T}>Debts & obligations</Overline>
               <div style={{ display: "flex", gap: 4 }}>
-                <Chip T={T} active={V.debtMode !== "manual"} onClick={() => patch({ debtMode: "app" })} title="Qualifying debts from the Debts tab, plus REO shortfalls">Debts tab {money(appDebts)}</Chip>
+                <Chip T={T} active={V.debtMode !== "manual"} onClick={() => patch({ debtMode: "app" })} title="Qualifying debts from the Credit & Debts tab, plus REO shortfalls">Debts tab {money(appDebts)}</Chip>
                 <Chip T={T} active={V.debtMode === "manual"} onClick={() => patch({ debtMode: "manual", debtsManual: V.debtsManual || Math.round(appDebts) })}>Type it</Chip>
               </div>
             </div>
-            <Row T={T} label="Installment & revolving debts" sub={V.debtMode === "manual" ? "monthly payments on the credit report" : "from the Debts tab, payoffs excluded"}
+            <Row T={T} label="Installment & revolving debts" sub={V.debtMode === "manual" ? "monthly payments on the credit report" : "from the Credit & Debts tab, payoffs excluded"}
               right={V.debtMode === "manual" ? <NumCell T={T} value={+V.debtsManual || 0} onCommit={(v) => patch({ debtsManual: v })} prefix="$" ariaLabel="Monthly debt payments" /> : money(r.obligations.debts)} />
             <Row T={T} label="Child care" right={<NumCell T={T} value={+V.childcare || 0} onCommit={(v) => patch({ childcare: v })} prefix="$" ariaLabel="Monthly child care" />} />
             <Row T={T} label="Alimony / child support paid" right={<NumCell T={T} value={+V.supportPaid || 0} onCommit={(v) => patch({ supportPaid: v })} prefix="$" ariaLabel="Monthly alimony or child support paid" />} />
