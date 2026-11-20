@@ -7,7 +7,6 @@ import { getApplyUrl } from "../lib/applyUrl.js";
 import { solveMaxPrice, solveScenarioPrice, maxDtiOverrideFor, MAX_DTI_EDITABLE_TYPES, MAX_DTI_INPUT_RANGE } from "../lib/affordability.js";
 import { repayPillar, HELOC_RULES } from "../lib/nonQm.js";
 import { DscrPanel, AssetProgramTable } from "../components/NonQmPanels.jsx";
-import CreditReportCard from "../components/CreditReportCard.jsx";
 // AMI lookup is no longer rendered in the Debt to Income Summary card. The
 // old src/data/caAmi.js table was removed (recover from git history if needed).
 
@@ -287,7 +286,7 @@ function DebtToIncomeSummary({
 
 export default function QualifyContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("QualifyContent", props, ["T", "creditReport", "setCreditReport", "canEditCredit", "maxDtiOverrides", "setMaxDtiOverrides", "canEditMaxDti", "isDesktop", "calc", "fmt", "pct", "isRefi", "loanType", "firstTimeBuyer", "downPct", "setDownPct", "creditScore", "setCreditScore", "refiPurpose", "refiLtvCheck", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "setTab", "handlePillarClick", "isPulse", "isTabUnlocked", "markTouched", "affordIncome", "affordDebts", "affordDown", "affordTerm", "affordRate", "affordLoanType", "affordTargetDTI", "setAffordTargetDTI", "debts", "debtFree", "salesPrice", "setSalesPrice", "rate", "setRate", "term", "setTerm", "setLoanType", "userLoanTypeRef", "setAutoJumboSwitch", "confirmAffordApply", "setConfirmAffordApply", "getHighBalLimit", "propType", "StopLight", "Card", "Sec", "Inp", "Note", "Progress", "Hero", "MRow", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("QualifyContent", props, ["T", "maxDtiOverrides", "setMaxDtiOverrides", "canEditMaxDti", "isDesktop", "calc", "fmt", "pct", "isRefi", "loanType", "firstTimeBuyer", "downPct", "setDownPct", "creditScore", "setCreditScore", "refiPurpose", "refiLtvCheck", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "setTab", "handlePillarClick", "isPulse", "isTabUnlocked", "markTouched", "affordIncome", "affordDebts", "affordDown", "affordTerm", "affordRate", "affordLoanType", "affordTargetDTI", "setAffordTargetDTI", "debts", "debtFree", "salesPrice", "setSalesPrice", "rate", "setRate", "term", "setTerm", "setLoanType", "userLoanTypeRef", "setAutoJumboSwitch", "confirmAffordApply", "setConfirmAffordApply", "getHighBalLimit", "propType", "StopLight", "Card", "Sec", "Inp", "Note", "Progress", "Hero", "MRow", "GuidedNextButton"]);
   const {
   T, isDesktop, calc, fmt, pct,
   isRefi, loanType, firstTimeBuyer, downPct, setDownPct,
@@ -310,7 +309,6 @@ export default function QualifyContent(props) {
   StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow,
   GuidedNextButton,
   maxDtiOverrides, setMaxDtiOverrides, canEditMaxDti = false,
-  creditReport = null, setCreditReport, canEditCredit = false,
 } = props;
 
   // Affordability inputs: prefer the synced state (when user lands on Qualify/Overview the parent's
@@ -384,10 +382,6 @@ export default function QualifyContent(props) {
    {creditScore >= calc.ficoMin && creditScore < 740 && <Note color={T.orange}>Meets minimum. 740+ unlocks better pricing tiers.</Note>}
   </Card>
  </div>
-
- {/* Bureau-by-bureau scores + pull dates, directly under the FICO card.
-     Full width and outside the afford column so refis and non-DTI loans get it too. */}
- <CreditReportCard T={T} isDesktop={isDesktop} Sec={Sec} Card={Card} creditReport={creditReport} setCreditReport={setCreditReport} canEdit={canEditCredit} creditScore={creditScore} setCreditScore={setCreditScore} ficoMin={calc.ficoMin} loanType={loanType} />
 
  {/* PRE-QUALIFIED celebration hero — only when allGood. Sits between FICO and the
      2-col body so the 'all green' state visually celebrates the pillars + FICO. */}

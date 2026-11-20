@@ -1,5 +1,6 @@
 import { FONT } from "../lib/fonts.js";
 import React, { useState } from "react";
+import CreditReportCard from "../components/CreditReportCard.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
 
@@ -146,7 +147,7 @@ function HouseholdRateCard({ T, isDesktop, fmt, info, Card }) {
 
 export default function DebtsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton", "ClusterContinue", "openMismoImport"]);
+  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton", "ClusterContinue", "openMismoImport", "creditReport", "setCreditReport", "canEditCredit", "creditScore", "setCreditScore", "loanType"]);
   const {
   T, isDesktop, calc, fmt,
   debts, debtFree, setDebtFree,
@@ -157,6 +158,7 @@ export default function DebtsContent(props) {
   Card, TextInp, Inp, Sel, Note, Progress,
   DEBT_TYPES, GuidedNextButton, ClusterContinue,
   openMismoImport,
+  Sec, creditReport = null, setCreditReport, canEditCredit = false, creditScore, setCreditScore, loanType,
 } = props;
 
   const [linkOpenId, setLinkOpenId] = useState(null);
@@ -574,6 +576,10 @@ export default function DebtsContent(props) {
         </div>
       );
     })()}
+
+    {/* Bureau-by-bureau scores + pull dates. Lives with the debts: both come
+        off the same credit report. Saving sets the scenario credit score. */}
+    <CreditReportCard T={T} isDesktop={isDesktop} Sec={Sec} Card={Card} creditReport={creditReport} setCreditReport={setCreditReport} canEdit={canEditCredit} creditScore={creditScore} setCreditScore={setCreditScore} ficoMin={calc.ficoMin} loanType={loanType} />
 
     <GuidedNextButton />
   </>);

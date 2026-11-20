@@ -3,7 +3,7 @@ import { FONT } from "../lib/fonts.js";
 import Icon from "../Icon";
 import { BUREAUS, SCORE_MAX, qualifyingScore, reportDates, cleanReport, hasVantage } from "../lib/creditReport.js";
 
-// Qualify → Full Details → Credit Report. The three bureaus side by side:
+// Debts tab, below the summary: Credit Report. The three bureaus side by side:
 // FICO, VantageScore, and the date each was pulled. The middle FICO is the
 // one that qualifies the loan, so it is marked and offered to the scenario's
 // credit score. LO-entered; a share-link borrower sees it read-only, and only
