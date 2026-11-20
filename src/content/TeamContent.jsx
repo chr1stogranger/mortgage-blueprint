@@ -2,6 +2,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "../Icon";
 import { fetchDealTeam, saveDealTeam, fetchAriveDealTeam, addPartnerToDirectory } from "../api";
+import { rosterLoanTeamFills, ariveOriginatorSlots } from "../lib/dealTeamFill.js";
 
 
 // ─── Role model ──────────────────────────────────────────────────────────────
@@ -10,6 +11,9 @@ import { fetchDealTeam, saveDealTeam, fetchAriveDealTeam, addPartnerToDirectory 
 // 'team' = pick from the team_members roster instead.
 const ROLE_DEFS = [
   { key: "lo",               label: "Loan Officer",           section: "loan",   dirType: "team" },
+  // A second loan officer on the file: the team LO working under the head LO.
+  // Ops must list the role too (collab.js DEAL_TEAM_ROLES) or the save drops it.
+  { key: "team_lo",          label: "Team Loan Officer",      section: "loan",   dirType: "team" },
   { key: "loa",              label: "Loan Officer Assistant", section: "loan",   dirType: "team" },
   { key: "processor",        label: "Loan Processor",         section: "loan",   dirType: "team" },
   { key: "buyers_agent",     label: "Buyer's Agent",          section: "agents", dirType: "Real Estate Agent" },
@@ -190,24 +194,10 @@ export default function TeamContent({
         if (cancelled) return;
         let t = Array.isArray(data.deal_team) ? data.deal_team : [];
         const dirTeam = data.directory?.team || [];
-        // Auto-fill the loan team from the roster on first open: signed-in LO,
-        // plus the first LOA/processor linked to them. Marked source 'team';
-        // saved only when the LO actually changes something else (or via the
-        // debounced save these fills trigger below).
-        const loEmail = (auth?.user?.email || "").toLowerCase();
-        const me = dirTeam.find(m => (m.email || "").toLowerCase() === loEmail);
-        const fills = [];
-        if (me && !t.some(e => e.role === "lo")) {
-          fills.push({ role: "lo", name: me.name, email: me.email, phone: me.phone || "", company: "", source: "team" });
-        }
-        // LOA/processor: only auto-fill when the roster explicitly links them
-        // to the signed-in LO (team_members.linked_los).
-        const linkedTo = (m) => Array.isArray(m.linked_los) && m.linked_los.map(x => String(x).toLowerCase()).includes(loEmail);
-        for (const roleKey of ["loa", "processor"]) {
-          if (t.some(e => e.role === roleKey)) continue;
-          const linked = dirTeam.find(x => x.role === roleKey && linkedTo(x));
-          if (linked) fills.push({ role: roleKey, name: linked.name, email: linked.email, phone: linked.phone || "", company: "", source: "team" });
-        }
+        // Auto-fill the loan team from the roster on open: the signed-in LO
+        // plus the team LO, LOA and processor the roster links to them (rules
+        // in lib/dealTeamFill.js). Empty slots only, marked source 'team'.
+        const fills = rosterLoanTeamFills(t, dirTeam, auth?.user?.email);
         if (fills.length) t = [...t, ...fills];
         setTeam(t);
         setCoEmail(data.coborrower_email || "");
@@ -301,7 +291,9 @@ export default function TeamContent({
           || (x.name && c.name && x.name.toLowerCase() === c.name.toLowerCase()));
         return m ? { ...c, email: c.email || m.email, phone: c.phone || m.phone || "" } : c;
       };
-      put("lo", resolve(s.lo));
+      // A file a team LO originated: they go in Team Loan Officer, and the LO
+      // they work under in Loan Officer.
+      for (const slot of ariveOriginatorSlots(s.lo, roster)) put(slot.role, slot.contact);
       put("processor", resolve(s.processor));
 
       const nextCoEmail = (!coEmail && s.coborrower?.email) ? s.coborrower.email : coEmail;
@@ -322,9 +314,11 @@ export default function TeamContent({
     const def = ROLE_DEFS.find(r => r.key === role);
     if (!def) return [];
     if (def.dirType === "team") {
-      const want = role === "lo" ? ["admin", "lo", "team_lo"] : [role];
+      // Team LOs lead the Team Loan Officer list; any LO can be the second one.
+      const want = role === "lo" ? ["admin", "lo", "team_lo"] : role === "team_lo" ? ["team_lo", "lo", "admin"] : [role];
       return (directory.team || [])
         .filter(m => want.includes(m.role))
+        .sort((x, y) => want.indexOf(x.role) - want.indexOf(y.role))
         .map(m => ({ name: m.name, email: m.email, phone: m.phone || "", company: "" }));
     }
     return (directory.partners || [])
@@ -357,7 +351,7 @@ export default function TeamContent({
 
   // ════════ BORROWER MODE — read-only "here's your team" ════════
   if (isBorrower) {
-    const order = ["lo", "loa", "processor", "buyers_agent", "buyers_agent_tc", "listing_agent", "listing_agent_tc", "escrow", "title", "insurance", "other"];
+    const order = ["lo", "team_lo", "loa", "processor", "buyers_agent", "buyers_agent_tc", "listing_agent", "listing_agent_tc", "escrow", "title", "insurance", "other"];
     const visible = order.map(r => ({ role: r, entry: getEntry(r) })).filter(x => x.entry);
     return (
       <div style={{ maxWidth: 1240, margin: "0 auto", paddingTop: 10 }}>
@@ -492,7 +486,7 @@ export default function TeamContent({
           <div>
           {/* ── Loan Team ── */}
           <Sec title="Loan Team">
-            {["lo", "loa", "processor"].map(renderSlot)}
+            {["lo", "team_lo", "loa", "processor"].map(renderSlot)}
           </Sec>
 
           {/* ── Escrow / Title / Insurance ── */}
