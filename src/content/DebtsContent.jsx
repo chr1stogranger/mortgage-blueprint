@@ -529,7 +529,7 @@ export default function DebtsContent(props) {
       const totRow = { display: "flex", justifyContent: "space-between", padding: "8px 0 12px", fontSize: 14, borderTop: `1px solid ${T.separator}`, marginTop: 4 };
       return (
         <div>
-          <Card pad={16}>
+          <Card pastel pad={16}>
             <div style={labelStyle}>Total Monthly Debts</div>
             {/* Amber total — uniform with Income / Assets / REO heroes (debt-free flips to green). */}
             <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: debtFree ? T.green : T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
@@ -540,7 +540,7 @@ export default function DebtsContent(props) {
             </div>
           </Card>
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
-            <Card pad={16} style={{ marginBottom: 0 }}>
+            <Card pastel pad={16} style={{ marginBottom: 0 }}>
               <div style={{ ...labelStyle, marginBottom: 8 }}>Back-End DTI</div>
               {income > 0 && dti != null ? (<>
                 <div style={kv}><span style={{ color: T.textSecondary }}>Housing + debts</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalPayment)}/mo</span></div>
@@ -557,7 +557,7 @@ export default function DebtsContent(props) {
                 <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Add income on the Income tab to see your back-end DTI.</div>
               )}
             </Card>
-            <Card pad={16} style={{ marginBottom: 0 }}>
+            <Card pastel pad={16} style={{ marginBottom: 0 }}>
               <div style={{ ...labelStyle, marginBottom: 8 }}>Payoffs at Close</div>
               {paidCount > 0 && !debtFree ? (<>
                 <div style={kv}><span style={{ color: T.textSecondary }}>Balances paid at escrow</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(payoffs)}</span></div>

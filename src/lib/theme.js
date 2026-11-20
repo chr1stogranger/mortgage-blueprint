@@ -53,6 +53,9 @@ export const LIGHT = {
  // Section banners: navy, because blue banners disappeared on blue backgrounds
  // (Chris 2026-11-18).
  banner: "#0B2545",
+ // Summary-card fill, same as Ops' Plaid theme `pastel` (loan-pipeline
+ // src/theme.js). Light only; used through <Card pastel>.
+ pastel: "linear-gradient(160deg, #D9F7FA 0%, #EAF3FD 55%, #EFE8FC 100%)", pastelBorder: "rgba(8,129,129,0.16)",
  green: "#12a150", red: "#e5484d",
  purple: "#8b7bf0", orange: "#d98a0b", cyan: "#38c6c6", pink: "#EC4899", teal: "#38c6c6",
  text: "#171717", textSecondary: "#4B5563", textTertiary: "#6B7280",

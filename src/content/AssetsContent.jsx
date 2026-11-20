@@ -287,7 +287,7 @@ export default function AssetsContent(props) {
     {assets.length > 0 && (
       <div style={{ marginTop: 20 }}>
         {/* Total Assets — amber summary number, matches Income / Debts / REO pattern */}
-        <Card pad={16}>
+        <Card pastel pad={16}>
           <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Assets</div>
           <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
             {fmt(calc.totalAssetValue)}
@@ -298,7 +298,7 @@ export default function AssetsContent(props) {
         </Card>
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
           {/* Cash to Close */}
-          <Card pad={16}>
+          <Card pastel pad={16}>
             <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, marginBottom: 8 }}>Cash to Close</div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
               <span style={{ color: T.textSecondary }}>Total Allocated</span>
@@ -321,7 +321,7 @@ export default function AssetsContent(props) {
           </Card>
 
           {/* Reserves */}
-          <Card pad={16}>
+          <Card pastel pad={16}>
             <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, marginBottom: 8 }}>Reserves</div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
               <span style={{ color: T.textSecondary }}>Total Eligible</span>

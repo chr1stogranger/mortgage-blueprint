@@ -502,14 +502,18 @@ function SetSwitch({ on, onClick, label }) {
   </button>
  );
 }
-function Card({ children, style: s, onClick, pad }) {
+function Card({ children, style: s, onClick, pad, pastel }) {
  // Callers tint a card with `background: `${T.blue}08``, which REPLACED the
  // solid fill and let the blueprint canvas read through (Christo 2026-07-19).
  // Composite any plain-color caller background over cardGlass instead — same
  // hue, and the surface reads as a glass card (75% opaque / 25% see-through)
  // rather than a window. Gradients/keywords pass through untouched.
  const bg = s && isTranslucentColor(s.background) ? tintOver(s.background, T.cardGlass) : undefined;
- return (<div onClick={onClick} style={{ background: T.card, borderRadius: 16, padding: pad || 18, boxShadow: T.cardShadow, marginBottom: 12, cursor: onClick ? "pointer" : "default", ...s, ...(bg ? { background: bg } : {}) }}>{children}</div>);
+ // `pastel`: Ops' Plaid tile fill (aqua → lavender) for a section's summary
+ // cards, the one row meant to draw the eye (Chris 2026-11-20). Light only:
+ // T.pastel is undefined in dark, where the card stays as it was.
+ const tile = pastel && T.pastel ? { background: T.pastel, border: `1px solid ${T.pastelBorder}` } : null;
+ return (<div onClick={onClick} style={{ background: T.card, borderRadius: 16, padding: pad || 18, boxShadow: T.cardShadow, marginBottom: 12, cursor: onClick ? "pointer" : "default", ...tile, ...s, ...(bg ? { background: bg } : {}) }}>{children}</div>);
 }
 function Sec({ title, color, children, action, onAction, hero }) {
  // `hero` renders the same full-width banner OverviewTab uses for its

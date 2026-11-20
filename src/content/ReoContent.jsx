@@ -543,7 +543,7 @@ export default function ReoContent(props) {
       const totRow = { display: "flex", justifyContent: "space-between", padding: "8px 0 4px", fontSize: 14, borderTop: `1px solid ${T.separator}`, marginTop: 4 };
       const equity = totals.value - totals.liens;
       return (<>
-        <Card pad={16}>
+        <Card pastel pad={16}>
           <div style={labelStyle}>REO DTI Impact</div>
           {/* Amber total — uniform with the other summary heroes; the sign says which side of DTI it lands on. */}
           <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
@@ -554,13 +554,13 @@ export default function ReoContent(props) {
           </div>
         </Card>
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
-          <Card pad={16} style={{ marginBottom: 0 }}>
+          <Card pastel pad={16} style={{ marginBottom: 0 }}>
             <div style={{ ...labelStyle, marginBottom: 8 }}>Equity</div>
             <div style={kv}><span style={{ color: T.textSecondary }}>Total value</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totals.value)}</span></div>
             <div style={kv}><span style={{ color: T.textSecondary }}>Total liens</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totals.liens)}</span></div>
             <div style={totRow}><span style={{ fontWeight: 700 }}>Total equity</span><span style={{ fontFamily: FONT, fontWeight: 700, color: equity >= 0 ? T.green : T.red }}>{fmt(equity)}</span></div>
           </Card>
-          <Card pad={16} style={{ marginBottom: 0 }}>
+          <Card pastel pad={16} style={{ marginBottom: 0 }}>
             <div style={{ ...labelStyle, marginBottom: 8 }}>Cash Flow</div>
             <div style={kv}><span style={{ color: T.textSecondary }}>Rental income</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalRent)}/mo</span></div>
             <div style={kv}><span style={{ color: T.textSecondary }}>Expenses (PITIA + HELOC)</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totals.expenses)}/mo</span></div>

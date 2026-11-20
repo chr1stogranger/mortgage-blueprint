@@ -1635,7 +1635,7 @@ export default function IncomeContent(props) {
       const pctTxt = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
       return (
         <div>
-          <Card pad={16}>
+          <Card pastel pad={16}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
               <div>
                 <div style={labelStyle}>Total Monthly Income</div>
@@ -1653,7 +1653,7 @@ export default function IncomeContent(props) {
             </div>
           </Card>
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
-            <Card pad={16} style={{ marginBottom: 0 }}>
+            <Card pastel pad={16} style={{ marginBottom: 0 }}>
               <div style={{ ...labelStyle, marginBottom: 8 }}>Qualifying Income</div>
               <div style={kv}><span style={{ color: T.textSecondary }}>Employment (current employers)</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(employmentMo)}</span></div>
               <div style={kv}><span style={{ color: T.textSecondary }}>Other monthly income</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(otherTotal)}</span></div>
@@ -1668,7 +1668,7 @@ export default function IncomeContent(props) {
                 Previous employers count toward averaging history only, not qualifying income.
               </div>
             </Card>
-            <Card pad={16} style={{ marginBottom: 0 }}>
+            <Card pastel pad={16} style={{ marginBottom: 0 }}>
               <div style={{ ...labelStyle, marginBottom: 8 }}>Back-End DTI</div>
               {qualifyingIncome > 0 && backDTI !== null ? (<>
                 <div style={kv}><span style={{ color: T.textSecondary }}>Housing + debts</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalPayment)}/mo</span></div>
