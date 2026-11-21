@@ -113,8 +113,8 @@
 - **LO identity + email signature flow from Ops on every load** (marketing
   profile → roster → Signature Studio via `?_route=signatures`). Settings →
   Your profile shows them read-only with Edit in Ops; only the 1003 link,
-  company NMLS and default fees (a purchase sheet and a refinance sheet,
-  `lib/feeDefaults.js`, per device) are edited in Blueprint.
+  company NMLS and default fees (a purchase sheet and a refinance sheet, synced to the account through Ops `?_route=bp-fee-defaults`,
+  `lib/feeDefaults.js`) are edited in Blueprint.
 - Wide screens use columns (auto-fit grids / CSS columns) — Workspace picker,
   Deal Team, Share, Settings — so the Ops side panel doesn't scroll a narrow
   640px strip. `T.pillBg` is near-solid on colored backgrounds

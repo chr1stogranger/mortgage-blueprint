@@ -5,7 +5,8 @@ import { feeMetaFor, feeSectionsFor, normalizeSheet, sheetTotal } from "../lib/f
 
 // Settings ▸ Default fees (Christo 2026-11-20). Two fee sheets, one for
 // purchases and one for refinances, edited right here: change an amount,
-// remove a fee, add your own. Every edit saves. See lib/feeDefaults.js for
+// remove a fee, add your own. Every edit saves, to the LO's account when
+// signed in (`synced`). See lib/feeDefaults.js for
 // when each sheet is applied to a scenario.
 
 const TYPES = [{ id: "purchase", label: "Purchase" }, { id: "refi", label: "Refinance" }];
@@ -34,7 +35,7 @@ function Money({ T, value, onChange, ariaLabel, isDesktop, autoFocus }) {
   );
 }
 
-export default function FeeDefaultsEditor({ T, isDesktop, store, onChange, scenarioType, onUseScenario, onApply }) {
+export default function FeeDefaultsEditor({ T, isDesktop, store, onChange, synced, scenarioType, onUseScenario, onApply }) {
   const [type, setType] = React.useState(scenarioType === "refi" ? "refi" : "purchase");
   const [adding, setAdding] = React.useState(null); // section id with the add-fee form open
   const [draft, setDraft] = React.useState({ label: "", amount: 0 });
@@ -171,8 +172,8 @@ export default function FeeDefaultsEditor({ T, isDesktop, store, onChange, scena
         {!canApply
           ? `The open scenario is a ${scenarioType === "refi" ? "refinance" : "purchase"}, so these two buttons work from the ${scenarioType === "refi" ? "Refinance" : "Purchase"} sheet.`
           : applied ? "Applied to the open scenario."
-          : raw?.savedAt ? `Saved ${new Date(raw.savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} on this device.`
-          : "This is the standard sheet. Any change you make here is saved on this device."}
+          : raw?.savedAt ? `Saved ${new Date(raw.savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${synced ? "to your account. It follows you to every device." : "on this device. It will reach your account the next time Blueprint can connect."}`
+          : `This is the standard sheet. Any change you make here is saved ${synced ? "to your account" : "on this device"}.`}
       </div>
     </div>
   );

@@ -3,6 +3,10 @@
 // starts from the purchase sheet, and picking Refinance on a scenario whose
 // fees are still untouched swaps in the refinance sheet.
 //
+// Kept on the LO's account through Ops (`?_route=bp-fee-defaults`, one personal
+// settings row per person) so every device and the Ops panel share them;
+// localStorage is the instant-paint copy. See reconcileFeeDefaults().
+//
 // Stored per device under bp_lo_default_fees as { v: 2, purchase, refi }.
 // Each sheet is { savedAt, fees, customFees, hiddenFees } or null (= the
 // standard sheet below). The first version of this feature stored one sheet
@@ -166,4 +170,63 @@ export function sheetFromScenario(type, current, { keepTitleEscrow = false, now 
     savedAt: now.toISOString(), fees,
     customFees: current.customFees, hiddenFees: (current.hiddenFees || []).filter((k) => keys.includes(k)),
   });
+}
+
+// ── Account sync ────────────────────────────────────────────────────────────
+// bp_lo_default_fees_synced remembers what this device last exchanged with the
+// account ({ email, json }). A local copy that differs from it is an edit that
+// has not reached the account yet.
+export const FEE_DEFAULTS_SYNC_KEY = "bp_lo_default_fees_synced";
+
+const hasAny = (store) => !!(store && (store.purchase || store.refi));
+export const canonFeeDefaults = (store) => JSON.stringify({ v: 2, purchase: store?.purchase || null, refi: store?.refi || null });
+
+export function readSyncMarker(storage) {
+  try { const m = JSON.parse(storage.getItem(FEE_DEFAULTS_SYNC_KEY) || "null"); return m && typeof m.json === "string" ? m : null; } catch { return null; }
+}
+export function writeSyncMarker(storage, email, store) {
+  try { storage.setItem(FEE_DEFAULTS_SYNC_KEY, JSON.stringify({ email, json: canonFeeDefaults(store) })); } catch { /* private mode */ }
+}
+
+/**
+ * Decide what a device shows after reading the account, and whether it should
+ * write back.
+ *  - The account has sheets: they win, unless this device holds an edit by
+ *    the same person that never reached the account.
+ *  - The account has nothing yet: this device's sheets are uploaded, as long
+ *    as the device is this person's (or nobody's). Another LO's leftovers are
+ *    dropped instead of being saved onto this account.
+ */
+export function reconcileFeeDefaults({ local, marker, email, deviceOwner, server, serverHasRow }) {
+  const mine = !!marker && marker.email === email;
+  if (serverHasRow) {
+    if (mine && canonFeeDefaults(local) !== marker.json) return { store: local, push: true };
+    return { store: { purchase: server?.purchase || null, refi: server?.refi || null }, push: false };
+  }
+  if (mine || !deviceOwner || deviceOwner === email) return { store: local, push: hasAny(local) };
+  return { store: { purchase: null, refi: null }, push: false };
+}
+
+const feeDefaultsUrl = (base) => `${base}/api/pipeline-data?_route=bp-fee-defaults`;
+
+/** Read the account's sheets. Returns null when the account cannot be reached. */
+export async function fetchAccountFeeDefaults(base, token, fetchImpl = fetch) {
+  try {
+    const r = await fetchImpl(feeDefaultsUrl(base), { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return { server: d?.sheets || null, serverHasRow: !!d?.updated_at };
+  } catch { return null; }
+}
+
+/** Save the sheets to the account. Resolves true when the account took them. */
+export async function pushAccountFeeDefaults(base, token, store, fetchImpl = fetch) {
+  try {
+    const r = await fetchImpl(feeDefaultsUrl(base), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: `{"sheets":${canonFeeDefaults(store)}}`,
+    });
+    return r.ok;
+  } catch { return false; }
 }

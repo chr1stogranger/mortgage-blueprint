@@ -113,7 +113,7 @@ import ShellAccount from "./components/ShellAccount";
 import CloudMergeSheet from "./components/CloudMergeSheet";
 import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
-import { FEE_KEYS, readFeeDefaults, writeFeeDefaults, normalizeSheet, feesMatchSheet, sheetFromScenario } from "./lib/feeDefaults.js";
+import { FEE_KEYS, readFeeDefaults, writeFeeDefaults, normalizeSheet, feesMatchSheet, sheetFromScenario, readSyncMarker, writeSyncMarker, reconcileFeeDefaults, fetchAccountFeeDefaults, pushAccountFeeDefaults } from "./lib/feeDefaults.js";
 import FeeDefaultsEditor from "./components/FeeDefaultsEditor.jsx";
 import { syncNativeStatusBar } from "./lib/nativeStatusBar.js";
 import useEscape from "./hooks/useEscape.js";
@@ -2508,6 +2508,42 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [newScenarioName, setNewScenarioName] = useState("");
  // The LO's default fee sheets: { purchase, refi }, each null until edited.
  const [feeDefaults, setFeeDefaults] = useState(() => readFeeDefaults(localStorage));
+ // Account sync (Ops `?_route=bp-fee-defaults`): "account" once this device
+ // and the account agree, "device" while they do not (offline, signed out).
+ const [feeDefaultsSync, setFeeDefaultsSync] = useState("device");
+ const feeSyncRef = useRef({ timer: null, store: null, edited: false });
+ const feeSyncEmail = (!isBorrower && isCloud) ? (auth?.user?.email || "").toLowerCase() : "";
+ const pushFeeDefaults = async (store) => {
+  let token = ""; try { token = localStorage.getItem("bp_token") || ""; } catch { /* private mode */ }
+  if (!feeSyncEmail || !token) return;
+  const ok = await pushAccountFeeDefaults(import.meta.env.VITE_API_BASE || "https://ops.realstack.app", token, store);
+  // Only mark it sent if nothing newer was typed while it was in flight.
+  if (ok && feeSyncRef.current.store === store) { writeSyncMarker(localStorage, feeSyncEmail, store); setFeeDefaultsSync("account"); }
+  else if (!ok) setFeeDefaultsSync("device");
+ };
+ useEffect(() => {
+  if (!feeSyncEmail) { setFeeDefaultsSync("device"); return; }
+  let cancelled = false;
+  let token = "", deviceOwner = "";
+  try { token = localStorage.getItem("bp_token") || ""; deviceOwner = (localStorage.getItem("bp_lo_info_owner") || "").toLowerCase(); } catch { /* private mode */ }
+  if (!token) return;
+  feeSyncRef.current.edited = false;
+  (async () => {
+   const got = await fetchAccountFeeDefaults(import.meta.env.VITE_API_BASE || "https://ops.realstack.app", token);
+   // Unreachable, or the LO edited a sheet while this was loading (that edit
+   // is already on its way up): leave what is on screen alone.
+   if (cancelled || !got || feeSyncRef.current.edited) return;
+   const local = readFeeDefaults(localStorage);
+   const { store, push } = reconcileFeeDefaults({ local, marker: readSyncMarker(localStorage), email: feeSyncEmail, deviceOwner, ...got });
+   feeSyncRef.current.store = store;
+   setFeeDefaults(store);
+   writeFeeDefaults(localStorage, store);
+   if (push) pushFeeDefaults(store);
+   else { writeSyncMarker(localStorage, feeSyncEmail, store); setFeeDefaultsSync("account"); }
+  })();
+  return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [feeSyncEmail]);
  const [compareData, setCompareData] = useState([]);
  const [compareLoading, setCompareLoading] = useState(false);
  const [showCompareHint, setShowCompareHint] = useState(false);
@@ -4513,6 +4549,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const next = { ...feeDefaults, [type]: sheet };
   setFeeDefaults(next);
   writeFeeDefaults(localStorage, next);
+  // Every keystroke saves locally; the account gets the settled result.
+  const sync = feeSyncRef.current;
+  sync.store = next; sync.edited = true;
+  if (sync.timer) clearTimeout(sync.timer);
+  sync.timer = setTimeout(() => { sync.timer = null; pushFeeDefaults(sync.store); }, 800);
  };
  // Quick Start's Purchase / Refinance choice. Only swaps the fee sheet when
  // the scenario still carries the other type's sheet exactly, so numbers the
@@ -11532,7 +11573,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <Inp label="Application (1003) link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
    <SetSub title="Default fees" />
-   <FeeDefaultsEditor T={T} isDesktop={isDesktop} store={feeDefaults} onChange={saveFeeSheet}
+   <FeeDefaultsEditor T={T} isDesktop={isDesktop} store={feeDefaults} onChange={saveFeeSheet} synced={feeDefaultsSync === "account"}
     scenarioType={isRefi ? "refi" : "purchase"}
     onApply={applyFeeSheet}
     onUseScenario={(type) => saveFeeSheet(type, sheetFromScenario(type, currentFeeState()))} />

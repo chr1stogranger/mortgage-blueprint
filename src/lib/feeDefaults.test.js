@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   FEE_META, feeMetaFor, feeSectionsFor, standardSheet, normalizeSheet, parseFeeDefaults,
   readFeeDefaults, writeFeeDefaults, sheetTotal, feesMatchSheet, sheetFromScenario, FEE_DEFAULTS_KEY,
+  canonFeeDefaults, reconcileFeeDefaults, readSyncMarker, writeSyncMarker, fetchAccountFeeDefaults, pushAccountFeeDefaults,
 } from "./feeDefaults.js";
 
 const memStore = () => {
@@ -120,5 +121,52 @@ describe("sheetFromScenario", () => {
     const kept = sheetFromScenario("refi", cur, { now, keepTitleEscrow: true });
     expect(kept.fees.titleInsurance).toBe(755);
     expect(kept.hiddenFees).toEqual([]);
+  });
+});
+
+describe("account sync", () => {
+  const A = { purchase: { fees: { adminFee: 1 } }, refi: null };
+  const B = { purchase: { fees: { adminFee: 2 } }, refi: { fees: { adminFee: 3 } } };
+  const none = { purchase: null, refi: null };
+  const me = "lo@example.test";
+  const marker = (store, email = me) => ({ email, json: canonFeeDefaults(store) });
+
+  it("the account wins on a device that has nothing pending", () => {
+    expect(reconcileFeeDefaults({ local: A, marker: marker(A), email: me, server: B, serverHasRow: true })).toEqual({ store: B, push: false });
+    expect(reconcileFeeDefaults({ local: A, marker: null, email: me, server: B, serverHasRow: true })).toEqual({ store: B, push: false });
+  });
+  it("an edit that never reached the account is sent up", () => {
+    expect(reconcileFeeDefaults({ local: B, marker: marker(A), email: me, server: A, serverHasRow: true })).toEqual({ store: B, push: true });
+  });
+  it("a reset on another device comes down as the standard sheets", () => {
+    expect(reconcileFeeDefaults({ local: A, marker: marker(A), email: me, server: none, serverHasRow: true }).store).toEqual(none);
+  });
+  it("first sync uploads this device's sheets", () => {
+    expect(reconcileFeeDefaults({ local: A, marker: null, email: me, deviceOwner: me, server: null, serverHasRow: false })).toEqual({ store: A, push: true });
+    expect(reconcileFeeDefaults({ local: none, marker: null, email: me, deviceOwner: "", server: null, serverHasRow: false })).toEqual({ store: none, push: false });
+  });
+  it("another LO's leftovers are not saved onto this account", () => {
+    expect(reconcileFeeDefaults({ local: A, marker: marker(A, "other@example.test"), email: me, deviceOwner: "other@example.test", server: null, serverHasRow: false })).toEqual({ store: none, push: false });
+    expect(reconcileFeeDefaults({ local: A, marker: marker(B, "other@example.test"), email: me, server: B, serverHasRow: true })).toEqual({ store: B, push: false });
+  });
+  it("the sync marker round-trips", () => {
+    const st = memStore();
+    expect(readSyncMarker(st)).toBeNull();
+    writeSyncMarker(st, me, A);
+    expect(readSyncMarker(st)).toEqual(marker(A));
+  });
+  it("reads and writes through Ops", async () => {
+    const calls = [];
+    const ok = (body) => async (url, opts) => { calls.push({ url, opts }); return { ok: true, json: async () => body }; };
+    expect(await fetchAccountFeeDefaults("https://ops.test", "tok", ok({ sheets: A, updated_at: "2026-11-20T00:00:00Z" }))).toEqual({ server: A, serverHasRow: true });
+    expect(await fetchAccountFeeDefaults("https://ops.test", "tok", ok({ sheets: null, updated_at: null }))).toEqual({ server: null, serverHasRow: false });
+    expect(await fetchAccountFeeDefaults("https://ops.test", "tok", async () => ({ ok: false }))).toBeNull();
+    expect(await fetchAccountFeeDefaults("https://ops.test", "tok", async () => { throw new Error("offline"); })).toBeNull();
+    expect(await pushAccountFeeDefaults("https://ops.test", "tok", A, ok({ ok: true }))).toBe(true);
+    const sent = calls[calls.length - 1];
+    expect(sent.url).toBe("https://ops.test/api/pipeline-data?_route=bp-fee-defaults");
+    expect(JSON.parse(sent.opts.body)).toEqual({ sheets: { v: 2, purchase: A.purchase, refi: null } });
+    expect(sent.opts.headers.Authorization).toBe("Bearer tok");
+    expect(await pushAccountFeeDefaults("https://ops.test", "tok", A, async () => ({ ok: false }))).toBe(false);
   });
 });
