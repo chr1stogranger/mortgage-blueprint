@@ -861,12 +861,18 @@ function CoBrandCell({ photo, name, discColor, micro, phone, email, iconOnly }) 
   </div>
  );
 }
+// The buyer's agent on a client's Deal Team, shaped like a REALTOR_PARTNERS
+// entry so the bar can show them. Null when the deal has no named agent.
+function dealTeamAgent(dealTeam) {
+ const a = Array.isArray(dealTeam) ? dealTeam.find(e => e?.role === "buyers_agent" && (e.name || "").trim()) : null;
+ return a ? { name: a.name.trim(), role: "Your agent", brokerage: a.company || "", phone: a.phone || "", email: a.email || "" } : null;
+}
 function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
  const lo = loInfo || {};
  const stack = !isDesktop && !!realtorPartner; // two cells stack on mobile
  const loMicro = [lo.loNmls ? `NMLS #${lo.loNmls}` : "", lo.companyName || ""].filter(Boolean).join(" · ");
  const reMicro = realtorPartner
-  ? [realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
+  ? [realtorPartner.role || "", realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
   : "";
  return (
   // Solid card, with a gap under the fixed header (Christo 2026-10-12:
@@ -10370,11 +10376,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         realtor when one is active. With no realtor it still shows (LO-only)
         on borrower-facing surfaces (isBorrower), but NOT in the LO's own
         working view — Christo doesn't need his own banner while working. ── */}
+   {/* A purchase client's buyer's agent (Deal Team) sits beside the LO when
+       no partner link named a realtor (Chris 2026-11-20). */}
    {(realtorPartner || isBorrower) && (
     <CoBrandBar
      isDesktop={isDesktop}
      loInfo={{ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls }}
-     realtorPartner={realtorPartner}
+     realtorPartner={realtorPartner || (isBorrower && !isRefi ? dealTeamAgent(borrowerMode?.borrower?.deal_team) : null)}
     />
    )}
    {/* View-only scenario (borrower share link, Christo 2026-10-12): one slim
