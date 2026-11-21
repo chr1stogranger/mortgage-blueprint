@@ -4,6 +4,7 @@ import AppBackground from "./components/AppBackground.jsx";
 import BackgroundPicker from "./components/BackgroundPicker.jsx";
 import EmbedPanelControls from "./components/EmbedPanelControls.jsx";
 import { EMBED, OPS_ORIGIN, postToHost } from "./lib/embed.js";
+import { SIDEBAR_W } from "./lib/layout.js";
 import { backgroundById, readBgChoice, BG_CHOICE_KEY } from "./lib/backgrounds.js";
 import RateLadderSummary from "./components/RateLadderSummary.jsx";
 import { buildLadderView, ladderPdfData } from "./lib/rateLadder.js";
@@ -9408,8 +9409,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
    {(isDesktop || mobileMenuOpen) && (
     <div className="bp-sidebar" style={{
-     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 270),
-     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 270),
+     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : SIDEBAR_W),
+     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : SIDEBAR_W),
      height: "100vh", position: "fixed", top: 0, left: 0,
      background: darkMode ? "#0d0d0f" : "#FFFFFF",
      borderRight: `1px solid ${T.separator}`,
@@ -9832,7 +9833,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -10655,7 +10656,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 })()}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 270} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : SIDEBAR_W} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
 )}
 {/* ═══ OVERVIEW ═══ */}
 {/* Mobile "On this page" strip (2026-09-06) — replaces the drawer's "Overview:
@@ -10692,7 +10693,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const btn = { border: "none", cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 9999, minHeight: 36, padding: "8px 14px", background: "transparent", color: T.textSecondary };
  return (
-  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : 270) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
+  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
    <div role="region" aria-label="Guided steps" style={{ maxWidth: 640, margin: "0 auto", pointerEvents: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: "0 10px 30px rgba(15,23,41,0.18)", padding: isDesktop ? "12px 14px" : "10px 12px", fontFamily: FONT }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
      <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: T.blue, fontWeight: 600, whiteSpace: "nowrap" }}>Step {current} of {total} · {step.label}</div>
@@ -11782,7 +11783,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ═══════════════════════════════════════════ */}
    {/* ═══ SPLIT-SCREEN: Right-side panel (desktop only) ═══ */}
    {splitMode && isDesktop && splitApp && (() => {
-    const sidebarW = appMode === "blueprint" ? (sidebarCollapsed ? 56 : 270) : 180;
+    const sidebarW = appMode === "blueprint" ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 180;
     const splitW = `${100 - splitRatio}vw`;
     const splitLeft = `${splitRatio}vw`;
 

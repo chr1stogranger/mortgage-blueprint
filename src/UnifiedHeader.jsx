@@ -5,6 +5,7 @@ import Icon from "./Icon";
 import { repayPillar } from "./lib/nonQm.js";
 import useEscape from "./hooks/useEscape.js";
 import useDeployVersion from "./hooks/useDeployVersion.js";
+import { SIDEBAR_W } from "./lib/layout.js";
 
 
 /**
@@ -257,7 +258,7 @@ export default function UnifiedHeader({
   ];
   const pillars = isRefi ? refiPillars : purchasePillars;
 
-  const sidebarW = isDesktop ? (sidebarCollapsed ? 56 : 270) : 0;
+  const sidebarW = isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 0;
 
   // Qualification status pill — moved out of Row 1 into the stats row (far
   // right, after DTI) per Christo 2026-07-07. Single state-driven badge
