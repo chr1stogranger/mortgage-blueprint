@@ -45,6 +45,7 @@ import { readLoCode, identityFromLoCard } from "./lib/loLink.js";
 import Icon from "./Icon";
 import { CA_TAX_HUB_URL } from "./lib/seoPaths.js";
 import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT, useKeyboardOpen } from "./components/MobileTabBar.jsx";
+import { teamPeople, TeamSidebarBlock, TeamRail, TeamStrip, TeamSheetBody, TEAM_STRIP_HEIGHT } from "./components/TeamContact.jsx";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { apiUrl, WEB_ORIGIN } from "./apiBase";
@@ -841,7 +842,7 @@ function CoBrandPill({ href, icon, label, color, iconOnly }) {
   </a>
  );
 }
-function CoBrandCell({ photo, name, discColor, micro, phone, email, iconOnly }) {
+function CoBrandCell({ photo, name, discColor, role, micro, phone, email, iconOnly }) {
  return (
   <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
    {photo ? (
@@ -850,6 +851,8 @@ function CoBrandCell({ photo, name, discColor, micro, phone, email, iconOnly }) 
     <CoBrandInitials name={name} color={discColor} />
    )}
    <div style={{ flex: 1, minWidth: 0 }}>
+    {/* Says who is who: a borrower doesn't know NMLS from DRE (council 2026-11-21). */}
+    {role && <div style={{ fontSize: 9, fontWeight: 600, color: T.textSecondary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{role}</div>}
     <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
     {micro && (
      <div style={{ fontSize: 9.5, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{micro}</div>
@@ -873,7 +876,7 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
  const stack = !isDesktop && !!realtorPartner; // two cells stack on mobile
  const loMicro = [lo.loNmls ? `NMLS #${lo.loNmls}` : "", lo.companyName || ""].filter(Boolean).join(" · ");
  const reMicro = realtorPartner
-  ? [realtorPartner.role || "", realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
+  ? [realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
   : "";
  return (
   // Solid card, with a gap under the fixed header (Christo 2026-10-12:
@@ -887,6 +890,7 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
    }}>
     <CoBrandCell
      name={lo.loanOfficer}
+     role="Your loan officer"
      discColor={T.accent}
      micro={loMicro}
      phone={lo.loPhone}
@@ -900,6 +904,7 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
      <CoBrandCell
       photo={realtorPartner.photo}
       name={realtorPartner.name}
+      role="Your agent"
       discColor={T.purple}
       micro={reMicro}
       phone={realtorPartner.phone}
@@ -4467,6 +4472,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Get Pre-Approved links carry source=mcp-<client> instead of the realtor slug.
  // A place link's scenario carries its SEO page source (seo-ll / seo-ptax).
  const applySlug = planScenarioOn ? `mcp-${listing.client || "other"}` : placeScenarioOn && listing.src ? listing.src : realtorPartnerSlug;
+ // ── The borrower's team (LO + agent), kept in reach after the top co-brand
+ //    card scrolls away: sidebar block on desktop, strip above the tab bar on
+ //    phones. Same audience as the card: borrowers and partner-link visitors,
+ //    never the LO's own working view. (Council 2026-11-21.)
+ const teamAgent = realtorPartner || (isBorrower && !isRefi ? dealTeamAgent(borrowerMode?.borrower?.deal_team) : null);
+ const teamList = (realtorPartner || isBorrower) ? teamPeople({ loanOfficer, loEmail, loPhone, loNmls, companyName }, teamAgent, T) : [];
+ const teamStripOn = teamList.length > 0 && !isDesktop && appMode === "blueprint" && consentGiven && !isLocked && !keyboardOpen;
+ const [teamSheetOpen, setTeamSheetOpen] = useState(false);
+ // Everything else pinned above the tab bar (toast, guided steps, On-this-page
+ // pill, content padding) reads this to clear the strip.
+ useEffect(() => {
+  document.documentElement.style.setProperty("--bp-team-strip-h", teamStripOn ? `${TEAM_STRIP_HEIGHT}px` : "0px");
+  return () => document.documentElement.style.setProperty("--bp-team-strip-h", "0px");
+ }, [teamStripOn]);
 
  const switchScenario = async (name, opts = {}) => {
   // ── Share-link borrower: switch between the shared rows by id, never by
@@ -9811,6 +9830,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         onSignIn={shellSignIn} onSignOut={shellSignOut} T={T} />
       </div>
      )}
+     {isDesktop && appMode === "blueprint" && teamList.length > 0 && (
+      sidebarCollapsed ? <TeamRail T={T} people={teamList} /> : <TeamSidebarBlock T={T} people={teamList} />
+     )}
      {isDesktop && appMode === "blueprint" && applyUrl && !sidebarCollapsed && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
        <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
@@ -9835,7 +9857,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -9940,6 +9962,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <MobileTabBar T={T} items={MOBILE_BAR_ITEMS.map(it => it.id === "pricepoint" ? { ...it, dot: !ppSeen } : it)}
      activeId={BAR_TAB_KEYS.includes(tab) ? tab : "more"}
      onSelect={(id) => { if (id === "more") { setMoreSheetOpen(true); return; } if (id === "pricepoint") { openApp("pricepoint"); return; } goTab(id); }} />
+    {teamStripOn && (
+     <TeamStrip T={T} people={teamList} onOpen={() => setTeamSheetOpen(true)}
+      bottom={`calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px))`} />
+    )}
+    {teamList.length > 0 && (
+     <Suspense fallback={null}>
+      <BottomSheet isOpen={teamSheetOpen} onClose={() => setTeamSheetOpen(false)} T={T} height="70vh" showHeader={false}>
+       <TeamSheetBody T={T} people={teamList} />
+      </BottomSheet>
+     </Suspense>
+    )}
     {/* Floating "Monthly · Qualified" pill removed (Christo 2026-09-23):
         redundant with the header stat strip's Payment + qualification chip. */}
     <Suspense fallback={null}>
@@ -10427,7 +10460,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Suspense>
 )}
 {undoToast && (
- <div role="status" aria-live="polite" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: isDesktop ? 24 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 56px)`, zIndex: 10000, background: T.text, color: T.bg, borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 600, fontFamily: FONT, boxShadow: "0 8px 24px rgba(15,23,41,0.25)", maxWidth: "calc(100vw - 32px)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", pointerEvents: "none" }}>
+ <div role="status" aria-live="polite" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: isDesktop ? 24 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 56px)`, zIndex: 10000, background: T.text, color: T.bg, borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 600, fontFamily: FONT, boxShadow: "0 8px 24px rgba(15,23,41,0.25)", maxWidth: "calc(100vw - 32px)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", pointerEvents: "none" }}>
   {undoToast}
  </div>
 )}
@@ -10695,7 +10728,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const btn = { border: "none", cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 9999, minHeight: 36, padding: "8px 14px", background: "transparent", color: T.textSecondary };
  return (
-  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
+  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
    <div role="region" aria-label="Guided steps" style={{ maxWidth: 640, margin: "0 auto", pointerEvents: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: "0 10px 30px rgba(15,23,41,0.18)", padding: isDesktop ? "12px 14px" : "10px 12px", fontFamily: FONT }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
      <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: T.blue, fontWeight: 600, whiteSpace: "nowrap" }}>Step {current} of {total} · {step.label}</div>
@@ -10753,7 +10786,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {/* Fixed (html/body carry overflow-x:hidden, so sticky would scroll away).
       Lower right, just above the bottom tab bar (Christo 2026-10-13: it sat
       under the header, upper right, and cost a 40px row at the top). */}
-  <div aria-hidden={sectionPillTucked || undefined} style={{ position: "fixed", bottom: `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 10px)`, left: 0, right: 0, zIndex: 20, pointerEvents: "none", opacity: sectionPillTucked ? 0 : 1, transform: sectionPillTucked ? "translateY(12px)" : "none", transition: "opacity 0.2s, transform 0.2s", visibility: sectionPillTucked ? "hidden" : "visible" }}>
+  <div aria-hidden={sectionPillTucked || undefined} style={{ position: "fixed", bottom: `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 10px)`, left: 0, right: 0, zIndex: 20, pointerEvents: "none", opacity: sectionPillTucked ? 0 : 1, transform: sectionPillTucked ? "translateY(12px)" : "none", transition: "opacity 0.2s, transform 0.2s", visibility: sectionPillTucked ? "hidden" : "visible" }}>
    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "0 16px" }}>
     <button type="button" onClick={() => setSectionSheetOpen(true)} aria-haspopup="dialog" aria-label="Jump to a section"
      style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(15,23,41,0.16)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
