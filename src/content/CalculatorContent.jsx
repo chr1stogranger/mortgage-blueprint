@@ -147,6 +147,7 @@ export default function CalculatorContent(props) {
   // ring's old fixed 280px, Christo 2026-08-04).
   const donutSlotRef = useRef(null);
   const [donutSlotW, setDonutSlotW] = useState(0);
+  const [donutLegendH, setDonutLegendH] = useState(0);
   // Desktop: the donut sizes to the right column's CONTENT height (price +
   // rate cards) so both columns end on one line and the payment card has no
   // dead band (Christo 2026-10-12). Measured from the first child's top to
@@ -168,6 +169,8 @@ export default function CalculatorContent(props) {
     if (!el) return;
     const w = Math.floor(el.clientWidth);
     setDonutSlotW(prev => (Math.abs(prev - w) > 1 ? w : prev));
+    const lh = el.children[1] ? el.children[1].offsetHeight : 0;
+    setDonutLegendH(prev => (Math.abs(prev - lh) > 1 ? lh : prev));
     // Natural height = padding + border + children (+ margins and gaps),
     // never the box itself: both cards stretch to the grid row, and measuring
     // a stretched box fed back into the ring size until it maxed out.
@@ -499,6 +502,22 @@ export default function CalculatorContent(props) {
   // Desktop payment card gets the bigger legend/gaps only when it's wide
   // enough; a narrow desktop window falls back to the phone sizes.
   const roomyDonut = isDesktop && donutSlotW >= 440;
+  // Desktop ring size. It takes the height the right column gives the card
+  // and all the width the legend doesn't need (Chris 2026-11-21: a fixed 46%
+  // of the width left a small ring floating in a tall card). Without a
+  // measured height (loan structure outside Quick Start) it keeps the old cap.
+  const donutHeightCap = props.loanStructureInQuickStart && rightColH > 200 ? rightColH - (donutOverhead || (isRefi ? 36 : 82)) : 0;
+  const donutSideSize = Math.max(124, Math.min(
+    donutHeightCap ? 340 : 250,
+    donutHeightCap || 999,
+    Math.max(((donutSlotW || 520) - 28) * 0.46, (donutSlotW || 520) - (roomyDonut ? 28 + 16 + 200 : 14 + 150)),
+  ));
+  // A narrow, tall card (two columns squeezed by the sidebar or the preview
+  // panel) has height to spare and no width: there the ring sits above the
+  // legend, when that makes it clearly bigger.
+  const donutStackSize = donutHeightCap && donutLegendH && !roomyDonut ? Math.min(340, donutSlotW, donutHeightCap - donutLegendH - 16) : 0;
+  const donutStacked = donutStackSize > donutSideSize * 1.15;
+  const donutSize = donutStacked ? donutStackSize : donutSideSize;
   const legendRows = [
     { label: "Principal", value: dispPrin, color: T.cyan || T.blue },
     { label: "Interest",  value: dispPI - dispPrin, color: T.blue },
@@ -1095,11 +1114,11 @@ export default function CalculatorContent(props) {
     {/* Ring + stacked legend + rate — the phone layout, now on desktop too
         (Christo 2026-10-01), just larger there. */}
     {true ? (
-     <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}) }}>
+     <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}), ...(isDesktop && donutStacked ? { flexDirection: "column", justifyContent: "center", gap: 16 } : {}) }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing empty={!isRefi && !(salesPrice > 0)} segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46, loanStructureInQuickStart && rightColH > 200 ? rightColH - (donutOverhead || (isRefi ? 36 : 82)) : 999)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
+       <PayRing empty={!isRefi && !(salesPrice > 0)} segments={paySegs} total={calc.displayPayment} size={isDesktop ? donutSize : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: legendGap }}>
+      <div style={{ flex: isDesktop && donutStacked ? "0 0 auto" : 1, ...(isDesktop && donutStacked ? { alignSelf: "stretch" } : {}), minWidth: 0, display: "flex", flexDirection: "column", gap: legendGap }}>
        {legendRows.map((row, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 9 : 7, fontSize: legendFont, color: T.textSecondary, fontFamily: FONT }}>
          <span style={{ width: roomyDonut ? 10 : 9, height: roomyDonut ? 10 : 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
