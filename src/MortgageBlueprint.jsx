@@ -6262,8 +6262,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // guideField) and its own four steps take over.
    { id: "calc-price", label: "Price", on: !isRefi, keys: ["calc-price-done"], ready: salesPrice >= 100000,
      hint: "Type the price of the home you have in mind." },
-   { id: "calc-down", label: "Down payment", on: !isRefi, keys: ["calc-down-done"], ready: true,
-     hint: "How much will you put down? Type a percent, or switch to $ to type dollars." },
+   // Needs a number (Chris 2026-11-20): Continue at 0% went straight to a red
+   // "needs 5% down". VA is the one zero-down loan (calc.minDPpct), so it passes.
+   { id: "calc-down", label: "Down payment", on: !isRefi, keys: ["calc-down-done"], ready: downPct > 0 || loanType === "VA",
+     hint: loanType === "VA" ? "How much will you put down? VA loans can go with nothing down, so 0 is fine." : "How much will you put down? Type a percent, or switch to $ to type dollars." },
    { id: "get-rates", label: "Rate", on: !isRefi, keys: ["get-rates"], ready: true,
      hint: "This is today's average rate. Keep it, or click a different loan's rate." },
    { id: "payment-breakdown", label: "Monthly payment", on: !isRefi, keys: ["payment-breakdown-done"], ready: true,

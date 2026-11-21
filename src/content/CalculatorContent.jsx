@@ -734,7 +734,7 @@ export default function CalculatorContent(props) {
            // which is where Tab from Price lands) isn't leaving it — that was
            // marking Down done and skipping the step (QA 2026-10-27).
            // Leaving it empty (phones: dismissing the keyboard the guide
-           // opened) isn't an answer; the step bar's Continue still allows 0%.
+           // opened) isn't an answer; the step bar's Continue waits for a number too.
            if (e.currentTarget.contains(e.relatedTarget) || !(downPct > 0)) return;
            markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down · $113K' on left, %/$ toggle on far right */}
