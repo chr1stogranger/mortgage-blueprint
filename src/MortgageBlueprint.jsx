@@ -11577,7 +11577,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <Icon name="edit" size={13} />Edit in Ops
    </a>
  </SetShell>}
- {/* Security sits ahead of Blueprint settings so it lands in the left column
+ {/* Security and Danger Zone sit ahead of Blueprint settings so they land in the left column
      on wide screens: the fee sheets make Blueprint settings the tallest card,
      and everything after it stacked on the right (Christo 2026-11-20). */}
  <SetShell title="Security & Privacy">
@@ -11653,24 +11653,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <button onClick={() => saveSkillLevel("guided")} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{skillLevel === "guided" ? "Guided mode is on" : "Turn on Guided mode"}</button>
    </div>
  </SetShell>
- {!isBorrower && isCloud && <SetShell title="Blueprint settings" meta="Not in Ops">
-   {/* Each LO's own 1003 portal — where every "Get Pre-Approved" button sends
-       borrowers. Blank hides those buttons entirely (better no CTA than the
-       wrong LO's application). */}
-   <Inp label="Application (1003) link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
-   <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
-   <SetSub title="Default fees" />
-   <FeeDefaultsEditor T={T} isDesktop={isDesktop} store={feeDefaults} onChange={saveFeeSheet} synced={feeDefaultsSync === "account"}
-    scenarioType={isRefi ? "refi" : "purchase"}
-    onApply={applyFeeSheet}
-    onUseScenario={(type) => saveFeeSheet(type, sheetFromScenario(type, currentFeeState()))} />
- </SetShell>}
- {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
-     Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
-     showInvestor/showRentVsBuy state). Quick Start is the single source of truth. */}
- {/* Settings ▸ Integrations section hidden (2026-06-02, Christo): read-only,
-     admin-managed; nothing actionable for the user. FRED/Freddie Mac rate
-     attribution lives in the footer blurb if needed. */}
  {/* Danger Zone — its own red-banner card so destructive controls never
      sit inside an ordinary settings list. */}
  <SetShell title="Danger Zone" tone="danger">
@@ -11697,6 +11679,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <button onClick={() => { setShowClearConfirm(true); setClearStep(0); }} style={{ width: "100%", padding: 14, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 12, color: T.red, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Clear All Data</button>
    </div>
  </SetShell>
+ {!isBorrower && isCloud && <SetShell title="Blueprint settings" meta="Not in Ops">
+   {/* Each LO's own 1003 portal — where every "Get Pre-Approved" button sends
+       borrowers. Blank hides those buttons entirely (better no CTA than the
+       wrong LO's application). */}
+   <Inp label="Application (1003) link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
+   <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
+   <SetSub title="Default fees" />
+   <FeeDefaultsEditor T={T} isDesktop={isDesktop} store={feeDefaults} onChange={saveFeeSheet} synced={feeDefaultsSync === "account"}
+    scenarioType={isRefi ? "refi" : "purchase"}
+    onApply={applyFeeSheet}
+    onUseScenario={(type) => saveFeeSheet(type, sheetFromScenario(type, currentFeeState()))} />
+ </SetShell>}
+ {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
+     Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
+     showInvestor/showRentVsBuy state). Quick Start is the single source of truth. */}
+ {/* Settings ▸ Integrations section hidden (2026-06-02, Christo): read-only,
+     admin-managed; nothing actionable for the user. FRED/Freddie Mac rate
+     attribution lives in the footer blurb if needed. */}
  {/* Loan Settings section removed (Christo 2026-07-05) — coeDays/sellerTaxBasis
      state remains for saved scenarios; the closing-date picker on the Costs tab
      supersedes COE Days as the user-facing control. */}
