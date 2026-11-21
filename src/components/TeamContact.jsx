@@ -1,6 +1,7 @@
 import { FONT, MONO } from "../lib/fonts.js";
 import React from "react";
 import Icon from "../Icon";
+import { logTeamTap } from "../lib/teamTap.js";
 
 /**
  * TeamContact — the borrower's loan officer and agent, kept in reach after the
@@ -57,9 +58,9 @@ function Face({ p, size = 32, ring }) {
   );
 }
 
-function Disc({ href, icon, label, color, size = 28 }) {
+function Disc({ href, icon, label, color, size = 28, onClick }) {
   return (
-    <a href={href} aria-label={label} title={label} style={{ width: size, height: size, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: `${color}15`, color, textDecoration: "none", flexShrink: 0 }}>
+    <a href={href} onClick={onClick} aria-label={label} title={label} style={{ width: size, height: size, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: `${color}15`, color, textDecoration: "none", flexShrink: 0 }}>
       <Icon name={icon} size={Math.round(size / 2)} />
     </a>
   );
@@ -81,8 +82,8 @@ export function TeamSidebarBlock({ T, people }) {
             {p.short && <div style={microStyle(T)}>{p.short}</div>}
           </div>
           <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-            {p.phone && <Disc href={`tel:${digits(p.phone)}`} icon="phone" label={`Call ${p.name}`} color={T.green} />}
-            {p.email && <Disc href={`mailto:${p.email}`} icon="mail" label={`Email ${p.name}`} color={T.blue} />}
+            {p.phone && <Disc href={`tel:${digits(p.phone)}`} icon="phone" label={`Call ${p.name}`} color={T.green} onClick={() => logTeamTap("sidebar", "call", p.key)} />}
+            {p.email && <Disc href={`mailto:${p.email}`} icon="mail" label={`Email ${p.name}`} color={T.blue} onClick={() => logTeamTap("sidebar", "email", p.key)} />}
           </div>
         </div>
       ))}
@@ -98,7 +99,7 @@ export function TeamRail({ T, people }) {
         const href = p.phone ? `tel:${digits(p.phone)}` : p.email ? `mailto:${p.email}` : null;
         const tip = `${p.role}: ${p.name}${p.short ? ` · ${p.short}` : ""}`;
         return href
-          ? <a key={p.key} href={href} title={tip} aria-label={tip} style={{ display: "flex", textDecoration: "none" }}><Face p={p} size={30} /></a>
+          ? <a key={p.key} href={href} onClick={() => logTeamTap("rail", p.phone ? "call" : "email", p.key)} title={tip} aria-label={tip} style={{ display: "flex", textDecoration: "none" }}><Face p={p} size={30} /></a>
           : <span key={p.key} title={tip} style={{ display: "flex" }}><Face p={p} size={30} /></span>;
       })}
     </div>
@@ -109,7 +110,7 @@ export function TeamStrip({ T, people, bottom, onOpen }) {
   if (!people.length) return null;
   const ground = T.sideBg || T.card;
   return (
-    <button type="button" onClick={onOpen} aria-haspopup="dialog" aria-label={`Contact ${people.map(p => p.name).join(" and ")}`}
+    <button type="button" onClick={() => { logTeamTap("strip", "open"); onOpen(); }} aria-haspopup="dialog" aria-label={`Contact ${people.map(p => p.name).join(" and ")}`}
       style={{
         position: "fixed", left: 0, right: 0, bottom, zIndex: 99, height: TEAM_STRIP_HEIGHT, boxSizing: "border-box",
         display: "block", width: "100%", padding: 0, margin: 0, border: "none", borderTop: `1px solid ${T.cardBorder}`,
@@ -134,9 +135,9 @@ export function TeamStrip({ T, people, bottom, onOpen }) {
   );
 }
 
-function SheetPill({ href, icon, label, color }) {
+function SheetPill({ href, icon, label, color, onClick }) {
   return (
-    <a href={href} style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44, boxSizing: "border-box", background: `${color}15`, color, textDecoration: "none", borderRadius: 9999, fontFamily: FONT, fontSize: 14, fontWeight: 600, padding: "0 12px" }}>
+    <a href={href} onClick={onClick} style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44, boxSizing: "border-box", background: `${color}15`, color, textDecoration: "none", borderRadius: 9999, fontFamily: FONT, fontSize: 14, fontWeight: 600, padding: "0 12px" }}>
       <Icon name={icon} size={16} /> {label}
     </a>
   );
@@ -157,9 +158,9 @@ export function TeamSheetBody({ T, people }) {
           </div>
           {(p.phone || p.email) && (
             <div style={{ display: "flex", gap: 8 }}>
-              {p.phone && <SheetPill href={`tel:${digits(p.phone)}`} icon="phone" label="Call" color={T.green} />}
-              {p.phone && <SheetPill href={`sms:${digits(p.phone)}`} icon="smartphone" label="Text" color={T.purple} />}
-              {p.email && <SheetPill href={`mailto:${p.email}`} icon="mail" label="Email" color={T.blue} />}
+              {p.phone && <SheetPill href={`tel:${digits(p.phone)}`} icon="phone" label="Call" color={T.green} onClick={() => logTeamTap("sheet", "call", p.key)} />}
+              {p.phone && <SheetPill href={`sms:${digits(p.phone)}`} icon="smartphone" label="Text" color={T.purple} onClick={() => logTeamTap("sheet", "text", p.key)} />}
+              {p.email && <SheetPill href={`mailto:${p.email}`} icon="mail" label="Email" color={T.blue} onClick={() => logTeamTap("sheet", "email", p.key)} />}
             </div>
           )}
         </div>

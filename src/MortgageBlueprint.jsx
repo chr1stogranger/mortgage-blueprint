@@ -45,6 +45,7 @@ import { readLoCode, identityFromLoCard } from "./lib/loLink.js";
 import Icon from "./Icon";
 import { CA_TAX_HUB_URL } from "./lib/seoPaths.js";
 import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT, useKeyboardOpen } from "./components/MobileTabBar.jsx";
+import { logTeamTap, setTeamTapContext } from "./lib/teamTap.js";
 import { teamPeople, TeamSidebarBlock, TeamRail, TeamStrip, TeamSheetBody, TEAM_STRIP_HEIGHT } from "./components/TeamContact.jsx";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
@@ -828,9 +829,9 @@ function CoBrandInitials({ name, color }) {
   </div>
  );
 }
-function CoBrandPill({ href, icon, label, color, iconOnly }) {
+function CoBrandPill({ href, icon, label, color, iconOnly, onClick }) {
  return (
-  <a href={href} title={label} style={{
+  <a href={href} onClick={onClick} title={label} style={{
    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
    background: `${color}15`, color, textDecoration: "none",
    borderRadius: 9999, fontFamily: FONT, fontSize: 12, fontWeight: 600,
@@ -842,7 +843,7 @@ function CoBrandPill({ href, icon, label, color, iconOnly }) {
   </a>
  );
 }
-function CoBrandCell({ photo, name, discColor, role, micro, phone, email, iconOnly }) {
+function CoBrandCell({ photo, name, discColor, role, micro, phone, email, iconOnly, who }) {
  return (
   <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
    {photo ? (
@@ -859,8 +860,8 @@ function CoBrandCell({ photo, name, discColor, role, micro, phone, email, iconOn
     )}
    </div>
    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-    {phone && <CoBrandPill href={`tel:${phone}`} icon="phone" label="Call" color={T.green} iconOnly={iconOnly} />}
-    {email && <CoBrandPill href={`mailto:${email}`} icon="mail" label="Email" color={T.blue} iconOnly={iconOnly} />}
+    {phone && <CoBrandPill href={`tel:${phone}`} icon="phone" label="Call" color={T.green} iconOnly={iconOnly} onClick={() => logTeamTap("card", "call", who)} />}
+    {email && <CoBrandPill href={`mailto:${email}`} icon="mail" label="Email" color={T.blue} iconOnly={iconOnly} onClick={() => logTeamTap("card", "email", who)} />}
    </div>
   </div>
  );
@@ -891,6 +892,7 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
     <CoBrandCell
      name={lo.loanOfficer}
      role="Your loan officer"
+     who="lo"
      discColor={T.accent}
      micro={loMicro}
      phone={lo.loPhone}
@@ -905,6 +907,7 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
       photo={realtorPartner.photo}
       name={realtorPartner.name}
       role="Your agent"
+      who="agent"
       discColor={T.purple}
       micro={reMicro}
       phone={realtorPartner.phone}
@@ -1438,16 +1441,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { return localStorage.getItem('bp_bg_paused') === '1'; } catch { return false; }
  });
  // Background (Settings → Appearance, 2026-10-31; lib/backgrounds.js).
- // null = never chosen: signed-in LOs follow Ops, everyone else gets the
- // Blueprint canvas. Share-link borrowers start on Plaid (Chris 2026-11-20)
- // and can pick any background themselves; "ops" means nothing to them.
+ // null = never chosen: everyone gets the Blueprint graph paper (Chris
+ // 2026-11-21, it used to be Match Ops for signed-in LOs, which put the Ops
+ // ribbons behind Blueprint). Only the Ops side panel still follows Ops by
+ // default, so the panel matches the app around it. Share-link borrowers
+ // start on Plaid (Chris 2026-11-20) and can pick any background themselves;
+ // "ops" means nothing to them.
  const [bgChoice, setBgChoice] = useState(readBgChoice);
  const saveBgChoice = (v) => { setBgChoice(v); try { localStorage.setItem(BG_CHOICE_KEY, v); } catch { /* private mode */ } };
  // The LO's Ops look for "Match Ops": bg from Ops (panel message or the
  // appearance route); dark only from the Ops panel (Ops keeps light/dark per
  // browser, so standalone Blueprint keeps its own Light/Dark).
  const [opsLook, setOpsLook] = useState({ bg: null, dark: null });
- const bgEffective = isBorrower ? (bgChoice && bgChoice !== "ops" ? bgChoice : "plaid") : (bgChoice || (isCloud ? "ops" : "default"));
+ const bgEffective = isBorrower ? (bgChoice && bgChoice !== "ops" ? bgChoice : "plaid") : (bgChoice || (isCloud && EMBED === "ops" ? "ops" : "default"));
  const bgResolved = bgEffective === "ops" ? backgroundById(opsLook.bg) : bgEffective === "default" ? null : backgroundById(bgEffective);
  // Ops side panel state, mirrored into the header controls (EMBED === "ops").
  const [opsPanel, setOpsPanel] = useState({ frac: 0.5, follow: true });
@@ -4480,6 +4486,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const teamList = (realtorPartner || isBorrower) ? teamPeople({ loanOfficer, loEmail, loPhone, loNmls, companyName }, teamAgent, T) : [];
  const teamStripOn = teamList.length > 0 && !isDesktop && appMode === "blueprint" && consentGiven && !isLocked && !keyboardOpen;
  const [teamSheetOpen, setTeamSheetOpen] = useState(false);
+ // Tap counts (migration 027): which placement people actually use.
+ useEffect(() => {
+  setTeamTapContext({ audience: realtorPartner ? "partner" : isBorrower ? "borrower" : null, device: isDesktop ? "desktop" : "phone", partner: realtorPartner ? realtorPartnerSlug : null });
+ }, [realtorPartner, realtorPartnerSlug, isBorrower, isDesktop]);
  // Everything else pinned above the tab bar (toast, guided steps, On-this-page
  // pill, content padding) reads this to clear the strip.
  useEffect(() => {
@@ -11558,7 +11568,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     } />
    {!isDesktop && <SetRow title="On this page button" sub={sectionPillHidden ? 'Hidden: the section jump pill stays off for screenshots' : 'On: the pill under the header jumps between Overview sections'}
     right={<SetSwitch on={!sectionPillHidden} label="On this page button" onClick={() => { setSectionPillHiddenPersist(!sectionPillHidden); Haptics.light(); }} />} />}
-   <SetRow title="Background" sub={bgEffective === "ops" ? `Match Ops: ${(bgResolved?.label || "loading your Ops background")}${EMBED === "ops" ? ", light/dark follows Ops too" : ""}` : bgEffective === "default" ? "Blueprint default: house here, target in PricePoint, stock line in Markets" : (bgResolved?.label || "")}>
+   <SetRow title="Background" sub={bgEffective === "ops" ? `Match Ops: ${(bgResolved?.label || "loading your Ops background")}${EMBED === "ops" ? ", light/dark follows Ops too" : ""}` : bgEffective === "default" ? "Blueprint default: graph paper here, target in PricePoint, stock line in Markets" : (bgResolved?.label || "")}>
     <BackgroundPicker T={T} value={bgEffective} showOps={isCloud && !isBorrower} onChange={(v) => { saveBgChoice(v); Haptics.light(); }} />
    </SetRow>
    <SetRow last title="Animated background" sub={bgResolved && bgResolved.kind !== "ribbons" ? "Only moves on the Blueprint default background" : `${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
