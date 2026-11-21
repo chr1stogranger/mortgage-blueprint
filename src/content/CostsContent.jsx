@@ -1,4 +1,5 @@
 import { FONT } from "../lib/fonts.js";
+import { washOn } from "../lib/onColor.js";
 import React, { useState, useContext, createContext, useMemo } from "react";
 import Icon from "../Icon";
 import CashToCloseSummary from "../components/CashToCloseSummary";
@@ -1184,7 +1185,7 @@ export default function CostsContent(props) {
         return (
           <div data-field="costs" className={isPulse ? isPulse("costs") : ""} style={{
             borderRadius: 14, padding: "14px 16px", marginBottom: 14,
-            background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
+            background: washOn(T, `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`),
             border: `1px solid ${T.blue}38`,
           }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 6, fontFamily: FONT }}>What are closing costs?</div>

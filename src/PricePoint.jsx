@@ -5,6 +5,7 @@ import Icon from './Icon';
 import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT } from './components/MobileTabBar.jsx';
 import AddressAutocomplete from './components/AddressAutocomplete.jsx';
 import { DARK } from './lib/theme.js';
+import { washOn } from './lib/onColor.js';
 import { getCountyLimits } from './data/loanLimits.js';
 import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
@@ -6566,7 +6567,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               if (!origin) { setNearMeError("Couldn't find your location. Allow location access, or pick a neighborhood."); return; }
               enterLiveMode(null, "Near you", liveTypeSel, origin);
             }}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px", minHeight: 56, borderRadius: 12, border: `1px solid ${T.red}`, background: `${T.red}14`, color: T.red, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: nearMeBusy ? "default" : "pointer", marginBottom: nearMeError ? 8 : 20 }}>
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px", minHeight: 56, borderRadius: 12, border: `1px solid ${T.red}`, background: washOn(T, `${T.red}14`), color: T.red, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: nearMeBusy ? "default" : "pointer", marginBottom: nearMeError ? 8 : 20 }}>
             <Icon name="map-pin" size={16} /> {nearMeBusy ? "Finding homes near you…" : "Near me"}
           </button>
           {nearMeError && <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginBottom: 20, textAlign: "center" }}>{nearMeError}</div>}
@@ -6865,7 +6866,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               setFpHoodSel([]);
               enterFreePlay([], origin);
             }}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px", minHeight: 56, borderRadius: 12, border: `1px solid ${T.cyan}`, background: `${T.cyan}14`, color: T.cyan, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: nearMeBusy ? "default" : "pointer", marginBottom: nearMeError ? 8 : 20 }}>
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px", minHeight: 56, borderRadius: 12, border: `1px solid ${T.cyan}`, background: washOn(T, `${T.cyan}14`), color: T.cyan, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: nearMeBusy ? "default" : "pointer", marginBottom: nearMeError ? 8 : 20 }}>
             <Icon name="map-pin" size={16} /> {nearMeBusy ? "Finding sales near you\u2026" : "Near me"}
           </button>
           {nearMeError && <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginBottom: 20, textAlign: "center" }}>{nearMeError}</div>}
