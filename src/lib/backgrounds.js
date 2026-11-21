@@ -10,8 +10,8 @@
 //   "ops"     — follow the LO's Ops background (read from Ops; live from the
 //               Ops panel, which also hands over light/dark)
 //   <id>      — one of BACKGROUNDS below
-// Borrower-facing views (share links) start on "plaid" and can pick any of
-// these (never "ops"), 2026-11-20.
+// Borrower-facing views (share links) start on "default" too and can pick any of
+// these (never "ops"), 2026-11-21 (was "plaid").
 // Plaid (added in Ops 2026-11-18 with the Plaid theme): plaid.com's deep blue →
 // aqua with two sets of fine engraved wavy lines. Same css as Ops PLAID_BG_CSS.
 const svgUrl = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
@@ -54,5 +54,5 @@ export function readBgChoice() {
     const v = localStorage.getItem(BG_CHOICE_KEY);
     if (v === "default" || v === "ops" || backgroundById(v)) return v;
   } catch { /* private mode */ }
-  return null; // never chosen: share-link borrowers "plaid", the Ops side panel "ops", everyone else "default"
+  return null; // never chosen: the Ops side panel "ops", everyone else (share links included) "default"
 }

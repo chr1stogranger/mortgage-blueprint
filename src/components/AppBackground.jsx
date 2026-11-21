@@ -25,6 +25,7 @@ import { RIBBONS } from "../lib/theme.js";
  * Props:
  *   darkMode {boolean} — repaints the wash + line opacity for the active theme.
  *   paused   {boolean} — freezes the animation in place (Settings → Appearance).
+ *   sketch   {boolean} — house variant only: false paints plain graph paper.
  *   variant  {"ribbons"|"house"|"target"}
  *
  * Honors prefers-reduced-motion (ribbons: one static frame; house: the
@@ -153,7 +154,7 @@ function projectModel() {
 }
 const HOUSE_PROJECTED = projectModel();
 
-export default function AppBackground({ darkMode, paused, variant = "ribbons", complete = false }) {
+export default function AppBackground({ darkMode, paused, variant = "ribbons", complete = false, sketch = true }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({ t: 0, scrollPhase: 0, scrollTarget: 0, raf: 0, paused: false, dark: false, p: 0 });
 
@@ -163,6 +164,9 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons", c
   // Views with their own inner scroll (Workspace split-pane) can't drive the
   // scroll-draw — `complete` eases the house to fully drawn while they're open.
   useEffect(() => { stateRef.current.forceComplete = complete; }, [complete]);
+  // House sketch on/off (Settings → Appearance, Chris 2026-11-21): off leaves
+  // plain graph paper, no wireframe house and no plan fragments.
+  useEffect(() => { stateRef.current.sketch = sketch; stateRef.current.redraw?.(); }, [sketch]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -327,6 +331,7 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons", c
         const dark = S.dark;
         paintBlueprintWash();
         paintGrid();
+        if (S.sketch === false) return; // plain graph paper
         paintFragments();
         // house strokes, drawn to cumulative length = progress × total length
         const mainCol = dark ? "rgba(210,225,255,0.34)" : "rgba(43,79,206,0.26)";

@@ -22,7 +22,7 @@ export default function BackgroundPicker({ T, value, onChange, showOps }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {chip("default", "Blueprint default", "Graph paper with the blueprint house")}
+        {chip("default", "Blueprint default", "Graph paper, with the house sketch if you want it")}
         {showOps && chip("ops", "Match Ops", "Whatever you picked in Ops → My Account → Appearance")}
       </div>
       <div role="radiogroup" aria-label="Background color" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))", gap: 8 }}>

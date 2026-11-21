@@ -55,8 +55,9 @@
   backgrounds (`src/lib/backgrounds.js`, VENDORED from loan-pipeline
   `src/theme.js` `BACKGROUNDS` — keep in sync). Everyone defaults to the Blueprint graph paper (2026-11-21; signed-in LOs
   used to default to Match Ops, which put ribbons behind Blueprint). Only the
-  Ops side panel still defaults to Match Ops (read from Ops `?_route=appearance`); share-link borrowers start on Plaid and
-  can pick any background themselves, never Match Ops (2026-11-20). Ribbons appear only when the person picks them (directly or
+  Ops side panel still defaults to Match Ops (read from Ops `?_route=appearance`); share-link borrowers start on the graph paper too (2026-11-21, was Plaid) and
+  can pick any background themselves, never Match Ops. The house sketch over the graph paper is a
+  Settings → Appearance toggle (`bp_bg_sketch`, on by default). Ribbons appear only when the person picks them (directly or
   via Match Ops) — never as a default.
 - **Embedded modes (`src/lib/embed.js`, 2026-10-31):** `EMBED === "ops"` when
   ops.realstack.app frames us (its Blueprint side panel): compact header, no
