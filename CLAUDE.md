@@ -53,8 +53,9 @@
 - **Background setting (2026-10-31):** Settings → Appearance → Background =
   Blueprint default (the per-mode canvas above) / Match Ops / any of Ops'
   backgrounds (`src/lib/backgrounds.js`, VENDORED from loan-pipeline
-  `src/theme.js` `BACKGROUNDS` — keep in sync). Signed-in LOs default to Match
-  Ops (read from Ops `?_route=appearance`); share-link borrowers start on Plaid and
+  `src/theme.js` `BACKGROUNDS` — keep in sync). Everyone defaults to the Blueprint graph paper (2026-11-21; signed-in LOs
+  used to default to Match Ops, which put ribbons behind Blueprint). Only the
+  Ops side panel still defaults to Match Ops (read from Ops `?_route=appearance`); share-link borrowers start on Plaid and
   can pick any background themselves, never Match Ops (2026-11-20). Ribbons appear only when the person picks them (directly or
   via Match Ops) — never as a default.
 - **Embedded modes (`src/lib/embed.js`, 2026-10-31):** `EMBED === "ops"` when

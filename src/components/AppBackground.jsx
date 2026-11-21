@@ -10,7 +10,7 @@ import { RIBBONS } from "../lib/theme.js";
  *     loan-pipeline): 6 wide woven ribbons over a subtle temperature wash.
  *     Used by Markets.
  *   "house" — Blueprint mode: architectural blueprint-paper ground (navy→
- *     blueprint-blue wash dark / cool paper light) with a two-weight drafting
+ *     blueprint-blue wash dark / cool paper light) with a quiet graph-paper
  *     grid, faint plan fragments in the margins (floor-plan corner, wall
  *     section, compass rose, dimension line), and the hero: a 3D perspective
  *     wireframe house (real vertex/edge model, perspective-projected) that
@@ -261,20 +261,15 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons", c
         ctx.fillRect(0, 0, W, Hc);
       }
 
+      // Graph paper (Chris 2026-11-21): one quiet grid, 22px squares, every line
+      // the same weight. Replaces the two-weight drafting grid (8px minor /
+      // 40px major), which was too faint to read as paper. Lines are filled
+      // rects one CSS px wide so they stay crisp at any pixel ratio.
       function paintGrid() {
-        const dark = S.dark;
-        const minor = 8 * dpr, major = 40 * dpr;
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = dark ? "rgba(150,180,255,0.035)" : "rgba(43,79,206,0.040)";
-        ctx.beginPath();
-        for (let x = 0; x <= W; x += minor) { ctx.moveTo(x, 0); ctx.lineTo(x, Hc); }
-        for (let y = 0; y <= Hc; y += minor) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-        ctx.stroke();
-        ctx.strokeStyle = dark ? "rgba(150,180,255,0.075)" : "rgba(43,79,206,0.070)";
-        ctx.beginPath();
-        for (let x = 0; x <= W; x += major) { ctx.moveTo(x, 0); ctx.lineTo(x, Hc); }
-        for (let y = 0; y <= Hc; y += major) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-        ctx.stroke();
+        const step = 22 * dpr, w = Math.max(1, Math.round(dpr));
+        ctx.fillStyle = S.dark ? "rgba(150,180,255,0.07)" : "rgba(59,107,245,0.08)";
+        for (let x = 0; x <= W; x += step) ctx.fillRect(Math.round(x), 0, w, Hc);
+        for (let y = 0; y <= Hc; y += step) ctx.fillRect(0, Math.round(y), W, w);
       }
 
       // faint plan fragments in the margins — like the plan sheets behind

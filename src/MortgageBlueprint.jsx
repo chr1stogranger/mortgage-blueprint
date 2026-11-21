@@ -9380,7 +9380,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     @keyframes pulseNext { 0%, 100% { box-shadow: 0 0 0 2px rgba(59,107,245,0.45), 0 0 6px rgba(59,107,245,0.12); } 50% { box-shadow: 0 0 0 3px rgba(59,107,245,0.85), 0 0 18px rgba(59,107,245,0.3); } }
     .pulse-next { box-shadow: 0 0 0 2px rgba(59,107,245,0.5), 0 0 8px rgba(59,107,245,0.15); border-radius: 14px; padding: 4px 5px; animation: pulseNext 1.8s ease-in-out infinite; }
     @media (prefers-reduced-motion: reduce) { .pulse-next { animation: none; } }
-    .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
+    /* The pulse is an overlay, never the card's own background: animating the
+       background replaced the solid fill, so the donut card and the loan
+       summary went see-through for 1.5s whenever a blueprint loaded. */
+    .field-updated { position: relative; }
+    .field-updated::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; animation: highlightPulse 1.5s ease-out both; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
     input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }

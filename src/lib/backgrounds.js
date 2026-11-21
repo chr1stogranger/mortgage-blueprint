@@ -54,5 +54,5 @@ export function readBgChoice() {
     const v = localStorage.getItem(BG_CHOICE_KEY);
     if (v === "default" || v === "ops" || backgroundById(v)) return v;
   } catch { /* private mode */ }
-  return null; // never chosen: LOs get "ops", share-link borrowers "plaid", everyone else "default"
+  return null; // never chosen: share-link borrowers "plaid", the Ops side panel "ops", everyone else "default"
 }
