@@ -189,3 +189,11 @@ button:focus:not(:focus-visible) {
 }
 .bp-rainbow-pill:hover { border-color: transparent; background: linear-gradient(#2B2B2B, #2B2B2B) padding-box, var(--bp-rainbow) border-box; }
 .bp-rainbow-pill:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Settings: Blueprint settings starts the second column whenever two fit
+   (2 x 420 + 18 gap). Left to itself the browser balanced Danger Zone onto
+   the top of the right column. Below that width a forced break would push a
+   column off-screen, so it applies only inside the container query. */
+@container (min-width: 858px) {
+  .bp-set-colbreak { -webkit-column-break-before: always; break-before: column; }
+}

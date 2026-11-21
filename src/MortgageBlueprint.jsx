@@ -738,7 +738,7 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
 }
 
 function Tab({ label, active, onClick, locked, completed, tabId }) {
- return (<button data-tab={tabId} onClick={locked ? undefined : onClick} style={{ background: active ? T.tabActiveBg : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
+ return (<button data-tab={tabId} onClick={locked ? undefined : onClick} style={{ background: active ? (T.onColor ? "#fff" : T.tabActiveBg) : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: T.onColor ? (active ? "#0B2545" : locked ? "rgba(255,255,255,0.6)" : "#fff") : locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
   {locked && <span style={{ marginRight: 3, fontSize: 10 }}></span>}{label}
  </button>);
 }
@@ -6003,7 +6003,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      onClick={() => { markTouched(stepId + "-done"); }}
      style={{
       width: "100%", padding: "11px 0",
-      background: `${T.blue}14`, border: `1px solid ${T.blue}40`,
+      // washOn: this button also sits straight on the page background,
+      // where the bare tint left blue type on blue (2026-11-20).
+      background: washOn(T, `${T.blue}14`), border: `1px solid ${T.blue}40`,
       borderRadius: 9999, color: T.blue,
       fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
       display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -11507,6 +11509,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "settings" && (<>
  {/* Two columns when the screen is wide (2026-10-31 settings rework); each
      shell stays whole (SetShell breakInside: avoid). */}
+ <div style={{ containerType: "inline-size" }}>
  <div style={{ columnWidth: 420, columnGap: 18, maxWidth: 1180, margin: "0 auto" }}>
  <SetShell title="Appearance">
    <SetRow title="Theme" sub={themeMode === 'dark' ? 'Dark mode' : 'Light mode'}
@@ -11679,7 +11682,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <button onClick={() => { setShowClearConfirm(true); setClearStep(0); }} style={{ width: "100%", padding: 14, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 12, color: T.red, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Clear All Data</button>
    </div>
  </SetShell>
- {!isBorrower && isCloud && <SetShell title="Blueprint settings" meta="Not in Ops">
+ {/* The browser's own column balancing put Danger Zone on top of the right
+     column, so the break is forced here whenever two columns fit
+     (.bp-set-colbreak, a container query in index.css). */}
+ {!isBorrower && isCloud && <div className="bp-set-colbreak"><SetShell title="Blueprint settings" meta="Not in Ops">
    {/* Each LO's own 1003 portal — where every "Get Pre-Approved" button sends
        borrowers. Blank hides those buttons entirely (better no CTA than the
        wrong LO's application). */}
@@ -11690,7 +11696,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     scenarioType={isRefi ? "refi" : "purchase"}
     onApply={applyFeeSheet}
     onUseScenario={(type) => saveFeeSheet(type, sheetFromScenario(type, currentFeeState()))} />
- </SetShell>}
+ </SetShell></div>}
  {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
      Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
      showInvestor/showRentVsBuy state). Quick Start is the single source of truth. */}
@@ -11722,6 +11728,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5 }}>This app was shared via <strong>{realtorPartner.name}</strong>'s partner link. Source tracking is active. All pre-approval clicks attribute to <strong>{realtorPartnerSlug}</strong>.</div>
   </SetShell>
  )}
+ </div>
  </div>
 </>)}
    </div>
