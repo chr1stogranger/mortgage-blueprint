@@ -10800,7 +10800,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const btn = { border: "none", cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 9999, minHeight: 36, padding: "8px 14px", background: "transparent", color: T.textSecondary };
  return (
   <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : sidebarWidth) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
-   <div role="region" aria-label="Guided steps" style={{ maxWidth: 640, margin: "0 auto", pointerEvents: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: "0 10px 30px rgba(15,23,41,0.18)", padding: isDesktop ? "12px 14px" : "10px 12px", fontFamily: FONT }}>
+   {/* The share-link "Add to my Blueprints" pill (App.jsx) is pinned to the
+       same corner and sat on top of Back. It reads this height and rides
+       above the bar (Chris 2026-11-21). Unmount sets it back to 0. */}
+   <div role="region" aria-label="Guided steps" ref={(el) => { try { document.documentElement.style.setProperty("--bp-guide-bar-top", el ? `${Math.max(0, Math.round(window.innerHeight - el.getBoundingClientRect().top))}px` : "0px"); } catch { /* no DOM */ } }} style={{ maxWidth: 640, margin: "0 auto", pointerEvents: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: "0 10px 30px rgba(15,23,41,0.18)", padding: isDesktop ? "12px 14px" : "10px 12px", fontFamily: FONT }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
      <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: T.blue, fontWeight: 600, whiteSpace: "nowrap" }}>Step {current} of {total} · {step.label}</div>
      <div style={{ flex: 1, height: 3, background: T.separator, borderRadius: 2, overflow: "hidden" }}>

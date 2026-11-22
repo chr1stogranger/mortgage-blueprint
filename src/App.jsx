@@ -52,7 +52,9 @@ function ClaimBanner({ sessionToken, shareToken }) {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+      // Rides above the guided step bar when it's up (--bp-guide-bar-top is
+      // set by the bar in MortgageBlueprint.jsx; 0 when there is no bar).
+      position: 'fixed', bottom: 'max(calc(16px + env(safe-area-inset-bottom, 0px)), calc(var(--bp-guide-bar-top, 0px) + 8px))',
       left: '50%', transform: 'translateX(-50%)', zIndex: 1500,
       display: 'flex', alignItems: 'center', gap: 10,
       background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(16px)',
