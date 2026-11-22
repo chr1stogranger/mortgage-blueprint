@@ -152,6 +152,18 @@ export async function fetchSharedTeamPhotos(shareToken, loEmail) {
   } catch { return null; }
 }
 
+// A partner link (/r/<slug>) has no share token: the LO's headshot comes from
+// Ops' public lookup by the address the page already shows. Null when that LO
+// has no headshot, or on any failure.
+export async function fetchLoPhoto(loEmail) {
+  try {
+    const res = await fetch(`${API_BASE}/api/lo-card?e=${encodeURIComponent(loEmail)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.lo?.photo ? data.lo : null;
+  } catch { return null; }
+}
+
 // ─── Share-link guest list ─────────────────────────────────────────────────
 // Borrower side (share token + their session); LO side (authFetch).
 async function shareAccessCall(method, shareToken, email) {

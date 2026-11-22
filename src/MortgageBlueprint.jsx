@@ -90,7 +90,7 @@ import {
   searchAriveLoans, fetchAriveImport, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
-  fetchSharedData, fetchSharedTeamPhotos, fetchListing, fetchLoCard, fetchPlan,
+  fetchSharedData, fetchSharedTeamPhotos, fetchLoPhoto, fetchListing, fetchLoCard, fetchPlan,
   saveSharedScenario, renameSharedScenario, deleteSharedScenario, reorderSharedScenarios,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios, saveScenarioVersion } from "./lib/supabaseClient";
@@ -4550,6 +4550,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   fetchSharedTeamPhotos(teamPhotoToken, loEmail).then((d) => { if (alive) setTeamPhotos(d); });
   return () => { alive = false; };
  }, [teamPhotoToken, loEmail]);
+ // A partner link has no share token, so the LO's headshot comes from Ops'
+ // public lookup by the address this page shows (Chris 2026-11-21).
+ const partnerPhotoEmail = realtorPartner && !isBorrower ? (loEmail || "").trim() : "";
+ useEffect(() => {
+  if (!partnerPhotoEmail) return;
+  let alive = true;
+  fetchLoPhoto(partnerPhotoEmail).then((lo) => { if (alive) setTeamPhotos(lo ? { lo, agent: null } : null); });
+  return () => { alive = false; };
+ }, [partnerPhotoEmail]);
  const samePerson = (a, b) => !!a && String(a).trim().toLowerCase() === String(b || "").trim().toLowerCase();
  const loPhoto = teamPhotos?.lo?.photo && (samePerson(teamPhotos.lo.email, loEmail) || samePerson(teamPhotos.lo.name, loanOfficer)) ? teamPhotos.lo.photo : "";
  const dealAgent = isBorrower && !isRefi ? dealTeamAgent(borrowerMode?.borrower?.deal_team) : null;
