@@ -253,6 +253,10 @@ export default function BorrowerAuthGate({ shareToken: givenToken, resolveToken,
       proceedingRef.current = false;
       if (e.message?.includes('Share link not found')) {
         onError?.('expired');
+      } else if (auto) {
+        // Opened because of who signed in, not a link they tapped: a passing
+        // network error falls back to the calculator, never a sign-in error.
+        onError?.('failed');
       } else {
         setError(e.message || 'Could not load your Blueprint');
         setPhase('auth');

@@ -158,6 +158,7 @@ function App() {
   const busyRef = useRef(false);     // a Blueprint is open or opening
   const askedRef = useRef('');       // user id we already looked up
   const uidRef = useRef('');
+  const failedRef = useRef(new Set()); // share tokens that would not open this visit
 
   // They picked one on the chooser: open it like any other sign-in opening.
   const openPicked = (token) => {
@@ -213,12 +214,14 @@ function App() {
   const fallBack = async (failed) => {
     const uid = uidRef.current;
     rememberMine(uid, '');
+    if (failed) failedRef.current.add(failed);
     let next = '';
     let ask = null;
     try {
       const session = await getSession();
       const list = session ? await fetchShared(session.access_token) : null;
-      const rest = (list || []).filter((b) => b.share_token !== failed);
+      // Skip every one that already failed, so two dead links never ping-pong.
+      const rest = (list || []).filter((b) => !failedRef.current.has(b.share_token));
       if (needsChoice(rest)) ask = { items: sharedChoices(rest), email: session?.user?.email || '', pick: openPicked };
       else {
         next = pickShared(rest);
