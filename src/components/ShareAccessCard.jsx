@@ -52,13 +52,13 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
     setDraft("");
     // Ops emails new guests the link; `invited` is false when they were
     // already on the list or the send didn't go out.
-    setNotice(r.invited ? `Emailed the link to ${email}.` : `${email} can open it now. Send them the link.`);
+    setNotice(r.invited ? `Emailed ${email}. They sign in and it opens.` : `${email} can open it now by signing in at blueprint.realstack.app.`);
   };
 
   const copyLink = async () => {
     if (!shareToken) return;
     try {
-      await navigator.clipboard.writeText(`${WEB_ORIGIN}?share=${shareToken}`);
+      await navigator.clipboard.writeText(`${WEB_ORIGIN}?open=1`);
       setCopied(true); setTimeout(() => setCopied(false), 1800);
     } catch { setError("Couldn't copy. Long-press the address bar to share instead"); }
   };
@@ -75,14 +75,14 @@ export default function ShareAccessCard({ T, Card, isBorrower, borrowerId, share
             border: `1px solid ${T.blue}30`, background: `${T.blue}12`, color: T.blue,
             fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
           }}>
-            <Icon name={copied ? "check" : "link"} size={13} />{copied ? "Copied" : "Copy link"}
+            <Icon name={copied ? "check" : "link"} size={13} />{copied ? "Copied" : "Copy sign-in page"}
           </button>
         )}
       </div>
       <div style={{ fontSize: 12.5, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 12 }}>
         {isBorrower
-          ? "Only these emails can open your blueprint. Add a parent, a partner, or another email you use, and we'll email them the link."
-          : "The share link only opens for these emails (and your team). Anyone you add gets the link by email, with replies coming to you."}
+          ? "Only these emails can open your blueprint. Add a parent, a partner, or another email you use, and we'll email them. They sign in and it opens."
+          : "This Blueprint only opens for these emails (and your team), like a shared Google Sheet. Anyone you add gets an email, signs in, and it opens. Replies come to you."}
       </div>
 
       {list === null ? (

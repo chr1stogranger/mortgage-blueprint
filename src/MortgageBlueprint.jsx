@@ -153,6 +153,9 @@ const REALTOR_PARTNERS = {
 // CITY_TAX_RATES alias for backward compatibility
 const CITY_TAX_RATES = CA_CITY_TAX_RATES;
 const CITY_NAMES = CA_CITY_NAMES;
+// What a client is sent: the sign-in page. Signing in opens the Blueprint
+// shared with their email (lib/myBlueprint.js); there is no per-file link.
+const OPEN_URL = `${WEB_ORIGIN}?open=1`;
 // STATE_PROPERTY_TAX_RATES + getAutoTaxRate live in data/propertyTax.js (shared with the MCP server).
 const STATE_NAMES_PROP = Object.keys(STATE_PROPERTY_TAX_RATES).sort();
 // ZIP → "City:County" for California (Bay Area + key metros). Parsed at lookup.
@@ -5625,7 +5628,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    });
    const newScenarioId = Array.isArray(scResult) ? scResult[0]?.id : scResult?.id;
    // ── Step 4: Build URL and dispatch action ──────────────────────────────
-   const shareUrl = `${WEB_ORIGIN}?share=${borrower.share_token}`;
+   // No per-file link goes out (2026-11-21): the Blueprint is shared with
+   // the client's email like a Google Sheet. This page asks them to sign in,
+   // then opens the Blueprint shared with that email.
+   const shareUrl = OPEN_URL;
    if (action === "copy") {
     try {
      await navigator.clipboard.writeText(shareUrl);
@@ -5633,7 +5639,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     } catch {
      // Safari / sandboxed webview fallback — same shape as the existing
      // Copy Link button in the summary tab (see line ~4940).
-     prompt("Copy this share link:", shareUrl);
+     prompt("Copy the sign-in page:", shareUrl);
      setLiveLinkToast("Link ready (copied via prompt)");
     }
    } else if (action === "email") {
@@ -5651,7 +5657,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    } else if (action === "text") {
     const digits = phoneClean.replace(/[^\d+]/g, "");
     const firstName = (borrowerName || borrower.name || "").trim().split(/\s+/)[0] || "";
-    const smsBody = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint. It updates as we fine-tune your numbers: ${shareUrl}`;
+    const smsBody = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint. It updates as we fine-tune your numbers. Sign in with your email here: ${shareUrl}`;
     // `?&body=` is the one separator BOTH iOS and Android honor in sms: URIs.
     window.open(`sms:${digits}?&body=${encodeURIComponent(smsBody)}`, "_self");
     setLiveLinkToast("Messages opened with the link");
@@ -8170,7 +8176,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // link email; no new scenario is created.
  const requestStatementHref = (!isBorrower && activeBorrower?.share_token) ? (() => {
   const first = (borrowerName || activeBorrower?.name || '').trim().split(/\s+/)[0] || '';
-  const link = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
+  const link = OPEN_URL;
   const body = [
    `Hi${first ? ` ${first}` : ''},`,
    '',
@@ -10593,7 +10599,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  //    own tabs, so the old Loan Overview / Monthly Breakdown / Qualification
  //    recap is gone.
  //  · Borrower / public app: get pre-approved, or keep a copy.
- const shareUrl = activeBorrower?.share_token ? `${WEB_ORIGIN}?share=${activeBorrower.share_token}` : "";
+ // previewUrl opens this exact file for the LO (the team can open any file).
+ // What the client gets is OPEN_URL: sign in, and their Blueprint opens.
+ const previewUrl = activeBorrower?.share_token ? `${WEB_ORIGIN}?share=${activeBorrower.share_token}` : "";
+ const shareUrl = previewUrl ? OPEN_URL : "";
  const firstName = (activeBorrower?.name || "").trim().split(/\s+/)[0] || "";
  const toEmail = (activeBorrower?.email || "").trim();
  const toPhone = String(activeBorrower?.phone || "").replace(/[^\d+]/g, "");
@@ -10613,7 +10622,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const textShareUrl = () => {
   if (!shareUrl || toPhone.replace(/\D/g, "").length < 10) return;
-  const body = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint. It updates as we fine-tune your numbers: ${shareUrl}`;
+  const body = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint. It updates as we fine-tune your numbers. Sign in with your email here: ${shareUrl}`;
   window.open(`sms:${toPhone}?&body=${encodeURIComponent(body)}`, "_self");
   markHunterOfferSent();
  };
@@ -10647,7 +10656,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
    {!activeBorrower ? (
     <Card>
-     {optionHead("user", "Open a client first", "The live link lives on a client's file. Pick one from the client picker above, or create one for this scenario.")}
+     {optionHead("user", "Open a client first", "The live Blueprint lives on a client's file. Pick one from the client picker above, or create one for this scenario.")}
      <button onClick={() => setCreateClientOpen(true)} style={pill(true)}><Icon name="plus" size={14} />New client</button>
     </Card>
    ) : (
@@ -10655,16 +10664,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     {/* ── Option 1: the live Blueprint ── */}
     <div>
      <Card style={{ padding: 18 }}>
-      {optionHead("link", "Live Blueprint", "Their own private copy of this file. They can try their own numbers, and you see every change.")}
+      {optionHead("link", "Live Blueprint", `Shared with ${toEmail || "the email on file"}, like a shared Google Sheet. They sign in at blueprint.realstack.app and it opens, with every scenario. There is no copy: you both work in the same file.`)}
       {shareUrl ? (<>
        <div style={{ display: "flex", gap: 8, alignItems: "center", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 9999, padding: "4px 4px 4px 14px", marginBottom: 12 }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{shareUrl.replace(/^https?:\/\//, "")}</span>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>blueprint.realstack.app</span>
         <button onClick={copyShareUrl} style={{ ...pill(true), padding: "8px 16px" }}><Icon name={shareLinkCopied ? "check" : "copy"} size={13} />{shareLinkCopied ? "Copied" : "Copy"}</button>
        </div>
        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button onClick={emailShareUrl} disabled={!toEmail} title={toEmail ? `Email ${toEmail}` : "No email on file"} style={pill(false, !toEmail)}><Icon name="mail" size={14} />Email</button>
         <button onClick={textShareUrl} disabled={toPhone.replace(/\D/g, "").length < 10} title={toPhone ? `Text ${activeBorrower.phone}` : "No phone on file"} style={pill(false, toPhone.replace(/\D/g, "").length < 10)}><Icon name="phone" size={14} />Text</button>
-        <a href={shareUrl} target="_blank" rel="noopener noreferrer" title="Open the link the way they'll see it" style={pill(false)}><Icon name="eye" size={14} />Preview as {firstName || "them"}</a>
+        <a href={previewUrl} target="_blank" rel="noopener noreferrer" title="Open it the way they'll see it" style={pill(false)}><Icon name="eye" size={14} />Preview as {firstName || "them"}</a>
        </div>
        {(!toEmail || toPhone.replace(/\D/g, "").length < 10) && (
         <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 10, fontFamily: FONT }}>
@@ -10672,7 +10681,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         </div>
        )}
       </>) : (
-       <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>This client has no link yet. Reopen them from the client picker to generate one.</div>
+       <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>This client isn't set up to share yet. Reopen them from the client picker.</div>
       )}
      </Card>
      {shareUrl && <ShareAccessCard key={activeBorrower.id} T={T} Card={Card} isBorrower={false} borrowerId={activeBorrower.id} shareToken={activeBorrower.share_token} hideCopy />}

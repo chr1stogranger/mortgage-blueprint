@@ -90,7 +90,14 @@ const ShieldIcon = () => (
   </svg>
 );
 
-export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError }) {
+// shareToken is the file's id. It is null when the borrower just signed in
+// (or followed an invite): `resolveToken(session)` then asks Ops which
+// Blueprint is shared with them. `auto` marks an opening the borrower did not
+// ask for by link, so a dead or revoked one falls back quietly (onError)
+// instead of showing "This blueprint is private".
+export default function BorrowerAuthGate({ shareToken: givenToken, resolveToken, auto = false, onAuthenticated, onError }) {
+  const [resolved, setResolved] = useState(null);
+  const shareToken = givenToken || resolved;
   // Phase: 'splash' → 'checking' → 'auth' → 'magic-sent' → 'loading' → 'done'
   const [phase, setPhase] = useState('splash');
   const [error, setError] = useState('');
@@ -201,12 +208,25 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         account = await fetchMyAccount();
       }
 
+      let token = givenToken || resolved;
+      if (!token && resolveToken) {
+        token = await resolveToken(session);
+        if (!token) {
+          // Followed an invite, but nothing is shared with this email.
+          setDenied({ email: session.user?.email || '', loName: '' });
+          setPhase('denied');
+          return;
+        }
+        setResolved(token);
+      }
+
       let shared;
       try {
-        shared = await fetchSharedData(shareToken);
+        shared = await fetchSharedData(token);
       } catch (e) {
         // Signed in, but this email isn't on the borrower's guest list
         if (e.code === 'not_on_list') {
+          if (auto) { proceedingRef.current = false; onError?.('denied'); return; }
           setDenied({ email: e.payload?.email || session.user?.email || '', loName: e.payload?.lo_name || '' });
           setPhase('denied');
           return;
@@ -223,7 +243,8 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
       onAuthenticated({
         sessionToken: session.access_token,
         account: account || { email: session.user?.email, name },
-        shareToken,
+        shareToken: token,
+        userId: session.user?.id || '',
         borrower: shared.borrower,
         accessLevel: shared.accessLevel,
         scenarios: shared.scenarios,
@@ -311,7 +332,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             {denied?.email || 'this email'}
           </div>
           <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6 }}>
-            Ask {who} or the borrower to add this email from their Team tab, then open the link again. Or sign in with the email they shared it with.
+            Ask {who} or the borrower to add this email from their Team tab, then sign in again. Or sign in with the email they shared it with.
           </div>
           <button
             onClick={async () => {

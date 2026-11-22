@@ -1,10 +1,12 @@
 import { FONT } from "./lib/fonts.js";
-import { useState, useEffect, Component } from 'react'
+import { useState, useEffect, useRef, Component } from 'react'
 import * as Sentry from '@sentry/react'
 import MortgageBlueprint from './MortgageBlueprint'
 import BlueprintAuth from './BlueprintAuth'
 import BorrowerAuthGate from './components/BorrowerAuthGate'
 import Icon from './Icon'
+import { getSession, onAuthStateChange } from './lib/supabaseClient'
+import { isToken, recallMine, rememberMine, fetchShared, pickShared, canOpenMine, wantsOpen, cleanAddress, NONE } from './lib/myBlueprint.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
@@ -113,22 +115,91 @@ class ShareFlowErrorBoundary extends Component {
   }
 }
 
+function tokenFromUrl() {
+  try {
+    const token = new URLSearchParams(window.location.search).get('share');
+    return isToken(token) ? token : null;
+  } catch { return null; }
+}
+
 function App() {
-  const [shareToken, setShareToken] = useState(null);
+  // The Blueprint to open, by its file id. It comes from the address (an old
+  // share link) or, the normal way now, from who is signed in: a Blueprint
+  // shared with your email is your Blueprint, like a shared Google Sheet.
+  const [shareToken, setShareToken] = useState(tokenFromUrl);
+  // true = opened because of who signed in (not a link), so a dead or revoked
+  // one falls back to the calculator instead of an error screen.
+  const [auto, setAuto] = useState(false);
+  // `?open=1` (an invite): ask for sign-in, then open what is shared with them.
+  const [openGate] = useState(() => !tokenFromUrl() && wantsOpen() && canOpenMine());
+  // Hold the first paint while we look, so a borrower never sees the public
+  // calculator flash before their Blueprint.
+  const [checking, setChecking] = useState(() => !tokenFromUrl() && canOpenMine() && !wantsOpen());
   const [borrowerContext, setBorrowerContext] = useState(null);
   const [shareExpired, setShareExpired] = useState(false);
+  const busyRef = useRef(false);     // a Blueprint is open or opening
+  const askedRef = useRef('');       // user id we already looked up
+  const uidRef = useRef('');
 
-  // Detect ?share=TOKEN in URL
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('share');
-    if (token && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+    if (tokenFromUrl() || !canOpenMine() || wantsOpen()) return undefined;
+    let live = true;
+    const open = (token) => {
+      if (!live || busyRef.current || !token) return false;
+      busyRef.current = true;
+      setAuto(true);
       setShareToken(token);
-    }
+      return true;
+    };
+    const consider = async (session) => {
+      const uid = session?.user?.id;
+      if (!uid || busyRef.current || askedRef.current === uid) return;
+      askedRef.current = uid;
+      uidRef.current = uid;
+      const last = recallMine(uid);
+      if (isToken(last)) { open(last); return; }
+      const ask = fetchShared(session.access_token).then((list) => {
+        if (!list) return;
+        const token = pickShared(list);
+        rememberMine(uid, token || NONE);
+        open(token);
+      });
+      // Known to have nothing shared (or a loan officer): don't hold the page.
+      if (last !== NONE) await ask;
+    };
+    (async () => {
+      try { await consider(await getSession()); } catch { /* calculator */ }
+      if (live) setChecking(false);
+    })();
+    // Signing in on the public calculator opens their Blueprint too.
+    const sub = onAuthStateChange((session) => { if (session) consider(session); });
+    return () => { live = false; sub.unsubscribe(); };
   }, []);
 
-  // ── Borrower share link flow ────────────────────────────────────────────
-  if (shareToken && !borrowerContext) {
+  // The Blueprint we opened for them is gone (link reset, removed from the
+  // list): forget it, ask Ops once more, else show the calculator.
+  const fallBack = async (failed) => {
+    const uid = uidRef.current;
+    rememberMine(uid, '');
+    let next = '';
+    try {
+      const session = await getSession();
+      const list = session ? await fetchShared(session.access_token) : null;
+      next = pickShared((list || []).filter((b) => b.share_token !== failed));
+      if (list && uid) rememberMine(uid, next || NONE);
+    } catch { /* calculator */ }
+    if (next) { setShareToken(next); return; }
+    busyRef.current = false;
+    setAuto(false);
+    setShareToken(null);
+  };
+
+  if (checking && !shareToken) {
+    return <div style={{ minHeight: '100vh', background: '#f4f9fc' }} />;
+  }
+
+  // ── Opening a shared Blueprint (sign in first if needed) ────────────────
+  if ((shareToken || openGate) && !borrowerContext) {
     if (shareExpired) {
       // Show expired state
       return <ShareExpiredScreen />;
@@ -137,12 +208,22 @@ function App() {
     return (
       <ShareFlowErrorBoundary>
         <BorrowerAuthGate
+          key={shareToken || 'open'}
           shareToken={shareToken}
+          auto={auto}
+          resolveToken={async (session) => {
+            const list = await fetchShared(session.access_token);
+            return pickShared(list, recallMine(session.user?.id));
+          }}
           onAuthenticated={(ctx) => {
-            // ctx = { sessionToken, account, shareToken, borrower, accessLevel, scenarios }
+            // ctx = { sessionToken, account, shareToken, userId, borrower, accessLevel, scenarios }
+            busyRef.current = true;
+            rememberMine(ctx.userId, ctx.shareToken);
+            cleanAddress();
             setBorrowerContext(ctx);
           }}
           onError={(type) => {
+            if (auto) { fallBack(shareToken); return; }
             if (type === 'expired') {
               setShareExpired(true);
             }
@@ -181,7 +262,7 @@ function App() {
           scenarios: list,
         }}
       />
-      <SavedNotice shareToken={st} />
+      {!auto && <SavedNotice shareToken={st} />}
       </ShareFlowErrorBoundary>
     );
   }

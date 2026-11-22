@@ -119,7 +119,8 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
     return () => { live = false; };
   }, [open, row]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shareUrl = borrower?.share_token ? `${WEB_ORIGIN}?share=${borrower.share_token}` : "https://blueprint.realstack.app";
+  // The sign-in page: signing in opens the Blueprint shared with their email.
+  const shareUrl = borrower?.share_token ? `${WEB_ORIGIN}?open=1` : "https://blueprint.realstack.app";
   const clientEmail = (payload?.borrower?.email || borrower?.email || "").trim();
   const emailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail), [clientEmail]);
   const gmailPath = gmailSendAvailable();
