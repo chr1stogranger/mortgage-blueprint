@@ -4,7 +4,7 @@ import AppBackground from "./components/AppBackground.jsx";
 import BackgroundPicker from "./components/BackgroundPicker.jsx";
 import EmbedPanelControls from "./components/EmbedPanelControls.jsx";
 import { EMBED, OPS_ORIGIN, postToHost } from "./lib/embed.js";
-import { SIDEBAR_W } from "./lib/layout.js";
+import { SIDEBAR_W, clampSidebarW } from "./lib/layout.js";
 import { backgroundById, readBgChoice, BG_CHOICE_KEY } from "./lib/backgrounds.js";
 import RateLadderSummary from "./components/RateLadderSummary.jsx";
 import { buildLadderView, ladderPdfData } from "./lib/rateLadder.js";
@@ -1533,6 +1533,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Embedded (Ops panel / second pane): start on the icon rail to give the
  // numbers the width.
  const [sidebarCollapsed, setSidebarCollapsed] = useState(!!EMBED);
+ // Expanded width: drag the sidebar's right edge (Chris 2026-11-21), saved
+ // per browser; double-click the edge to reset.
+ const [sidebarWidth, setSidebarWidth] = useState(() => {
+  try { const v = localStorage.getItem("bp_sidebar_w"); return v ? clampSidebarW(v) : SIDEBAR_W; } catch { return SIDEBAR_W; }
+ });
+ const saveSidebarWidth = (w) => { try { if (w === SIDEBAR_W) localStorage.removeItem("bp_sidebar_w"); else localStorage.setItem("bp_sidebar_w", String(w)); } catch { /* private window */ } };
+ const startSidebarResize = (e) => {
+  if (e.button != null && e.button !== 0) return;
+  e.preventDefault();
+  const root = document.documentElement;
+  root.classList.add("bp-sb-resizing"); // kills the width/left transitions while dragging
+  let last = sidebarWidth;
+  const onMove = (ev) => { last = clampSidebarW(ev.clientX); setSidebarWidth(last); };
+  const onUp = () => {
+   root.classList.remove("bp-sb-resizing");
+   window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); window.removeEventListener("pointercancel", onUp);
+   saveSidebarWidth(last);
+  };
+  window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp); window.addEventListener("pointercancel", onUp);
+ };
+ const nudgeSidebarWidth = (e) => {
+  const d = e.key === "ArrowLeft" ? -16 : e.key === "ArrowRight" ? 16 : 0;
+  if (!d) return;
+  e.preventDefault();
+  const w = clampSidebarW(sidebarWidth + d); setSidebarWidth(w); saveSidebarWidth(w);
+ };
  // Mobile RealStack shell drawer — slides in from the left on mobile when
  // the hamburger button in UnifiedHeader is tapped. Replaces the killed
  // Blueprint|PricePoint segmented pill row (2026-05-03).
@@ -9449,8 +9475,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
    {(isDesktop || mobileMenuOpen) && (
     <div className="bp-sidebar" style={{
-     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : SIDEBAR_W),
-     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : SIDEBAR_W),
+     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : sidebarWidth),
+     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : sidebarWidth),
      height: "100vh", position: "fixed", top: 0, left: 0,
      background: darkMode ? "#0d0d0f" : "#FFFFFF",
      borderRight: `1px solid ${T.separator}`,
@@ -9876,7 +9902,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : SIDEBAR_W}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : sidebarWidth) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -9904,7 +9930,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     loanNumber={loanNumber}
     darkMode={darkMode} themeMode={themeMode} cycleTheme={cycleTheme}
     privacyMode={privacyMode} setPrivacyMode={setPrivacyMode}
-    isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}
+    isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} sidebarWidth={sidebarWidth} T={T}
     skillLevel={skillLevel}
     onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
     appMode={appMode} setAppMode={setAppMode}
@@ -10710,7 +10736,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 })()}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : SIDEBAR_W} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : sidebarWidth} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
 )}
 {/* ═══ OVERVIEW ═══ */}
 {/* Mobile "On this page" strip (2026-09-06) — replaces the drawer's "Overview:
@@ -10747,7 +10773,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const btn = { border: "none", cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 9999, minHeight: 36, padding: "8px 14px", background: "transparent", color: T.textSecondary };
  return (
-  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
+  <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : sidebarWidth) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
    <div role="region" aria-label="Guided steps" style={{ maxWidth: 640, margin: "0 auto", pointerEvents: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: "0 10px 30px rgba(15,23,41,0.18)", padding: isDesktop ? "12px 14px" : "10px 12px", fontFamily: FONT }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
      <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: T.blue, fontWeight: 600, whiteSpace: "nowrap" }}>Step {current} of {total} · {step.label}</div>
@@ -11840,6 +11866,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </Suspense>
     </div>
    )}
+   {/* Drag the sidebar's right edge to resize it; double-click resets. */}
+   {isDesktop && !sidebarCollapsed && (
+    <div className="bp-sb-resize" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabIndex={0}
+     aria-valuenow={sidebarWidth} title="Drag to resize. Double-click to reset."
+     onPointerDown={startSidebarResize} onKeyDown={nudgeSidebarWidth}
+     onDoubleClick={() => { setSidebarWidth(SIDEBAR_W); saveSidebarWidth(SIDEBAR_W); }}
+     style={{ position: "fixed", top: 0, bottom: 0, left: sidebarWidth - 4, width: 8, zIndex: 901, cursor: "col-resize", touchAction: "none", "--bp-sb-line": T.blue }} />
+   )}
    {/* FloatingNextBar removed — replaced by TabProgressUnderline */}
 
    {/* ═══════════════════════════════════════════ */}
@@ -11847,7 +11881,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ═══════════════════════════════════════════ */}
    {/* ═══ SPLIT-SCREEN: Right-side panel (desktop only) ═══ */}
    {splitMode && isDesktop && splitApp && (() => {
-    const sidebarW = appMode === "blueprint" ? (sidebarCollapsed ? 56 : SIDEBAR_W) : 180;
+    const sidebarW = appMode === "blueprint" ? (sidebarCollapsed ? 56 : sidebarWidth) : 180;
     const splitW = `${100 - splitRatio}vw`;
     const splitLeft = `${splitRatio}vw`;
 

@@ -197,3 +197,10 @@ button:focus:not(:focus-visible) {
 @container (min-width: 858px) {
   .bp-set-colbreak { -webkit-column-break-before: always; break-before: column; }
 }
+
+/* Sidebar resize edge (MortgageBlueprint startSidebarResize): a 2px line shows
+   on hover / focus / drag, like the split-view divider. */
+.bp-sb-resize { outline: none; }
+.bp-sb-resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: var(--bp-sb-line); opacity: 0; transition: opacity 0.15s; }
+.bp-sb-resize:hover::after, .bp-sb-resize:focus-visible::after, .bp-sb-resizing .bp-sb-resize::after { opacity: 1; }
+.bp-sb-resizing, .bp-sb-resizing * { transition: none !important; user-select: none !important; cursor: col-resize !important; }
