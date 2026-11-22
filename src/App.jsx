@@ -4,9 +4,10 @@ import * as Sentry from '@sentry/react'
 import MortgageBlueprint from './MortgageBlueprint'
 import BlueprintAuth from './BlueprintAuth'
 import BorrowerAuthGate from './components/BorrowerAuthGate'
+import BlueprintChooser from './components/BlueprintChooser'
 import Icon from './Icon'
 import { getSession, onAuthStateChange } from './lib/supabaseClient'
-import { isToken, recallMine, rememberMine, fetchShared, pickShared, canOpenMine, wantsOpen, cleanAddress, NONE } from './lib/myBlueprint.js'
+import { isToken, recallMine, rememberMine, fetchShared, pickShared, needsChoice, sharedChoices, canOpenMine, wantsOpen, cleanAddress, NONE } from './lib/myBlueprint.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
@@ -137,9 +138,20 @@ function App() {
   const [checking, setChecking] = useState(() => !tokenFromUrl() && canOpenMine() && !wantsOpen());
   const [borrowerContext, setBorrowerContext] = useState(null);
   const [shareExpired, setShareExpired] = useState(false);
+  // Someone on two or more Blueprints, where guessing could open the wrong
+  // one: { items, email, pick(token) }. See needsChoice.
+  const [chooser, setChooser] = useState(null);
   const busyRef = useRef(false);     // a Blueprint is open or opening
   const askedRef = useRef('');       // user id we already looked up
   const uidRef = useRef('');
+
+  // They picked one on the chooser: open it like any other sign-in opening.
+  const openPicked = (token) => {
+    busyRef.current = true;
+    setChooser(null);
+    setAuto(true);
+    setShareToken(token);
+  };
 
   useEffect(() => {
     if (tokenFromUrl() || !canOpenMine() || wantsOpen()) return undefined;
@@ -160,6 +172,10 @@ function App() {
       if (isToken(last)) { open(last); return; }
       const ask = fetchShared(session.access_token).then((list) => {
         if (!list) return;
+        if (needsChoice(list)) {
+          if (live && !busyRef.current) setChooser({ items: sharedChoices(list), email: session.user?.email || '', pick: openPicked });
+          return;
+        }
         const token = pickShared(list);
         rememberMine(uid, token || NONE);
         open(token);
@@ -182,17 +198,30 @@ function App() {
     const uid = uidRef.current;
     rememberMine(uid, '');
     let next = '';
+    let ask = null;
     try {
       const session = await getSession();
       const list = session ? await fetchShared(session.access_token) : null;
-      next = pickShared((list || []).filter((b) => b.share_token !== failed));
-      if (list && uid) rememberMine(uid, next || NONE);
+      const rest = (list || []).filter((b) => b.share_token !== failed);
+      if (needsChoice(rest)) ask = { items: sharedChoices(rest), email: session?.user?.email || '', pick: openPicked };
+      else {
+        next = pickShared(rest);
+        if (list && uid) rememberMine(uid, next || NONE);
+      }
     } catch { /* calculator */ }
     if (next) { setShareToken(next); return; }
     busyRef.current = false;
     setAuto(false);
     setShareToken(null);
+    if (ask) setChooser(ask);
   };
+
+  const chooserEl = chooser
+    ? <BlueprintChooser items={chooser.items} email={chooser.email} onPick={chooser.pick} />
+    : null;
+
+  // Signed in on the plain home page with several Blueprints: ask which one.
+  if (chooserEl && !shareToken && !openGate && !borrowerContext) return chooserEl;
 
   if (checking && !shareToken) {
     return <div style={{ minHeight: '100vh', background: '#f4f9fc' }} />;
@@ -213,7 +242,17 @@ function App() {
           auto={auto}
           resolveToken={async (session) => {
             const list = await fetchShared(session.access_token);
-            return pickShared(list, recallMine(session.user?.id));
+            const last = recallMine(session.user?.id);
+            // An invite may be for a different Blueprint than the one they
+            // opened last, so with several we ask. The gate waits underneath.
+            if (needsChoice(list, last, true)) {
+              return new Promise((resolve) => setChooser({
+                items: sharedChoices(list),
+                email: session.user?.email || '',
+                pick: (token) => { setChooser(null); resolve(token); },
+              }));
+            }
+            return pickShared(list, last);
           }}
           onAuthenticated={(ctx) => {
             // ctx = { sessionToken, account, shareToken, userId, borrower, accessLevel, scenarios }
@@ -229,6 +268,7 @@ function App() {
             }
           }}
         />
+        {chooserEl}
       </ShareFlowErrorBoundary>
     );
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isToken, pickShared, wantsOpen, canOpenMine } from './myBlueprint.js';
+import { isToken, pickShared, needsChoice, sharedChoices, wantsOpen, canOpenMine } from './myBlueprint.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -16,6 +16,28 @@ describe('pickShared', () => {
     expect(pickShared([])).toBe('');
     expect(pickShared(null)).toBe('');
     expect(pickShared([{ share_token: 'nope' }, {}])).toBe('');
+  });
+});
+
+describe('needsChoice', () => {
+  const two = [{ share_token: A }, { share_token: B }];
+  it('never asks someone on one Blueprint', () => {
+    expect(needsChoice([{ share_token: A }], '', true)).toBe(false);
+    expect(needsChoice([], '', true)).toBe(false);
+    expect(needsChoice([{ share_token: A }, { share_token: 'junk' }])).toBe(false);
+  });
+  it('asks on a device that has not opened one of them', () => {
+    expect(needsChoice(two)).toBe(true);
+    expect(needsChoice(two, 'none')).toBe(true);
+  });
+  it('goes back to the last one on a returning visit', () => {
+    expect(needsChoice(two, B)).toBe(false);
+  });
+  it('always asks after an invite, which may be for a different one', () => {
+    expect(needsChoice(two, B, true)).toBe(true);
+  });
+  it('lists only the ones that can be opened', () => {
+    expect(sharedChoices([{ share_token: A }, {}, null, { share_token: 'x' }])).toEqual([{ share_token: A }]);
   });
 });
 

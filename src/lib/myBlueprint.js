@@ -53,14 +53,33 @@ export async function fetchShared(accessToken) {
   } catch { return null; }
 }
 
+/** The shared Blueprints that can actually be opened. */
+export function sharedChoices(list) {
+  return (Array.isArray(list) ? list : []).filter((b) => isToken(b?.share_token));
+}
+
 /**
  * Which one opens: the one they had open last if it is still shared with
  * them, else the most recently updated (Ops sends newest first).
  */
 export function pickShared(list, last = '') {
-  const ok = (Array.isArray(list) ? list : []).filter((b) => isToken(b?.share_token));
+  const ok = sharedChoices(list);
   if (!ok.length) return '';
   return (ok.find((b) => b.share_token === last) || ok[0]).share_token;
+}
+
+/**
+ * Should we ask instead of guessing? Only for someone on two or more
+ * Blueprints, and only when a guess could be wrong: they followed an invite
+ * (it may be for a different one than they opened last), or this device has
+ * never opened one of them. A returning visit goes back to the last one;
+ * "Shared with you" in the menu switches.
+ */
+export function needsChoice(list, last = '', invite = false) {
+  const ok = sharedChoices(list);
+  if (ok.length < 2) return false;
+  if (invite) return true;
+  return !ok.some((b) => b.share_token === last);
 }
 
 /**
