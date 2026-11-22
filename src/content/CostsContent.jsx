@@ -1178,7 +1178,7 @@ export default function CostsContent(props) {
       {/* ─── Guided explainer — plain-English intro to closing costs.
           Shown only in guided mode. data-field="costs" is the pulse anchor the
           guided sequence scrolls to (step 9); the breakdown boxes below start
-          collapsed in guided so this reads as a summary with opt-in depth. ─── */}
+          expanded in guided too (Chris 2026-11-21: collapsed hid the fees). ─── */}
       {isGuided && (() => {
         const allCosts = totalClosingCosts + (calc.totalPrepaidExp || 0);
         const costPct = salesPrice > 0 ? (allCosts / salesPrice) * 100 : 0;
@@ -1201,11 +1201,11 @@ export default function CostsContent(props) {
           IFW side-by-side sheet. Mobile stays stacked. ─── */}
       <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "stretch" }}>
       <div style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
-      {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
+      {/* ─── MASTER 1: Closing Costs (open by default in every mode) ─── */}
       {/* The step's highlight wraps the card itself (QA 2026-10-27: an empty
           anchor div meant guided steps 10-12 showed nothing). */}
       <div data-field="closing-costs" className={isPulse ? isPulse("closing-costs") : ""} style={{ borderRadius: 16, display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill inset
+      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} fill inset
         headerExtra={masterLockPill(isRefi ? ["A", "B", "C", "E"] : ["A", "B", "C", "E", "H"])}>
 
         {/* A. Origination Charges — lockable */}
@@ -1431,7 +1431,7 @@ export default function CostsContent(props) {
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
       <div data-field="prepaids" className={isPulse ? isPulse("prepaids") : ""} style={{ borderRadius: 16 }}>
-      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={!isGuided} inset>
+      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} inset>
 
         {/* F. Prepaids — lockable so the two Property Tax rows can be revealed for editing.
             Order matches Christo's client-walkthrough spreadsheet:
@@ -1643,13 +1643,12 @@ export default function CostsContent(props) {
 
 
 
-      {/* ─── MASTER 3: Credits to Buyer (default COLLAPSED) ───── */}
+      {/* ─── MASTER 3: Credits to Buyer (open by default) ───── */}
       <div data-field="credits" className={isPulse ? isPulse("credits") : ""} style={{ borderRadius: 16 }}>
       <CollapsibleBox
         title="Credits to Buyer"
         total={`−${fmt2(calc.totalCredits)}`}
         totalColor={T.green}
-        defaultOpen={!isGuided}
         inset
       >
         {/* Same inset section cards as Closing Costs (Christo 2026-10-21).
