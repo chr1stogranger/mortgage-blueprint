@@ -1213,6 +1213,7 @@ const guideGroupOf = (f) => {
 };
 const GUIDE_KEY_STEP = {
  "transaction-type-done": "transaction-type", "fico-input-done": "fico-input", "zip-code-done": "zip-code",
+ "calc-occupancy-done": "calc-occupancy", "calc-proptype-done": "calc-proptype", "calc-loantype-done": "calc-loantype", "calc-term-done": "calc-term",
  "calc-price-done": "calc-price", "calc-down-done": "calc-down", "get-rates": "get-rates",
  "payment-breakdown-done": "payment-breakdown", "modules-done": "modules",
  "closing-costs-done": "closing-costs", "prepaids-done": "prepaids", "credits-done": "credits",
@@ -6267,13 +6268,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // away mid-keystroke. Toggle/select/button steps advance on guideTouched.
   // The order follows the page top to bottom (remapped 2026-11-20):
   //  1) Transaction type     — SetupContent
-  //  2) FICO score           — SetupContent
-  //  3) ZIP code             — SetupContent
+  //  2) ZIP code             — SetupContent
+  //  3) FICO score           — SetupContent
   //     — a refinance stops here and hands off to its own four steps —
-  //  4) Purchase price       — CalculatorContent
-  //  5) Down payment         — CalculatorContent
-  //  6) Rate                 — CalculatorContent
-  //  7) Payment breakdown    — CalculatorContent
+  //  4) Occupancy, 5) Property type, 6) Loan type, 7) Term — CalculatorContent
+  //  then Purchase price, Down payment, Rate, Payment breakdown — CalculatorContent
   //  8) Modules              — "Add to this Blueprint", under the donut
   //  9) Closing costs, 10) Prepaids, 11) Credits — CostsContent
   // 12) Assets               — AssetsContent
@@ -6283,25 +6282,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 16) Pre-Qualified        — QualifyContent
   // 17) Tax Savings          — TaxContent
   // 18) Equity               — AmortContent
-  // Occupancy / Property Type / Loan Type / Term is NOT a step (Chris
-  // 2026-11-20): the defaults fit a first-time buyer and the row sits above
-  // the price on desktop, so stopping there sent the walk back up the page.
 
   // 1. Transaction type — Purchase or Refinance
   if (isRefi === null || !guideTouched.has("transaction-type-done")) return "transaction-type";
 
-  // 2. FICO score — wait for a full, valid score (300+, the real FICO floor)
+  // 2. ZIP code — advances once all 5 digits are in. Ahead of the credit
+  //    score (Chris 2026-11-21).
+  if (!propertyZip || propertyZip.length < 5 || !guideTouched.has("zip-code-done")) return "zip-code";
+
+  // 3. FICO score — wait for a full, valid score (300+, the real FICO floor)
   //    before advancing, so typing the first digit doesn't yank the cursor.
   if (creditScore < 300 || !guideTouched.has("fico-input-done")) return "fico-input";
-
-  // 3. ZIP code — advances once all 5 digits are in
-  if (!propertyZip || propertyZip.length < 5 || !guideTouched.has("zip-code-done")) return "zip-code";
 
   // A refinance ends the walk here. Refi Overview is its own four steps
   // (Current loan · New loan · Costs · Review, 2026-10-31) that show one
   // section at a time, so every later anchor below is hidden: the bar used
   // to name 12 more steps while pointing at nothing.
   if (isRefi) return null;
+
+  // 4-7. Occupancy, Property type, Loan type, Term — one stop each (Chris
+  //    2026-11-21; the single four-dropdown stop was dropped 2026-11-20).
+  //    Each has a sensible default, so Continue passes it; changing the
+  //    dropdown also moves on.
+  if (!guideTouched.has("calc-occupancy-done")) return "calc-occupancy";
+  if (!guideTouched.has("calc-proptype-done")) return "calc-proptype";
+  if (!guideTouched.has("calc-loantype-done")) return "calc-loantype";
+  if (!guideTouched.has("calc-term-done")) return "calc-term";
 
   // 4. Purchase price (purchase only) — hold the pulse until a full
   //    6-digit price ($100k+) is entered. The input is debounced, but a
@@ -6379,13 +6385,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const ladder = [
    { id: "transaction-type", label: "Buy or refinance", on: true, keys: ["transaction-type-done"], ready: true,
      hint: "Are you buying a home, or refinancing one you own? Pick one above." },
-   { id: "fico-input", label: "Credit score", on: true, keys: ["fico-input-done"], ready: creditScore >= 300,
-     hint: "Type your credit score (300 to 850). Not sure? Use the score from your bank or card app." },
    { id: "zip-code", label: "ZIP code", on: true, keys: ["zip-code-done"], ready: !!propertyZip && propertyZip.length === 5,
-     hint: isRefi ? "Type the 5-digit ZIP code of the home you're refinancing. Next you'll walk through your current loan."
+     hint: isRefi ? "Type the 5-digit ZIP code of the home you're refinancing."
       : "Type the 5-digit ZIP code where you want to buy. It sets local taxes and loan limits." },
-   // Everything below is purchase only: a refinance stops after ZIP (see
+   { id: "fico-input", label: "Credit score", on: true, keys: ["fico-input-done"], ready: creditScore >= 300,
+     hint: "Type your credit score (300 to 850). Not sure? Use the score from your bank or card app."
+      + (isRefi ? " Next you'll walk through your current loan." : "") },
+   // Everything below is purchase only: a refinance stops after the score (see
    // guideField) and its own four steps take over.
+   { id: "calc-occupancy", label: "Occupancy", on: !isRefi, keys: ["calc-occupancy-done"], ready: true,
+     hint: "Will you live in this home, use it as a second home, or rent it out? Pick one, or press Continue to keep what's there." },
+   { id: "calc-proptype", label: "Property type", on: !isRefi, keys: ["calc-proptype-done"], ready: true,
+     hint: "What kind of home is it: a house, a condo, a townhouse, or 2 to 4 units?" },
+   { id: "calc-loantype", label: "Loan type", on: !isRefi, keys: ["calc-loantype-done"], ready: true,
+     hint: "Conventional fits most buyers. Pick FHA or VA if that's your plan. Not sure? Leave it and press Continue." },
+   { id: "calc-term", label: "Term", on: !isRefi, keys: ["calc-term-done"], ready: true,
+     hint: "How many years to pay the loan off. Most buyers pick 30." },
    { id: "calc-price", label: "Price", on: !isRefi, keys: ["calc-price-done"], ready: salesPrice >= 100000,
      hint: "Type the price of the home you have in mind." },
    // Needs a number (Chris 2026-11-20): Continue at 0% went straight to a red
@@ -6455,7 +6470,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Steps whose anchor contains a text input the user should be dropped into.
   // Non-input steps (modules, get-rates, section banners) just
   // scroll into view — no focus steal.
-  const inputFields = ["fico-input","zip-code","calc-price","calc-down","refi-current-rate","refi-current-balance","qualify-fico"];
+  const inputFields = ["fico-input","zip-code","calc-occupancy","calc-proptype","calc-loantype","calc-term","calc-price","calc-down","refi-current-rate","refi-current-balance","qualify-fico"];
   const timer = setTimeout(() => {
    const el = document.querySelector(`[data-field="${guideField}"]`);
    if (el) {
@@ -6466,7 +6481,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     else el.scrollIntoView({ behavior: "smooth", block: "center" });
     if (inputFields.includes(guideField)) {
      setTimeout(() => {
-      const inp = el.querySelector("input");
+      const inp = el.querySelector("input, select");
       if (inp) inp.focus();
      }, 300);
     }

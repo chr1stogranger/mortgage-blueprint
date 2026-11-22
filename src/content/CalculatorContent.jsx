@@ -845,6 +845,7 @@ export default function CalculatorContent(props) {
        structure together, and keeping them out of row 2 lets the pillar row
        align with the 3-stat row on the left. */}
    <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: isDesktop && props.loanStructureOnly ? "repeat(4, 1fr)" : "1fr 1fr", gap: isDesktop ? 12 : "0 10px", marginBottom: props.loanStructureOnly ? 12 : isDesktop ? 0 : 8, ...(isDesktop && !props.loanStructureOnly ? { flex: 1, alignContent: "center" } : {}), borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: isDesktop ? 12 : "10px 12px 4px", boxShadow: T.cardShadow }}>
+    <div data-field="calc-occupancy" className={isPulse && isPulse("calc-occupancy")} onChange={() => markTouched && markTouched("calc-occupancy-done")}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -857,9 +858,11 @@ export default function CalculatorContent(props) {
      ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
      : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
     } req sm={!isDesktop} />
-    <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
+    </div>
+    <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onChange={() => markTouched && markTouched("calc-proptype-done")}>
      <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req sm={!isDesktop} />
     </div>
+    <div data-field="calc-loantype" className={isPulse && isPulse("calc-loantype")} onChange={() => markTouched && markTouched("calc-loantype-done")}>
     <Sel label="Loan Type" value={loanType} onChange={v => {
      setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false);
      // DSCR is investment-only. Same +1% bump as picking Investment by hand,
@@ -869,7 +872,8 @@ export default function CalculatorContent(props) {
       setLoanPurpose("Purchase Investment");
      }
     }} options={isRefi && loanType !== "DSCR" ? LOAN_TYPES.filter(t => t !== "DSCR") : LOAN_TYPES} req sm={!isDesktop} />
-    <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
+    </div>
+    <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onChange={() => markTouched && markTouched("calc-term-done")}>
      <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[30, 25, 20, 15, 10, ...Array.from({length: 26}, (_, i) => 30 - i).filter(y => ![30, 25, 20, 15, 10].includes(y))].map(y => ({value: y, label: `${y} Year${y === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
     </div>
    </div>
