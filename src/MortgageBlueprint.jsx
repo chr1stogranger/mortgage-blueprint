@@ -1194,6 +1194,27 @@ const MOBILE_BAR_ITEMS = [
 // Tabs where the sticky payment pill makes sense (numbers pages only).
 const STICKY_PILL_TABS = ["overview", "compare", "refi", "refi3", "invest", "rentvbuy", "sell", "reo", "prop19"];
 
+// Guided walk: the step a data-field anchor belongs to, and the step each
+// "done" key finishes. Keep in line with the ladder in guidedStep.
+const guideGroupOf = (f) => {
+ if (f === "add-asset" || f === "assets-section") return "assets";
+ if (f === "owns-properties-toggle" || f === "debts-section") return "debts";
+ if (f === "reo-section") return "reo";
+ if (f === "income-section") return "income";
+ if (f === "qualify-section") return "qualify";
+ if (f === "tax-filing") return "tax";
+ if (f === "amort-section") return "equity";
+ return f;
+};
+const GUIDE_KEY_STEP = {
+ "transaction-type-done": "transaction-type", "fico-input-done": "fico-input", "zip-code-done": "zip-code",
+ "calc-price-done": "calc-price", "calc-down-done": "calc-down", "get-rates": "get-rates",
+ "payment-breakdown-done": "payment-breakdown", "modules-done": "modules",
+ "closing-costs-done": "closing-costs", "prepaids-done": "prepaids", "credits-done": "credits",
+ "assets-section-done": "assets", "owns-properties-toggle": "debts", "debts-section-done": "debts",
+ "reo-section": "reo", "income-section-done": "income", "qualify-section": "qualify",
+ "tax-filing": "tax", "amort-section": "equity",
+};
 export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // ── Borrower mode detection ──
  const isBorrower = !!borrowerMode?.enabled;
@@ -6157,12 +6178,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // ═══ SEQUENTIAL PULSE GUIDE ═══
  // Tracks which fields with defaults have been explicitly interacted with.
  const [guideTouched, setGuideTouched] = useState(new Set());
- const markTouched = (field) => setGuideTouched(prev => {
-  if (prev.has(field)) return prev;
-  const next = new Set(prev);
-  next.add(field);
-  return next;
- });
+ // A step can only be finished while the walk is standing on it (Chris
+ // 2026-11-21). Fields mark their step done on blur, and the walk moves the
+ // cursor itself: Back from Down payment to Price blurred Down payment, which
+ // marked it done again and threw the walk forward to the furthest step.
+ const guideFieldRef = useRef(null);
+ const markTouched = (field) => {
+  const owner = GUIDE_KEY_STEP[field];
+  const cur = guideFieldRef.current;
+  if (owner && cur && owner !== guideGroupOf(cur)) return;
+  setGuideTouched(prev => {
+   if (prev.has(field)) return prev;
+   const next = new Set(prev);
+   next.add(field);
+   return next;
+  });
+ };
  // Guided progress is saved per scenario, so a reload or a Guided off/on
  // resumes where the buyer was instead of restarting at step 1 (Christo
  // 2026-10-27). Written only while Guided is on.
@@ -6304,6 +6335,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // All guided steps complete — no more highlights
   return null;
  })();
+ guideFieldRef.current = guideField;
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
  // guidedStep — "Step X of N" descriptor for the guided progress strip.
  // Mirrors the guideField ladder; conditional steps are filtered per scenario.
@@ -6356,16 +6388,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    { id: "equity", label: "Equity", on: !isRefi, keys: ["amort-section"], ready: true,
      hint: "How your home builds value over time as you pay it down." },
   ].filter(s => s.on);
-  const groupOf = (f) => {
-   if (f === "add-asset" || f === "assets-section") return "assets";
-   if (f === "owns-properties-toggle" || f === "debts-section") return "debts";
-   if (f === "reo-section") return "reo";
-   if (f === "income-section") return "income";
-   if (f === "qualify-section") return "qualify";
-   if (f === "tax-filing") return "tax";
-   if (f === "amort-section") return "equity";
-   return f;
-  };
+  const groupOf = guideGroupOf;
   const total = ladder.length;
   // A refinance has no "all done": its own steps carry on from here, so the
   // progress strip, the bar and the finish card all stand down.
@@ -10771,6 +10794,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!prevStep) return;
   setGuideTouched(prev => { const n = new Set(prev); prevStep.keys.forEach(k => n.delete(k)); return n; });
  };
+ // Reset (Chris 2026-11-21): back to step 1. Only the walk restarts; every
+ // number already typed stays where it is.
+ const onReset = () => { guideBarPressRef.current = null; setGuideTouched(new Set()); };
  const btn = { border: "none", cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13, borderRadius: 9999, minHeight: 36, padding: "8px 14px", background: "transparent", color: T.textSecondary };
  return (
   <div style={{ position: "fixed", left: isDesktop ? (sidebarCollapsed ? 56 : sidebarWidth) : 0, right: 0, bottom: isDesktop ? 16 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 8px)`, zIndex: 40, padding: "0 12px", pointerEvents: "none" }}>
@@ -10780,6 +10806,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ flex: 1, height: 3, background: T.separator, borderRadius: 2, overflow: "hidden" }}>
       <div style={{ height: "100%", width: `${Math.round(((current - 1) / total) * 100)}%`, background: T.blue, borderRadius: 2, transition: "width 0.4s ease" }} />
      </div>
+     {idx > 0 && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onReset} title="Start the guide over at step 1. Your numbers stay."
+      style={{ ...btn, minHeight: 0, padding: "2px 4px", fontSize: 12, fontWeight: 500, textDecoration: "underline", textUnderlineOffset: 3 }}>Reset</button>}
     </div>
     <div style={{ fontSize: 13.5, color: T.text, lineHeight: 1.45, marginBottom: 8 }}>{step.hint}</div>
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

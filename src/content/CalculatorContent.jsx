@@ -653,7 +653,12 @@ export default function CalculatorContent(props) {
   );
 
   const priceCard = (
-   <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+   <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={(e) => {
+    // This card holds the Down field too, and its blur bubbles up here. Back
+    // from Down to Price moves the cursor out of Down, which marked Price
+    // done again and put the walk straight back on Down (Chris 2026-11-21).
+    if (e.target.closest && e.target.closest('[data-field="calc-down"]')) return;
+    if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
      {/* Phones trim the bottom pad: the inputs already carry 14px below. */}
      {/* Phones: tighter card so the screenshot fits (Christo 2026-10-01). */}
