@@ -23,7 +23,10 @@ export function logTeamTap(surface, action, who) {
     fetch(apiUrl("/api/team-tap"), {
       method: "POST",
       keepalive: true,
-      headers: { "Content-Type": "application/json" },
+      // text/plain is a "simple" request: no CORS preflight from the app's
+      // own origin (Capacitor), so the beacon survives the tel:/sms: hand-off.
+      // The handler parses string bodies.
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify({ surface, action, who: who || null, ...ctx }),
     }).catch(() => {});
   } catch { /* counting must never block the tap */ }
