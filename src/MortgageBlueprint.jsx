@@ -1,5 +1,6 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import { todayLocal } from "./lib/today.js";
+import { fmtPhone } from "./lib/phone.js";
 import AppBackground from "./components/AppBackground.jsx";
 import BackgroundPicker from "./components/BackgroundPicker.jsx";
 import EmbedPanelControls from "./components/EmbedPanelControls.jsx";
@@ -10809,7 +10810,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
    {loanOfficer && (
     <div style={{ fontSize: 12.5, marginTop: 14, fontFamily: FONT, color: T.textSecondary }}>
-     Questions? {loanOfficer}{loPhone ? ` · ${loPhone}` : ""}{loNmls ? ` · NMLS #${loNmls}` : ""}{companyName ? ` · ${companyName}` : ""}
+     Questions? {loanOfficer}{loPhone ? ` · ${fmtPhone(loPhone)}` : ""}{loNmls ? ` · NMLS #${loNmls}` : ""}{companyName ? ` · ${companyName}` : ""}
     </div>
    )}
    {disclaimer}
