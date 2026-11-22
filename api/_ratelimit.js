@@ -16,9 +16,10 @@ const buckets = new Map(); // ip -> array of request timestamps
 
 function clientIp(req) {
   // Vercel sets x-forwarded-for; first entry is the client.
-  const xff = req.headers["x-forwarded-for"];
+  const headers = req.headers || {};
+  const xff = headers["x-forwarded-for"];
   if (typeof xff === "string" && xff.length > 0) return xff.split(",")[0].trim();
-  return req.headers["x-real-ip"] || req.socket?.remoteAddress || "unknown";
+  return headers["x-real-ip"] || req.socket?.remoteAddress || "unknown";
 }
 
 /**
