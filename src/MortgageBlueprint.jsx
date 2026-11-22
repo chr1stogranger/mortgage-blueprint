@@ -100,6 +100,7 @@ import PresenceBar from "./components/PresenceBar";
 import LivePresenceLayer from "./components/LivePresenceLayer";
 import { presenceRoot, findByKey, outlineBoxFor } from "./lib/fieldPresence";
 import LockControls from "./components/LockControls";
+import SharedBlueprints from './components/SharedBlueprints';
 import ShareAccessCard from "./components/ShareAccessCard";
 import LockedSection from "./components/LockedSection";
 import VersionTimeline from "./components/VersionTimeline";
@@ -9791,6 +9792,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         <div style={{ height: 1, background: T.separator, margin: "8px 12px 2px" }} />
        </>
       )}
+      {/* Shared with you: Blueprints a loan officer shared with this email,
+          live (opening a share link saves it here; there is no copy). Shown
+          on a signed-in borrower's own calculator and, for someone on more
+          than one file, inside a shared Blueprint too. (2026-11-21) */}
+      {(selfMode || isBorrower) && appMode === "blueprint" && (!isDesktop || !sidebarCollapsed) && (
+       <SharedBlueprints T={T} items={account.sharedBlueprints}
+        currentToken={isBorrower ? borrowerMode?.shareToken : null}
+        onNavigate={() => { if (!isDesktop) setMobileMenuOpen(false); }} />
+      )}
       {/* Blueprint nav */}
       {/* Mobile (2026-09-06): tabs live in the bottom bar / More sheet and the
           "Jump to" index in the Overview "On this page" pill, so the drawer
@@ -9975,6 +9985,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     onCreateNewBlueprint={isCloud && !isBorrower ? () => { setCreateClientPrefill(""); setCreateClientOpen(true); } : null}
     showAccountButton={!isBorrower && !isCloud}
     selfAccount={selfMode ? (account.account || { email: account.session?.user?.email || '' }) : null}
+    sharedBlueprints={(selfMode || isBorrower) ? { items: account.sharedBlueprints, currentToken: isBorrower ? borrowerMode?.shareToken : null } : null}
     onOpenAccountSheet={() => setShowAccountSheet(true)}
     selfSyncStatus={selfMode && account.syncEnabled ? selfSync.status : ''}
     borrowerList={borrowerList} activeBorrower={activeBorrower}

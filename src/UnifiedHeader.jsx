@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { repayPillar } from "./lib/nonQm.js";
 import useEscape from "./hooks/useEscape.js";
+import SharedBlueprints from "./components/SharedBlueprints";
 import useDeployVersion from "./hooks/useDeployVersion.js";
 import { SIDEBAR_W } from "./lib/layout.js";
 
@@ -51,6 +52,7 @@ export default function UnifiedHeader({
   onCreateNewBlueprint,
   /* Borrower account (self-serve sign-in on the public calculator) */
   showAccountButton, selfAccount, onOpenAccountSheet, selfSyncStatus,
+  sharedBlueprints, // { items, currentToken }: Blueprints shared with this person, or null
   borrowerList, activeBorrower, borrowerLoading,
   borrowerScenarios, borrowerScenariosLoading,
   BorrowerPicker, borrowerPickerCallbacks,
@@ -544,6 +546,7 @@ export default function UnifiedHeader({
               T={T} scenarioName={scenarioName} scenarioList={scenarioList || []}
               clientLabel={(!isBorrower && activeBorrower && (activeBorrower.name || "").trim()) ? activeBorrower.name.trim() : ""}
               switchScenario={switchScenario} actions={scenarioActions} canEdit={!!canEditScenarios}
+              shared={sharedBlueprints}
             />
           </div>
         )}
@@ -744,14 +747,16 @@ export default function UnifiedHeader({
  * scenario, with a per-row kebab revealing Rename / Duplicate / Delete inline,
  * and a "+ New scenario" footer. Mirrors the desktop sidebar's scnMenu.
  */
-function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenario, actions, canEdit, compact = false }) {
+function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenario, actions, canEdit, compact = false, shared = null }) {
   const [open, setOpen] = useState(false);
   const [menuFor, setMenuFor] = useState(null);      // scenario name with the action strip open
   const [editing, setEditing] = useState(null);      // scenario name being renamed
   const [editValue, setEditValue] = useState("");
   const [rect, setRect] = useState(null);
   const btnRef = useRef(null);
-  const interactive = scenarioList.length > 1 || canEdit;
+  // Blueprints a loan officer shared with this person (phones reach them here).
+  const hasShared = (shared?.items || []).some((b) => b?.share_token && b.share_token !== shared.currentToken);
+  const interactive = scenarioList.length > 1 || canEdit || hasShared;
   const label = clientLabel ? `${clientLabel} · ${scenarioName || "Scenario 1"}` : (scenarioName || "Scenario 1");
   const openMenu = () => {
     if (!interactive) return;
@@ -847,6 +852,7 @@ function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenar
                 </button>
               </>
             )}
+            {hasShared && <SharedBlueprints T={T} items={shared.items} currentToken={shared.currentToken} onNavigate={close} dividerAbove />}
           </div>
         </>,
         document.body

@@ -8,50 +8,30 @@ import Icon from './Icon'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
-// ── Claim banner — "save this shared blueprint to my account" ────────────────
-// Shown in share-link borrower mode. Claiming copies (or transfers, per the
-// LO's claim_mode) the scenarios into the borrower's own account so they
-// survive share-link expiry and sync to their other devices.
-function ClaimBanner({ sessionToken, shareToken }) {
-  const dismissKey = `bp_claim_dismissed_${shareToken}`;
-  const [state, setState] = useState(() => {
-    try { return localStorage.getItem(dismissKey) || 'idle'; } catch { return 'idle'; }
-  });
-
-  if (state === 'dismissed' || state === 'claimed') return null;
-
-  const claim = async () => {
-    setState('claiming');
+// ── Saved notice: "this shared Blueprint is in your account now" ────────────
+// Shown once per share link in borrower mode. Opening the link is what saves
+// it: Ops lists every Blueprint this email is on under "Shared with you", as
+// a live view of the loan officer's file. It used to offer "Keep a copy",
+// and a copy went stale the moment the LO changed a number (2026-11-21).
+function SavedNotice({ shareToken }) {
+  const seenKey = `bp_saved_notice_${shareToken}`;
+  const [show, setShow] = useState(() => {
     try {
-      const res = await fetch(`${API_BASE}/api/collab?resource=account&action=claim`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({ share_token: shareToken }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Could not save');
-      }
-      try { localStorage.setItem(dismissKey, 'claimed'); } catch { /* noop */ }
-      setState('done');
-      setTimeout(() => setState('claimed'), 4000);
-    } catch (e) {
-      console.warn('[Claim]', e.message);
-      setState('error');
-      setTimeout(() => setState('idle'), 4000);
-    }
-  };
+      // Anyone who answered the old "Keep a copy" banner has seen enough.
+      return !localStorage.getItem(seenKey) && !localStorage.getItem(`bp_claim_dismissed_${shareToken}`);
+    } catch { return false; }
+  });
+  useEffect(() => {
+    if (!show) return undefined;
+    try { localStorage.setItem(seenKey, '1'); } catch { /* noop */ }
+    const t = setTimeout(() => setShow(false), 9000);
+    return () => clearTimeout(t);
+  }, [show, seenKey]);
 
-  const dismiss = () => {
-    try { localStorage.setItem(dismissKey, 'dismissed'); } catch { /* noop */ }
-    setState('dismissed');
-  };
+  if (!show) return null;
 
   return (
-    <div style={{
+    <div role="status" style={{
       // Rides above the guided step bar when it's up (--bp-guide-bar-top is
       // set by the bar in MortgageBlueprint.jsx; 0 when there is no bar).
       position: 'fixed', bottom: 'max(calc(16px + env(safe-area-inset-bottom, 0px)), calc(var(--bp-guide-bar-top, 0px) + 8px))',
@@ -64,39 +44,20 @@ function ClaimBanner({ sessionToken, shareToken }) {
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
     }}>
-      {state === 'done' ? (
-        <span style={{ fontSize: 13, color: '#12a150', fontWeight: 600, padding: '4px 8px' }}>
-          Saved to your account. It's yours now, on every device
-        </span>
-      ) : (
-        <>
-          <span style={{ fontSize: 13, color: '#A1A1A1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {state === 'error' ? 'Could not save. Try again' : 'Keep a copy of this blueprint?'}
-          </span>
-          <button
-            onClick={claim}
-            disabled={state === 'claiming'}
-            style={{
-              padding: '7px 14px', borderRadius: 9999, border: 'none',
-              background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
-              color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              whiteSpace: 'nowrap', flexShrink: 0,
-            }}
-          >
-            {state === 'claiming' ? 'Saving…' : 'Add to my Blueprints'}
-          </button>
-          <button
-            onClick={dismiss}
-            aria-label="Dismiss"
-            style={{
-              background: 'none', border: 'none', color: '#666',
-              fontSize: 14, cursor: 'pointer', padding: '4px 6px', flexShrink: 0,
-            }}
-          >
-            ✕
-          </button>
-        </>
-      )}
+      <span style={{ fontSize: 13, color: '#EDEDED', lineHeight: 1.35 }}>
+        <span style={{ color: '#12a150', fontWeight: 600 }}>Saved to your account.</span>{' '}
+        Sign in at blueprint.realstack.app on any device to open it.
+      </span>
+      <button
+        onClick={() => setShow(false)}
+        aria-label="Dismiss"
+        style={{
+          background: 'none', border: 'none', color: '#8A8A8A',
+          fontSize: 14, cursor: 'pointer', padding: '4px 6px', flexShrink: 0,
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 }
@@ -216,7 +177,7 @@ function App() {
           scenarios: list,
         }}
       />
-      <ClaimBanner sessionToken={sessionToken} shareToken={st} />
+      <SavedNotice shareToken={st} />
       </ShareFlowErrorBoundary>
     );
   }

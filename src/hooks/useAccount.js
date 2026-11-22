@@ -21,6 +21,7 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 const SYNC_PREF_KEY = 'bp_sync_enabled';
+const EMPTY = [];
 
 export default function useAccount() {
   const [session, setSession] = useState(null);
@@ -29,6 +30,8 @@ export default function useAccount() {
   const [syncEnabled, setSyncEnabledState] = useState(() => {
     try { return localStorage.getItem(SYNC_PREF_KEY) === '1'; } catch { return false; }
   });
+  // Blueprints a loan officer shared with this email: live views, never copies.
+  const [shared, setShared] = useState({ uid: '', list: [] });
   const mountedRef = useRef(true);
 
   const loadAccount = useCallback(async () => {
@@ -74,6 +77,30 @@ export default function useAccount() {
       sub.unsubscribe();
     };
   }, [loadAccount]);
+
+  // ── Shared with you ────────────────────────────────────────────────────
+  // Opening a share link saves that Blueprint to the account: Ops lists every
+  // Blueprint whose guest list has this email. Loaded on each sign-in.
+  const loadShared = useCallback(async () => {
+    const s = await getSession();
+    if (!s?.access_token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/collab?resource=account&action=shared`, {
+        headers: { 'Authorization': `Bearer ${s.access_token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (mountedRef.current) setShared({ uid: s.user?.id || '', list: Array.isArray(data?.shared) ? data.shared : [] });
+    } catch { /* optional: the calculator never waits on this */ }
+  }, []);
+  const signedInAs = session?.user?.id || '';
+  useEffect(() => {
+    if (!signedInAs) return undefined;
+    const t = setTimeout(loadShared, 0);
+    return () => clearTimeout(t);
+  }, [signedInAs, loadShared]);
+  // Only ever the current person's list (a sign-out or switch empties it).
+  const sharedBlueprints = signedInAs && shared.uid === signedInAs ? shared.list : EMPTY;
 
   // ── Actions ────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
@@ -199,6 +226,8 @@ export default function useAccount() {
     setSyncEnabled,
     signOut,
     refreshAccount: loadAccount,
+    sharedBlueprints, // [{ borrower_id, name, share_token, lo_name, scenarios }]
+    refreshShared: loadShared,
     recordConsent,
     claimShare,
     requestPreapproval,

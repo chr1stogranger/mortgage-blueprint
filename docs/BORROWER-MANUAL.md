@@ -40,7 +40,7 @@ Blueprint is an estimate tool. Your official Loan Estimate and Closing Disclosur
 
 You only sign in once per device. Next time, the link opens straight to your Blueprint.
 
-**Keep a copy.** You may see **"Keep a copy of this blueprint?"** at the bottom. Tap **Add to my Blueprints** to save it to your own account. Then it's on every device you sign in on, even without the link.
+**Saved to your account.** Opening the link saves the Blueprint to your account. Sign in at blueprint.realstack.app on any device and it's under **Shared with you** in the menu, even without the link. It's the live Blueprint, so you always see your loan officer's latest numbers.
 
 ## 2. If something goes wrong signing in
 
