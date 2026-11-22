@@ -50,7 +50,10 @@ export default function MobileTabBar({ items, activeId, onSelect, T, maxWidth = 
   if (hideOnKeyboard && keyboardOpen) return null;
   const accent = T.accent || T.blue || "#3B6BF5";
   return (
-    <div style={{
+    // The share-link "Add to my Blueprints" pill (App.jsx) is pinned to the
+    // bottom too and sat on top of these tabs. It reads this height and rides
+    // above the bar (Chris 2026-11-21). Unmount sets it back to 0.
+    <div ref={(el) => { try { document.documentElement.style.setProperty("--bp-tab-bar-top", el ? `${Math.max(0, Math.round(window.innerHeight - el.getBoundingClientRect().top))}px` : "0px"); } catch { /* no DOM */ } }} style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
       background: T.sideBg || T.card, borderTop: `1px solid ${T.cardBorder}`,
       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",

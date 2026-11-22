@@ -32,9 +32,13 @@ function SavedNotice({ shareToken }) {
 
   return (
     <div role="status" style={{
-      // Rides above the guided step bar when it's up (--bp-guide-bar-top is
-      // set by the bar in MortgageBlueprint.jsx; 0 when there is no bar).
-      position: 'fixed', bottom: 'max(calc(16px + env(safe-area-inset-bottom, 0px)), calc(var(--bp-guide-bar-top, 0px) + 8px))',
+      // Rides above the guided step bar and the phone tab bar when they're up.
+      // --bp-guide-bar-top (MortgageBlueprint.jsx) and --bp-tab-bar-top
+      // (MobileTabBar.jsx) are each 0 when that bar isn't on screen. Above the
+      // tab bar a borrower's phone also stacks the LO/agent strip
+      // (--bp-team-strip-h) and the "On this page" pill (10px gap + 32px), so
+      // the notice clears those too: 52px more, only when the tab bar is up.
+      position: 'fixed', bottom: 'max(calc(16px + env(safe-area-inset-bottom, 0px)), calc(var(--bp-guide-bar-top, 0px) + 8px), calc(var(--bp-tab-bar-top, 0px) + var(--bp-team-strip-h, 0px) + min(var(--bp-tab-bar-top, 0px), 1px) * 52))',
       left: '50%', transform: 'translateX(-50%)', zIndex: 1500,
       display: 'flex', alignItems: 'center', gap: 10,
       background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(16px)',
