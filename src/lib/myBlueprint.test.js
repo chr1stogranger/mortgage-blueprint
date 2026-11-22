@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isToken, pickShared, needsChoice, sharedChoices, wantsOpen, canOpenMine } from './myBlueprint.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isToken, recallMine, rememberIfMine, pickShared, needsChoice, sharedChoices, wantsOpen, canOpenMine } from './myBlueprint.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -56,5 +56,35 @@ describe('address checks', () => {
     expect(canOpenMine({ hostname: 'pricepoint.realstack.app', pathname: '/', search: '' })).toBe(false);
     expect(canOpenMine({ hostname: 'blueprint.realstack.app', pathname: '/', search: '?listing=abc' })).toBe(false);
     expect(canOpenMine({ hostname: 'blueprint.realstack.app', pathname: '/', search: '?account=1' })).toBe(false);
+  });
+});
+
+describe('rememberIfMine', () => {
+  const store = new Map();
+  const stub = (shared) => {
+    store.clear();
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    });
+    vi.stubGlobal('fetch', async () => ({ ok: true, json: async () => ({ shared }) }));
+  };
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('remembers a Blueprint that is shared with the person', async () => {
+    stub([{ share_token: A }]);
+    await rememberIfMine('u1', A, 'jwt');
+    expect(recallMine('u1')).toBe(A);
+  });
+  it('does not remember a client link a loan officer opened', async () => {
+    stub([]); // Ops answers the loan team with an empty list
+    await rememberIfMine('u1', A, 'jwt');
+    expect(recallMine('u1')).toBe('');
+  });
+  it('ignores what the first version remembered', () => {
+    stub([]);
+    store.set('bp_my_blueprint_u1', A);
+    expect(recallMine('u1')).toBe('');
   });
 });

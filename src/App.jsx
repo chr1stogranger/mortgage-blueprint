@@ -7,7 +7,7 @@ import BorrowerAuthGate from './components/BorrowerAuthGate'
 import BlueprintChooser from './components/BlueprintChooser'
 import Icon from './Icon'
 import { getSession, onAuthStateChange } from './lib/supabaseClient'
-import { isToken, recallMine, rememberMine, fetchShared, pickShared, needsChoice, sharedChoices, canOpenMine, wantsOpen, cleanAddress, NONE } from './lib/myBlueprint.js'
+import { isToken, recallMine, rememberMine, rememberIfMine, fetchShared, pickShared, needsChoice, sharedChoices, canOpenMine, wantsOpen, cleanAddress, NONE } from './lib/myBlueprint.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
@@ -257,7 +257,9 @@ function App() {
           onAuthenticated={(ctx) => {
             // ctx = { sessionToken, account, shareToken, userId, borrower, accessLevel, scenarios }
             busyRef.current = true;
-            rememberMine(ctx.userId, ctx.shareToken);
+            // Only a Blueprint shared with them: a loan officer previewing a
+            // client's link keeps their own pipeline on the next visit.
+            rememberIfMine(ctx.userId, ctx.shareToken, ctx.sessionToken);
             cleanAddress();
             setBorrowerContext(ctx);
           }}

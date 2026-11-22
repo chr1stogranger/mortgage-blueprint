@@ -14,7 +14,12 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const key = (uid) => `bp_my_blueprint_${uid}`;
+// v2 (2026-11-21): the first key remembered ANY share link a person opened,
+// so a loan officer who previewed a client's link was dropped into that one
+// file on every visit and lost their pipeline. Only a Blueprint that Ops lists
+// as shared with the person is remembered now (rememberIfMine); the old key is
+// ignored, which un-sticks those devices.
+const key = (uid) => `bp_mine_${uid}`;
 export const NONE = 'none';
 const PLAIN_PARAMS = new Set(['open', 'scenario', 'theme', 'fbclid', 'gclid', '_cb']);
 
@@ -80,6 +85,19 @@ export function needsChoice(list, last = '', invite = false) {
   if (ok.length < 2) return false;
   if (invite) return true;
   return !ok.some((b) => b.share_token === last);
+}
+
+/**
+ * After a Blueprint opens, remember it as "mine" only when Ops lists it as
+ * shared with this person. The loan team can open every client's link, and
+ * opening one must never become what their own sign-in opens.
+ */
+export async function rememberIfMine(uid, token, accessToken) {
+  if (!uid || !isToken(token)) return;
+  const list = await fetchShared(accessToken);
+  if (!list) return; // could not ask: leave what we knew
+  if (sharedChoices(list).some((b) => b.share_token === token)) rememberMine(uid, token);
+  else if (recallMine(uid) === token) rememberMine(uid, sharedChoices(list).length ? '' : NONE);
 }
 
 /**
