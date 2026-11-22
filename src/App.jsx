@@ -116,6 +116,20 @@ class ShareFlowErrorBoundary extends Component {
   }
 }
 
+// Supabase keeps the signed-in session in localStorage under this key. With
+// nothing stored there is nobody to look up, so the calculator paints at once.
+function isDarkStored() {
+  try { return localStorage.getItem('bp_theme_mode') === 'dark'; } catch { return false; }
+}
+
+function hasStoredSession() {
+  try { return !!localStorage.getItem('bp_supabase_auth'); } catch { return false; }
+}
+
+// How long the first paint waits on Ops for a signed-in visitor. Past this the
+// calculator shows and the Blueprint still opens when the answer lands.
+const CHECK_WAIT_MS = 2500;
+
 function tokenFromUrl() {
   try {
     const token = new URLSearchParams(window.location.search).get('share');
@@ -135,7 +149,7 @@ function App() {
   const [openGate] = useState(() => !tokenFromUrl() && wantsOpen() && canOpenMine());
   // Hold the first paint while we look, so a borrower never sees the public
   // calculator flash before their Blueprint.
-  const [checking, setChecking] = useState(() => !tokenFromUrl() && canOpenMine() && !wantsOpen());
+  const [checking, setChecking] = useState(() => !tokenFromUrl() && canOpenMine() && !wantsOpen() && hasStoredSession());
   const [borrowerContext, setBorrowerContext] = useState(null);
   const [shareExpired, setShareExpired] = useState(false);
   // Someone on two or more Blueprints, where guessing could open the wrong
@@ -181,7 +195,9 @@ function App() {
         open(token);
       });
       // Known to have nothing shared (or a loan officer): don't hold the page.
-      if (last !== NONE) await ask;
+      // Otherwise wait, but not forever: a slow Ops answer still opens the
+      // Blueprint over the calculator when it arrives.
+      if (last !== NONE) await Promise.race([ask, new Promise((r) => setTimeout(r, CHECK_WAIT_MS))]);
     };
     (async () => {
       try { await consider(await getSession()); } catch { /* calculator */ }
@@ -224,7 +240,7 @@ function App() {
   if (chooserEl && !shareToken && !openGate && !borrowerContext) return chooserEl;
 
   if (checking && !shareToken) {
-    return <div style={{ minHeight: '100vh', background: '#f4f9fc' }} />;
+    return <div style={{ minHeight: '100vh', background: isDarkStored() ? '#0a1120' : '#f4f9fc' }} />;
   }
 
   // ── Opening a shared Blueprint (sign in first if needed) ────────────────
