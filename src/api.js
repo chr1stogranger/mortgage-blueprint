@@ -136,6 +136,22 @@ export async function fetchSharedData(shareToken) {
   return res.json();
 }
 
+// Headshots of the deal's loan officer and buyer's agent, from Ops (marketing
+// profile / partner record): { lo, agent }, each { name, email?, photo } or
+// null. Its own request because the photos are ~50-90 KB data URLs. `loEmail`
+// is the LO this device is showing, used when the Deal Team has no LO row.
+// Never throws: no photo just means initials.
+export async function fetchSharedTeamPhotos(shareToken, loEmail) {
+  try {
+    const lo = loEmail ? `&lo=${encodeURIComponent(loEmail)}` : '';
+    const res = await fetch(`${API_BASE}/api/share?token=${shareToken}&part=team-photos${lo}`, { headers: await shareAuthHeaders() });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // An Ops build without this route answers with the full share payload.
+    return data && ('lo' in data || 'agent' in data) ? data : null;
+  } catch { return null; }
+}
+
 // ─── Share-link guest list ─────────────────────────────────────────────────
 // Borrower side (share token + their session); LO side (authFetch).
 async function shareAccessCall(method, shareToken, email) {

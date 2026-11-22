@@ -90,7 +90,7 @@ import {
   searchAriveLoans, fetchAriveImport, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
-  fetchSharedData, fetchListing, fetchLoCard, fetchPlan,
+  fetchSharedData, fetchSharedTeamPhotos, fetchListing, fetchLoCard, fetchPlan,
   saveSharedScenario, renameSharedScenario, deleteSharedScenario, reorderSharedScenarios,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios, saveScenarioVersion } from "./lib/supabaseClient";
@@ -894,6 +894,7 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
     borderRadius: 16, padding: "10px 14px", boxShadow: T.cardShadow,
    }}>
     <CoBrandCell
+     photo={lo.loPhoto}
      name={lo.loanOfficer}
      role="Your loan officer"
      who="lo"
@@ -4538,8 +4539,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  //    card scrolls away: sidebar block on desktop, strip above the tab bar on
  //    phones. Same audience as the card: borrowers and partner-link visitors,
  //    never the LO's own working view. (Council 2026-11-21.)
- const teamAgent = realtorPartner || (isBorrower && !isRefi ? dealTeamAgent(borrowerMode?.borrower?.deal_team) : null);
- const teamList = (realtorPartner || isBorrower) ? teamPeople({ loanOfficer, loEmail, loPhone, loNmls, companyName }, teamAgent, T) : [];
+ // Headshots carry over from Ops on a share link (Chris 2026-11-21): the LO's
+ // from their marketing profile, the agent's from the partner record. A photo
+ // is only used when it belongs to the person this device is showing.
+ const [teamPhotos, setTeamPhotos] = useState(null);
+ const teamPhotoToken = isBorrower ? borrowerMode?.shareToken : null;
+ useEffect(() => {
+  if (!teamPhotoToken) return;
+  let alive = true;
+  fetchSharedTeamPhotos(teamPhotoToken, loEmail).then((d) => { if (alive) setTeamPhotos(d); });
+  return () => { alive = false; };
+ }, [teamPhotoToken, loEmail]);
+ const samePerson = (a, b) => !!a && String(a).trim().toLowerCase() === String(b || "").trim().toLowerCase();
+ const loPhoto = teamPhotos?.lo?.photo && (samePerson(teamPhotos.lo.email, loEmail) || samePerson(teamPhotos.lo.name, loanOfficer)) ? teamPhotos.lo.photo : "";
+ const dealAgent = isBorrower && !isRefi ? dealTeamAgent(borrowerMode?.borrower?.deal_team) : null;
+ const teamAgent = realtorPartner || (dealAgent && teamPhotos?.agent?.photo && samePerson(teamPhotos.agent.name, dealAgent.name) ? { ...dealAgent, photo: teamPhotos.agent.photo } : dealAgent);
+ const teamList = (realtorPartner || isBorrower) ? teamPeople({ loanOfficer, loEmail, loPhone, loNmls, companyName, loPhoto }, teamAgent, T) : [];
  const teamStripOn = teamList.length > 0 && !isDesktop && appMode === "blueprint" && consentGiven && !isLocked && !keyboardOpen;
  const [teamSheetOpen, setTeamSheetOpen] = useState(false);
  // Tap counts (migration 027): which placement people actually use.
@@ -10504,8 +10519,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {(realtorPartner || isBorrower) && (
     <CoBrandBar
      isDesktop={isDesktop}
-     loInfo={{ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls }}
-     realtorPartner={realtorPartner || (isBorrower && !isRefi ? dealTeamAgent(borrowerMode?.borrower?.deal_team) : null)}
+     loInfo={{ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, loPhoto }}
+     realtorPartner={teamAgent}
     />
    )}
    {/* View-only scenario (borrower share link, Christo 2026-10-12): one slim

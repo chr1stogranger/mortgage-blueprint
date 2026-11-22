@@ -31,7 +31,7 @@ export function teamPeople(loInfo, agent, T) {
       key: "lo", role: "Your loan officer", name: lo.loanOfficer.trim(),
       micro: [lo.loNmls ? `NMLS #${lo.loNmls}` : "", lo.companyName || ""].filter(Boolean).join(" · "),
       short: lo.loNmls ? `NMLS #${lo.loNmls}` : (lo.companyName || ""),
-      phone: lo.loPhone || "", email: lo.loEmail || "", photo: "", color: T.accent || T.blue,
+      phone: lo.loPhone || "", email: lo.loEmail || "", photo: lo.loPhoto || "", color: T.accent || T.blue,
     });
   }
   if (agent && (agent.name || "").trim()) {
