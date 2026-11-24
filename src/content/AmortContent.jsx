@@ -3,10 +3,8 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
 
-// How many monthly rows to show by default before the user expands. On
-// phones (one column) it is a flat 30. On desktop the table sits beside the
-// charts, so the collapsed count is measured to end level with that column
-// (Christo 2026-11-23); this is only the fallback until the first measure.
+// How many monthly rows a phone shows before the user taps "Show all".
+// Desktop shows every month in a box that scrolls inside itself.
 const MONTHLY_COLLAPSED_ROWS = 30;
 
 export default function AmortContent(props) {
@@ -34,32 +32,35 @@ export default function AmortContent(props) {
   // the monthly table instead.
   const view = amortView === "equity" ? "monthly" : amortView;
   // Desktop: the charts column shows in full (no inner scroll) and the
-  // collapsed monthly table is cut to the number of rows that makes the two
-  // columns end level. Everything in the table column except the rows is a
-  // fixed overhead, so: rows = (charts height - overhead) / row height.
+  // monthly table is a box of the same height that scrolls inside itself,
+  // header pinned, so the charts stay beside the numbers (Christo
+  // 2026-11-23). Phones keep the collapsed list + "Show all" button: a
+  // scrolling box inside a scrolling page is awkward under a thumb.
   const leftRef = useRef(null);
   const rightRef = useRef(null);
-  const [fitRows, setFitRows] = useState(null);
+  const tableRef = useRef(null);
+  const [tableH, setTableH] = useState(null);
   useLayoutEffect(() => {
-   if (!isDesktop) { setFitRows(null); return; }
+   if (!isDesktop) { setTableH(null); return; }
    const left = leftRef.current;
    if (!left) return;
    const measure = () => {
-    const right = rightRef.current;
-    const rows = right ? right.querySelectorAll("[data-amort-row]") : [];
-    if (!rows.length) return; // yearly view: keep the last count
-    const rowH = rows[0].getBoundingClientRect().height;
-    if (!rowH) return; // hidden tab, nothing to measure yet
-    const overhead = right.getBoundingClientRect().height - rows.length * rowH;
-    const n = Math.max(12, Math.floor((left.getBoundingClientRect().height - overhead) / rowH));
-    setFitRows(prev => (prev === n ? prev : n));
+    const right = rightRef.current, table = tableRef.current;
+    if (!right || !table) return; // yearly view: keep the last height
+    const leftH = left.getBoundingClientRect().height;
+    if (!leftH) return; // hidden tab, nothing to measure yet
+    // Whatever sits above the table (tabs + CSV row), plus the 12px the
+    // charts column's last Card leaves under itself.
+    const above = table.getBoundingClientRect().top - right.getBoundingClientRect().top;
+    const h = Math.max(320, Math.round(leftH - above - 12));
+    setTableH(prev => (prev === h ? prev : h));
    };
    measure();
    const ro = new ResizeObserver(measure);
    ro.observe(left);
    return () => ro.disconnect();
-  }, [isDesktop, view, showAllMonthly]);
-  const collapsedRows = isDesktop && fitRows ? fitRows : MONTHLY_COLLAPSED_ROWS;
+  }, [isDesktop, view]);
+  const boxed = isDesktop && tableH;
   const hasExtra = (Number(extraPayment) || 0) > 0;
   // Opaque green panel: tint composited over the solid card so the
   // blueprint canvas doesn't read through (the old 8%-alpha fill over the
@@ -167,7 +168,7 @@ export default function AmortContent(props) {
  <div style={{ marginBottom: 12 }}>{equityBlock}</div>
  <Card><AmortChart /></Card>
  </div>{/* end amort left column */}
- {/* ── RIGHT: Schedule table, collapsed to the charts column's height ── */}
+ {/* ── RIGHT: Schedule table, a scrolling box as tall as the charts column ── */}
  <div ref={rightRef} style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
   {["monthly","yearly"].map(v => <Tab key={v} label={v.charAt(0).toUpperCase() + v.slice(1)} active={view === v} onClick={() => setAmortView(v)} />)}
@@ -198,23 +199,19 @@ export default function AmortContent(props) {
   </Card>
  )}
  {view === "monthly" && (() => {
-  // Compute the visible slice and the hidden remainder. We previously
-  // rendered up to 120 rows unconditionally — long, intimidating, slow on
-  // older phones. Now the table defaults to collapsedRows and the
-  // user expands when they actually want the rest. When expanded we render
-  // the full schedule (no 120-cap), so a 360-month loan really does show
-  // 360 rows.
   const totalMonths = calc.amortSchedule.length;
-  const limit = showAllMonthly ? totalMonths : Math.min(collapsedRows, totalMonths);
+  const limit = boxed || showAllMonthly ? totalMonths : Math.min(MONTHLY_COLLAPSED_ROWS, totalMonths);
   const visible = calc.amortSchedule.slice(0, limit);
   const hiddenCount = totalMonths - limit;
   return (
-   <Card pad={12}>
-    <div style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
+   <div ref={tableRef} style={boxed ? { height: tableH, marginBottom: 12 } : undefined}>
+   <Card pad={12} style={boxed ? { height: "100%", boxSizing: "border-box", marginBottom: 0, display: "flex", flexDirection: "column" } : undefined}>
+    <div data-amort-scroll="" style={boxed ? { flex: 1, minHeight: 0, overflowY: "auto" } : undefined}>
+    <div style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, ...(boxed ? { position: "sticky", top: 0, background: T.card, zIndex: 1 } : {}) }}>
      <span>#</span><span style={{textAlign:"right"}}>P&I</span><span style={{textAlign:"right"}}>Interest</span><span style={{textAlign:"right"}}>Principal</span><span style={{textAlign:"right"}}>Extra</span><span style={{textAlign:"right"}}>Balance</span>
     </div>
     {visible.map((d, i) => (
-     <div key={i} data-amort-row="" style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, padding: "6px 0", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT }}>
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, padding: "6px 0", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT }}>
       <span style={{ color: T.textTertiary }}>{d.m}</span>
       <span style={{ textAlign: "right", color: T.text, fontWeight: 600 }}>{fmt(d.int + d.prin)}</span>
       <span style={{ textAlign: "right", color: T.blue }}>{fmt(d.int)}</span>
@@ -225,7 +222,7 @@ export default function AmortContent(props) {
     ))}
     {/* Expand / collapse toggle. Hidden when the schedule is already short
         enough that everything fits within the collapsed limit. */}
-    {totalMonths > collapsedRows && (
+    {!boxed && totalMonths > MONTHLY_COLLAPSED_ROWS && (
      <button
       onClick={() => setShowAllMonthly(v => !v)}
       style={{
@@ -239,12 +236,14 @@ export default function AmortContent(props) {
       }}
      >
       {showAllMonthly
-       ? `Collapse to first ${collapsedRows} months`
+       ? `Collapse to first ${MONTHLY_COLLAPSED_ROWS} months`
        : `Show all ${totalMonths} months · ${hiddenCount} more`}
       <span style={{ fontSize: 14, lineHeight: 1 }}>{showAllMonthly ? "▴" : "▾"}</span>
      </button>
     )}
+    </div>
    </Card>
+   </div>
   );
  })()}
  </div>{/* end amort right column */}
