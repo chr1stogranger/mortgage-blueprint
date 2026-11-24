@@ -45,21 +45,45 @@ export default function RefiSteps({ T, isDesktop, step, onStep, calc = {}, fmt, 
       background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 18, boxShadow: T.cardShadow,
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: isDesktop ? 12 : 8,
     }}>
-      <nav aria-label="Refinance steps" style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none", flex: wide ? "0 1 auto" : "1 1 100%", minWidth: 0 }}>
+      {/* The train (Christo 2026-11-24): numbered stations joined by a track.
+          Done stations and the track behind you fill green, the current one
+          is solid blue with a halo, the ones ahead are hollow. */}
+      <nav aria-label="Refinance steps" style={{ display: "flex", alignItems: "center", flexWrap: "nowrap", overflowX: "auto", scrollbarWidth: "none", flex: wide ? "1 1 auto" : "1 1 100%", minWidth: 0, padding: "2px 4px" }}>
         {REFI_STEPS.map((s, i) => {
           const on = i === step;
           const done = i < step;
+          const dot = isDesktop ? 26 : 22;
           return (
-            <button key={s} type="button" onClick={() => onStep(i)} aria-current={on ? "step" : undefined}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6, padding: isDesktop ? "6px 12px" : "5px 10px", borderRadius: 9999, cursor: "pointer",
-                fontFamily: FONT, fontSize: isDesktop ? 13 : 12, fontWeight: 700, whiteSpace: "nowrap",
-                border: on ? "none" : `1px solid ${T.separator}`,
-                background: on ? T.blue : T.inputBg,
-                color: on ? "#fff" : done ? T.green : T.textSecondary,
-              }}>
-              <span style={{ fontFamily: MONO, fontSize: 10, opacity: 0.8 }}>{done ? "✓" : i + 1}</span>{s}
-            </button>
+            <React.Fragment key={s}>
+              {i > 0 && (
+                <span aria-hidden="true" style={{
+                  flex: "1 1 24px", minWidth: isDesktop ? 18 : 12, maxWidth: 120, height: 3, borderRadius: 2, margin: "0 6px",
+                  background: i <= step ? T.green : T.separator,
+                  transition: "background 200ms ease",
+                }} />
+              )}
+              <button type="button" onClick={() => onStep(i)} aria-current={on ? "step" : undefined}
+                aria-label={`Step ${i + 1}: ${s}${done ? " (done)" : ""}`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8, padding: "2px 4px", borderRadius: 9999, cursor: "pointer",
+                  background: "none", border: "none", flexShrink: 0,
+                  fontFamily: FONT, fontSize: isDesktop ? 13 : 12, fontWeight: on ? 800 : 600, whiteSpace: "nowrap",
+                  color: on ? T.text : done ? T.green : T.textSecondary,
+                }}>
+                <span style={{
+                  width: dot, height: dot, borderRadius: "50%", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: FONT, fontSize: isDesktop ? 12 : 11, fontWeight: 800,
+                  background: on ? T.blue : done ? T.green : T.card,
+                  color: on || done ? "#fff" : T.textSecondary,
+                  border: on || done ? "none" : `2px solid ${T.separator}`,
+                  boxSizing: "border-box",
+                  boxShadow: on ? `0 0 0 4px ${T.blue}2e` : "none",
+                  transition: "background 200ms ease, box-shadow 200ms ease",
+                }}>{done ? "✓" : i + 1}</span>
+                {s}
+              </button>
+            </React.Fragment>
           );
         })}
       </nav>

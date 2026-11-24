@@ -92,10 +92,13 @@ export default function ReoContent(props) {
     const income = Number(r.rentalIncome) || 0;
     const net = income - expenses;
     const isInvestment = (r.propUse || "Investment") === "Investment" || (r.occupancy || "").startsWith("Invest");
-    const dtiImpact = isInvestment ? (income * 0.75) - expenses : -expenses;
+    // The subject row ("(Subj)") is the property being refinanced: its new
+    // payment is the housing payment, so the row adds nothing to DTI here.
+    const isSubject = /\(Subj\)\s*$/.test(r.occupancy || "");
+    const dtiImpact = isSubject ? 0 : isInvestment ? (income * 0.75) - expenses : -expenses;
     const equity = value - liens;
 
-    return { linked, mortLinked, helocLinked, liens, ltv, pi, helocPmt, helocBal, expenses, income, net, equity, isInvestment, dtiImpact, hasLinked, linkedMortBal, linkedMortPmt };
+    return { linked, mortLinked, helocLinked, liens, ltv, pi, helocPmt, helocBal, expenses, income, net, equity, isInvestment, isSubject, dtiImpact, hasLinked, linkedMortBal, linkedMortPmt };
   };
 
   // Aggregate totals across all REOs
@@ -160,7 +163,7 @@ export default function ReoContent(props) {
       <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: c.dtiImpact >= 0 ? T.green : T.orange }}>
         {c.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(c.dtiImpact))}{right ? "/mo" : ""}
       </span>
-      <span style={{ fontSize: 10.5, color: T.textTertiary }}>{c.isInvestment ? (c.dtiImpact >= 0 ? "income (75% rule)" : "debt (75% rule)") : "debt (full PITIA)"}</span>
+      <span style={{ fontSize: 10.5, color: T.textTertiary }}>{c.isSubject ? "subject: new payment counts" : c.isInvestment ? (c.dtiImpact >= 0 ? "income (75% rule)" : "debt (75% rule)") : "debt (full PITIA)"}</span>
     </div>
   );
   // Address typeahead — the same geocoder-backed input the refi Property

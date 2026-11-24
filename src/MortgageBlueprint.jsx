@@ -80,6 +80,7 @@ import MyHomeTab from "./components/MyHomeTab";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import StatementIntake from "./components/StatementIntake.jsx";
+import { syncSubjectLiens, isRefiSubjectLien, isSubjectReo } from "./lib/subjectLiens.js";
 import { cleanHunterKey, refiPrefillFromHandoff, canMarkOfferSent, estimateCurrentMi } from "./lib/refiHandoff.js";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
@@ -5093,7 +5094,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // `inc.monthly`, so every non-active option's DTI read 0 — fixed 2026-09-23).
   const monthlyInc = quickIncomeMonthly(s.incomes, VARIABLE_PAY_TYPES) + (s.otherIncome || 0) + (s.otherIncome2 || 0);
   const debtArr = s.debts || [];
-  const reoArr = s.reos || [];
+  const reoArr = (s.reos || []).filter(r => !isSubjectReo(r));
   // Identify linked debts — only exclude those linked to INVESTMENT REOs
   const investReoIds = new Set(reoArr.filter(r => r.propUse === "Investment").map(r => String(r.id)));
   const linkedIds = new Set(debtArr.filter(d => d.linkedReoId && investReoIds.has(d.linkedReoId) && (d.type === "Mortgage" || d.type === "HELOC")).map(d => d.id));
@@ -6692,7 +6693,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     rate: refiCurrentRate || 0,
     months: refiRemainingMonths || 0,
     payoff: "Yes - at Escrow",
-    linkedReoId: ""
+    linkedReoId: "",
+    subjectLien: "first"
    }]);
   }
  }, [isRefi]);
@@ -6911,10 +6913,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const monthlyIncome = totalIncomeFromEntries + otherIncome + otherIncome2;
   // REO DTI: Investment properties use 75% rental netting; Primary/Second Home full PITIA counted as debt
   // Only debts linked to INVESTMENT REOs are excluded from normal debt count
-  const investmentReoIds = new Set(reos.filter(r => r.propUse === "Investment").map(r => String(r.id)));
+  // The subject property's REO row ("(Subj)") is the 1003 picture only: its
+  // payment is the new housing payment, so it stays out of REO netting.
+  const dtiReos = reos.filter(r => !isSubjectReo(r));
+  const investmentReoIds = new Set(dtiReos.filter(r => r.propUse === "Investment").map(r => String(r.id)));
   const reoLinkedDebtIds = new Set(debts.filter(d => d.linkedReoId && investmentReoIds.has(d.linkedReoId) && (d.type === "Mortgage" || d.type === "HELOC") && d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit").map(d => d.id));
   // Investment properties: 75% of gross rent minus PITIA, netted together
-  const reoInvestmentNet = reos.filter(r => r.propUse === "Investment").reduce((s, r) => {
+  const reoInvestmentNet = dtiReos.filter(r => r.propUse === "Investment").reduce((s, r) => {
    const grossRent75 = (Number(r.rentalIncome) || 0) * 0.75;
    const linkedDebts = debts.filter(d => d.linkedReoId === String(r.id) && d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit");
    const linkedPayments = linkedDebts.reduce((sum, d) => sum + (Number(d.monthly) || 0), 0);
@@ -6923,7 +6928,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }, 0);
   // Primary / Second Home: full PITIA as debt obligation (no rental offset)
   // Linked debts for these stay in qualifyingDebts; we only add supplemental T&I if not included
-  const reoPrimaryDebt = reos.filter(r => r.propUse !== "Investment").reduce((s, r) => {
+  const reoPrimaryDebt = dtiReos.filter(r => r.propUse !== "Investment").reduce((s, r) => {
    const linkedDebts = debts.filter(d => d.linkedReoId === String(r.id) && d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit");
    const extraTI = r.includesTI ? 0 : ((Number(r.reoTax)||0)+(Number(r.reoIns)||0)+(Number(r.reoHoa)||0));
    if (linkedDebts.length > 0) {
@@ -6999,7 +7004,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Debts financed through the refi are NOT cash due at closing — they live in
   // the refi payoff walk instead. Payoff honors the per-debt payoffAmount when
   // one is entered (the Debts tab already did; this used to read balance only).
-  const payoffAtClosing = debtFree ? 0 : debts.filter(d => d.payoff === "Yes - at Escrow" && !refiPaidDebtIds.has(d.id)).reduce((s, d) => s + (Number(d.payoffAmount) || Number(d.balance) || 0), 0);
+  // On a refi the subject property's own liens (1st, HELOC) are paid through
+  // the refi payoff walk ("Old Loan Payoff"), so they never count here too:
+  // that double count put step 2's cash to close hundreds of thousands
+  // negative (2026-11-24). Liens on OTHER properties still count.
+  const payoffAtClosing = debtFree ? 0 : debts.filter(d => d.payoff === "Yes - at Escrow" && !refiPaidDebtIds.has(d.id) && !(isRefi && isRefiSubjectLien(d, reos))).reduce((s, d) => s + (Number(d.payoffAmount) || Number(d.balance) || 0), 0);
   // For investment properties, 75% rent offsets housing payment in DTI
   const effectiveHousingForDTI = isInvestment ? Math.max(0, housingPayment - subjectRent75) : housingPayment;
   const totalPayment = effectiveHousingForDTI + totalMonthlyDebts + reoNegativeDebt;
@@ -8252,6 +8261,51 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     setRefiSecondKind(s.kind === 'fixed' ? 'closed' : 'heloc');
     if (num(s.balance)) { setRefiSecondBalance(s.balance); lines.push(`2nd lien balance ${money(s.balance)}`); }
     if (num(s.interest_rate_pct) && s.interest_rate_pct < 25) { setRefiSecondRate(s.interest_rate_pct); lines.push(`2nd lien rate ${s.interest_rate_pct}%`); }
+    if (num(s.payment)) { setRefiSecondPmtOverride(s.payment); lines.push(`2nd lien payment ${money(s.payment)}`); }
+    // A HELOC behind the statement's loan is paid off at closing too
+    // (Christo 2026-11-24). Subordinating stays a manual choice.
+    setRefiSecondPlan('payoff');
+    lines.push('2nd lien paid off at closing');
+   }
+   // The statement's loan (and any HELOC) go on the Debts tab as paid at
+   // closing, the property goes on REO as the subject, and the debts are
+   // linked to it (Christo 2026-11-24). lib/subjectLiens.js keeps them out
+   // of every cash and DTI sum: the refi payoff walk already pays them.
+   if (num(f.principal_balance)) {
+    const matMonths = (typeof f.maturity_date === 'string' && /^\d{4}-\d{2}$/.test(f.maturity_date))
+     ? (() => { const [y, m] = f.maturity_date.split('-').map(Number); const now = new Date(); return Math.max(0, (y - now.getFullYear()) * 12 + (m - (now.getMonth() + 1))); })()
+     : 0;
+    const secBal = s && num(s.balance) ? s.balance : 0;
+    const secRate = s && num(s.interest_rate_pct) ? s.interest_rate_pct : 0;
+    const synced = syncSubjectLiens({
+     debts, reos,
+     first: {
+      servicer: typeof f.servicer === 'string' ? f.servicer.trim() : '',
+      balance: f.principal_balance,
+      rate: num(f.interest_rate_pct) ? f.interest_rate_pct : refiCurrentRate,
+      payment: num(f.regular_payment_total) ? f.regular_payment_total : refiCurrentPayment,
+      months: matMonths || refiRemainingMonths,
+      escrowed: num(f.escrow_amount),
+     },
+     second: secBal > 0 ? {
+      kind: s.kind === 'fixed' ? 'closed' : 'heloc',
+      balance: secBal,
+      rate: secRate,
+      payment: num(s.payment) ? s.payment : Math.round(secBal * secRate / 1200 * 100) / 100,
+     } : null,
+     secondPlan: 'payoff',
+     property: {
+      address: [propertyAddress, city, propertyState].filter(Boolean).join(', '),
+      value: refiHomeValue || salesPrice,
+      propType, loanPurpose,
+      annualTax: refiAnnualTax, annualIns: refiAnnualIns, hoa,
+     },
+    });
+    setDebts(synced.debts);
+    setReos(synced.reos);
+    setDebtFree(false);
+    setOwnsProperties(true);
+    lines.push(...synced.changes);
    }
    if (!lines.length) {
     setStmtFill({ lines: [], notes: extraction?.notes || 'Nothing readable was found on the statement. Fields were left untouched.' });
