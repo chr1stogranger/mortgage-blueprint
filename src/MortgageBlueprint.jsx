@@ -5575,28 +5575,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // URL, gets a magic-link sign-in, then lands inside Blueprint with every
  // input already filled in. Subject mirrors the existing handleEmailSummary
  // shape so brokers' inboxes thread cleanly.
- const buildLiveLinkMailto = ({ to, name, url, lo, isRefiFlag, scenario }) => {
-  const subject = encodeURIComponent(`Your ${isRefiFlag ? "Refinance" : "Purchase"} Blueprint: ${scenario}`);
-  const greeting = name ? `Hi ${name},` : "Hi there,";
+ const buildLiveLinkMailto = ({ to, name, url, lo, isRefiFlag }) => {
+  // No scenario name in the subject: it is the loan officer's own label
+  // ("Arive Import") and means nothing to the client (Chris 2026-11-23).
+  const subject = encodeURIComponent(`Your ${isRefiFlag ? "Refinance" : "Purchase"} Blueprint`);
+  const first = String(name || "").split(",")[0].trim().split(/\s+/)[0] || "";
+  const greeting = first ? `Hi ${first},` : "Hi there,";
   const signerLine = `${loanOfficer || "Your loan officer"}${companyName ? ` · ${companyName}` : ""}`;
   const nmlsLine = companyNmls ? `NMLS #${companyNmls}` : "";
-  const phoneLine = loPhone || "";
-  const emailLine = lo || "";
+  // Paragraphs keep the blank line between them; only an empty signature
+  // line is dropped (filtering the whole list ran it all into one block).
   const body = encodeURIComponent(
    [
     greeting,
     "",
-    "I built out a live mortgage scenario for you. Click the link below to view it. You'll get a quick sign-in code by email, then everything will be pre-filled and ready to explore. You can adjust numbers and I'll see your changes on my end.",
+    "I built out a live mortgage scenario for you. Open it with the link below. Everything is filled in and ready to explore. You can adjust the numbers and I'll see your changes on my end.",
     "",
     url,
     "",
+    to ? `Sign in with this email address (${to}). It only opens for the people it is shared with.` : "Sign in with the email address this was sent to. It only opens for the people it is shared with.",
+    "",
     "If anything looks off, reply to this email and we'll dig in together.",
     "",
-    signerLine,
-    nmlsLine,
-    emailLine,
-    phoneLine,
-   ].filter(Boolean).join("\n")
+    [signerLine, nmlsLine, lo || "", loPhone || ""].filter(Boolean).join("\n"),
+   ].join("\n")
   );
   const toParam = encodeURIComponent(to || "");
   const bccParam = lo ? `&bcc=${encodeURIComponent(lo)}` : "";
