@@ -347,7 +347,7 @@ export default function BorrowerAuthGate({ shareToken: givenToken, resolveToken,
             {denied?.email || 'this email'}
           </div>
           <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6 }}>
-            Ask {who} or the borrower to add this email from their Team tab, then sign in again. Or sign in with the email they shared it with.
+            Ask {who} or the borrower to add this email under Share, People with access, then sign in again. Or sign in with the email they shared it with.
           </div>
           <button
             onClick={async () => {

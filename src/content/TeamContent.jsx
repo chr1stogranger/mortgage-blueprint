@@ -154,6 +154,19 @@ function EmptySlot({ T, role, candidates, onPick, onManual }) {
   );
 }
 
+// Says, on the roster, who can open the file. Only the borrower and the
+// co-borrower get in from here; everyone else is added under Share, People
+// with access (LLM council 2026-11-23: keep "who do I call" and "who can open
+// this" as two screens that agree with each other).
+function CanOpen({ T }) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>
+      <Icon name="eye" size={13} color={T.green} />
+      Can open this Blueprint
+    </div>
+  );
+}
+
 // ─── Main tab ────────────────────────────────────────────────────────────────
 export default function TeamContent({
   T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth,
@@ -451,6 +464,7 @@ export default function TeamContent({
                   {activeBorrower?.email && <ContactPill T={T} icon="mail" href={`mailto:${activeBorrower.email}`} label={activeBorrower.email} />}
                 </div>
               )}
+              {activeBorrower?.email && <div><CanOpen T={T} /></div>}
             </Card>
             <Card>
               <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 8 }}>Co-Borrower</div>
@@ -471,8 +485,9 @@ export default function TeamContent({
               <TextInp label="Phone" value={getEntry("coborrower")?.phone || ""} placeholder="(555) 555-5555" inputMode="tel"
                 onChange={v => setRoleEntry("coborrower", { ...(getEntry("coborrower") || {}), phone: v }, getEntry("coborrower")?.source || "manual")} sm />
               </div>
+              {/\S+@\S+\.\S+/.test(coEmail || getEntry("coborrower")?.email || "") && <div><CanOpen T={T} /></div>}
               <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginTop: 6, lineHeight: 1.5 }}>
-                Their email links their sign-in to this blueprint, so they co-edit the same file.
+                Their email links their sign-in to this blueprint, so they co-edit the same file. Anyone else is added under Share, People with access.
               </div>
             </Card>
           </Sec>
