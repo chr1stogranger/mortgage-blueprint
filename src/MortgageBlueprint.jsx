@@ -4169,8 +4169,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { saved = JSON.parse(localStorage.getItem('bp_last_client') || 'null'); } catch { /* ignore */ }
   if (!saved?.borrowerId) return;
   const b = borrowerList.find(x => String(x.id) === String(saved.borrowerId));
-  if (!b) return;                                    // deleted/archived — stay on the local file
-  openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status }, { preferScenarioId: saved.scenarioId });
+  if (b) { openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status }, { preferScenarioId: saved.scenarioId }); return; }
+  // The list holds active clients only (and the first 500 of them). A lead
+  // is not in it, so ask Ops for the one record before giving up; a deleted
+  // or archived client stays on the local file.
+  fetchBorrowerById(saved.borrowerId).then(fresh => {
+   if (!fresh?.id || fresh.status === 'archived') return;
+   openClient({ borrowerId: fresh.id, borrowerName: fresh.name, status: fresh.status }, { preferScenarioId: saved.scenarioId });
+  }).catch(() => { /* gone: local file */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isCloud, isBorrower, borrowerList]);
 
@@ -4206,10 +4212,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { const q = new URLSearchParams(window.location.search); clientId = q.get('client'); preferScenarioId = q.get('pscn'); } catch { /* ignore */ }
   if (!clientId) { deepLinkClientConsumedRef.current = true; return; }
   const b = borrowerList.find(x => String(x.id) === String(clientId));
-  if (!b) return; // not in this LO's list — no-op (re-checks if the list grows)
   deepLinkClientConsumedRef.current = true;
-  try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
-  openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status }, preferScenarioId ? { preferScenarioId } : {});
+  const go = (c) => {
+   try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
+   openClient({ borrowerId: c.id, borrowerName: c.name, status: c.status }, preferScenarioId ? { preferScenarioId } : {});
+  };
+  if (b) { go(b); return; }
+  // The list holds active clients only, so a lead opened from Ops' Leads tab
+  // was not in it and the link silently showed the local sample file instead
+  // (Chris 2026-11-23: William Foster's link opened "John Doe"). Ask Ops for
+  // that one record; it answers only for a client this LO may open.
+  fetchBorrowerById(clientId).then(fresh => { if (fresh?.id) go(fresh); }).catch(() => { /* not theirs: no-op */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isCloud, isBorrower, borrowerList]);
 
@@ -4672,10 +4685,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }
   setIsRefi(val);
  };
- const createScenario = async (name) => {
+ // What a fresh scenario starts as.
+ const freshScenarioState = () => ({ salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
+   propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: defaultAnnualIns(1000000, "Single Family"), annualInsAuto: true,
+   includeEscrow: true, escrowInsWaived: false, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
+   otherIncome: 0, otherIncome2: 0, assets: [], creditScore: 0, creditReport: null, extraPayment: 0, payExtra: false,
+   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, showProp19: false, darkMode, themeMode });
+ const createScenario = async (name, opts = {}) => {
   // Borrower "New scenario" starts from a copy of the one on screen (a blank
-  // $1M Alameda default means nothing to them) and opens it.
-  if (isBorrower) { const id = await borrowerCreateScenario(name, getState(), isRefi ? 'refi' : 'purchase'); if (id) { await borrowerOpenScenario(id); setShowCompareHint(true); } return; }
+  // $1M Alameda default means nothing to them) and opens it. They can still
+  // ask for a fresh one from the sidebar menu (opts.fresh): the starting
+  // numbers laid over their file, so nothing half-carries from the old one.
+  if (isBorrower) {
+   const { darkMode: _d, themeMode: _t, ...fresh } = freshScenarioState();
+   const st = opts.fresh ? { ...getState(), ...fresh } : getState();
+   const id = await borrowerCreateScenario(name, st, !opts.fresh && isRefi ? 'refi' : 'purchase');
+   if (id) { await borrowerOpenScenario(id); setShowCompareHint(true); }
+   return;
+  }
   if (!name || scenarioList.includes(name)) return;
   try { selfSync.clearTombstone?.(name); } catch(e) {}
   if (scenariosAreCloud) {
@@ -4714,11 +4741,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Reset completed tabs so new scenario starts fresh (fixes checkbox bug)
   saveCompletedTabs({});
   // Save the new scenario defaults immediately so Compare can read them
-  const defaults = { salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
-   propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: defaultAnnualIns(1000000, "Single Family"), annualInsAuto: true,
-   includeEscrow: true, escrowInsWaived: false, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
-   otherIncome: 0, otherIncome2: 0, assets: [], creditScore: 0, creditReport: null, extraPayment: 0, payExtra: false,
-   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, showProp19: false, darkMode, themeMode };
+  const defaults = freshScenarioState();
   if (scenariosAreCloud) {
    // Create a real cloud row so this scenario is its own saved blueprint (not an
    // overwrite of the active row). The lockstep effect adds it to the sidebar.
@@ -4959,6 +4982,42 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [editingScenarioName, setEditingScenarioName] = useState(null);
  const [editScenarioValue, setEditScenarioValue] = useState("");
  const [scnMenu, setScnMenu] = useState(null); // sidebar scenario kebab menu: {name,x,y}
+ // Sidebar "New scenario" menu (Chris 2026-11-23): fresh, a copy of the one
+ // on screen, or (loan officers) the client's Arive file as it stands now.
+ const [newScnMenu, setNewScnMenu] = useState(null); // {x, y}: the button's top-left
+ const [newScnNote, setNewScnNote] = useState("");   // "Importing…" / what went wrong
+ const addFreshScenario = async () => {
+  let name = "New Scenario", i = 2;
+  while (scenarioList.includes(name)) { name = "New Scenario " + i; i++; }
+  await createScenario(name, { fresh: true });
+ };
+ const addAriveScenario = async () => {
+  const email = String(activeBorrower?.email || "").trim().toLowerCase();
+  // No client open, or no email to find their file by: search Arive by hand.
+  const searchByHand = () => { setImportArivePrefill(activeBorrower?.name || ""); setImportAriveOpen(true); };
+  if (!activeBorrower?.id || !email) { searchByHand(); return; }
+  setNewScnNote("Importing from Arive...");
+  try {
+   const { results } = await searchAriveLoans(email);
+   const mine = (results || []).filter(r => String(r.email || "").trim().toLowerCase() === email)
+    .sort((a, b) => (Number(!!a.archived) - Number(!!b.archived)) || String(b.modified || "").localeCompare(String(a.modified || "")));
+   if (!mine.length) { setNewScnNote(""); searchByHand(); return; }
+   // Save the scenario on screen to its own row and drop pending saves first,
+   // so nothing queued for it lands on the imported one (as createScenario).
+   if (scenariosAreCloud && activeScenarioId) {
+    const outgoing = getState(); const outSummary = buildCalcSummary();
+    setBorrowerScenarios(prev => prev.map(x => x.id === activeScenarioId ? { ...x, state_data: outgoing, calc_summary: outSummary } : x));
+    try { await apiUpdateScenario({ id: activeScenarioId, state_data: outgoing, calc_summary: outSummary }); } catch (e) { console.warn('[Blueprint] save-outgoing-before-import failed:', e.message); }
+    if (saveTimer.current) clearTimeout(saveTimer.current); pendingSaveRef.current = null;
+    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+   }
+   await handleImportAriveLoan(mine[0]);
+   setNewScnNote("");
+  } catch (e) {
+   setNewScnNote(e?.message || "Could not reach Arive. Try again.");
+   setTimeout(() => setNewScnNote(""), 6000);
+  }
+ };
  useEscape(!!scnMenu, () => { setScnMenu(null); setScnDeleteArm(null); });
  // When Delete was armed: a confirm click inside 400ms is the second half of a
  // double-click, not a decision (QA 2026-10-27: a double-click deleted the
@@ -9791,12 +9850,35 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
             starts as a copy of the one on screen: a blank file means nothing
             to a borrower, and an LO's next option is usually a variation. */}
         {(!isBorrower || borrowerCanCreate) && (
-         <button type="button" className="bp-sidebar-item" onClick={() => duplicateScenario()}
-          title={`Starts as a copy of ${scenarioName}`}
-          style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% - 12px)", boxSizing: "border-box", margin: "1px 6px", padding: "7px 8px 7px 12px", minHeight: isDesktop ? undefined : 44, background: "transparent", border: "none", borderLeft: "3px solid transparent", borderRadius: 8, cursor: "pointer", fontFamily: FONT, fontSize: 13, fontWeight: 500, color: T.textSecondary, textAlign: "left" }}>
+         <button type="button" className="bp-sidebar-item" aria-haspopup="menu" aria-expanded={!!newScnMenu}
+          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setNewScnMenu(newScnMenu ? null : { x: r.left, y: r.top }); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% - 12px)", boxSizing: "border-box", margin: "1px 6px", padding: "7px 8px 7px 12px", minHeight: isDesktop ? undefined : 44, background: newScnMenu ? T.tabActiveBg : "transparent", border: "none", borderLeft: "3px solid transparent", borderRadius: 8, cursor: "pointer", fontFamily: FONT, fontSize: 13, fontWeight: 500, color: T.textSecondary, textAlign: "left" }}>
           <span style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="plus" size={15} /></span>
           New scenario
          </button>
+        )}
+        {newScnNote && (
+         <div role="status" style={{ padding: "2px 18px 4px 21px", fontFamily: FONT, fontSize: 12, lineHeight: 1.4, color: T.textTertiary }}>{newScnNote}</div>
+        )}
+        {newScnMenu && (
+         <>
+          <div onClick={() => setNewScnMenu(null)} onWheel={() => setNewScnMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
+          <div role="menu" style={{ position: "fixed", left: Math.max(8, newScnMenu.x), bottom: Math.max(8, window.innerHeight - newScnMenu.y + 4), width: 216, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.38)", zIndex: 9999, overflow: "hidden", padding: 4 }}>
+           {[
+            ["Fresh scenario", "file", addFreshScenario],
+            ["Duplicate this one", "copy", () => duplicateScenario()],
+            // Loan officers only: borrowers have no Arive.
+            ...(!isBorrower && isCloud ? [["Import from Arive", "download", addAriveScenario]] : []),
+           ].map(([label, ico, fn]) => (
+            <button key={label} role="menuitem" onClick={() => { setNewScnMenu(null); fn(); }}
+             onMouseEnter={(e) => { e.currentTarget.style.background = T.tabActiveBg; }}
+             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+             style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", boxSizing: "border-box", padding: "8px 10px", minHeight: isDesktop ? undefined : 44, background: "transparent", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: FONT, color: T.text, textAlign: "left" }}>
+             <Icon name={ico} size={14} color={T.textSecondary} /> {label}
+            </button>
+           ))}
+          </div>
+         </>
         )}
         {scnMenu && (
          <>
