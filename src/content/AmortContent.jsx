@@ -142,7 +142,14 @@ export default function AmortContent(props) {
      scroll, Christo 2026-11-23) ── */}
  <div ref={leftRef} style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
-  <Hero value={fmt(calc.totalIntWithExtra)} label="Total Interest" color={T.blue} sub={calc.intSaved > 100 ? `Save ${fmt(calc.intSaved)}` : null} light />
+  {/* Same pastel gradient card as Debts' Back-End DTI (Christo 2026-11-23);
+      was the blue-tinted light Hero. */}
+  <Card pastel pad={18} style={{ marginBottom: 0 }}>
+   <div style={{ fontSize: 28, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.02em", lineHeight: 1.15 }}>{fmt(calc.totalIntWithExtra)}</div>
+   <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginTop: 4, fontFamily: FONT }}>
+    Total Interest{calc.intSaved > 100 && <span style={{ color: T.textTertiary }}> · Save {fmt(calc.intSaved)}</span>}
+   </div>
+  </Card>
  </div>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: isDesktop ? "0 0 12px" : "16px 0" }}>
   <Card pad={14} style={{ height: "100%", boxSizing: "border-box", marginBottom: 0 }}>
