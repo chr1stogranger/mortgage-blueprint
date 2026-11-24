@@ -88,7 +88,7 @@ import {
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
-  searchAriveLoans, fetchAriveImport, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
+  searchAriveLoans, fetchAriveImport, fetchOpsContacts, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
   fetchSharedData, fetchSharedTeamPhotos, fetchLoPhoto, fetchListing, fetchLoCard, fetchPlan,
@@ -108,6 +108,7 @@ import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
 import ImportAriveModal from "./components/ImportAriveModal";
+import CreateClientModal from "./components/CreateClientModal";
 import Mismo34ImportModal from "./components/Mismo34ImportModal";
 import SidebarSwitcher from "./components/SidebarSwitcher";
 import useBlueprintShelf from "./hooks/useBlueprintShelf";
@@ -688,61 +689,7 @@ function PayRing({ segments: segs, total, size, hideLegend, empty }) {
   </div>}
  </div>);
 }
-// ── Create New Client sheet (Christo 2026-07-05): replaces the old
-//    prompt(). Name + optional email + "Add to CRM" toggle. The toggle tags
-//    the borrower (source: blueprint-crm) so the upcoming Homebase CRM push
-//    knows which clients to sync.
-function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
- const [name, setName] = useState(initialName || "");
- const [email, setEmail] = useState("");
- const [phone, setPhone] = useState("");
- const [addToCrm, setAddToCrm] = useState(true);
- const [busy, setBusy] = useState(false);
- const [err, setErr] = useState(null);
- React.useEffect(() => {
-  if (open) { setName(initialName || ""); setEmail(""); setPhone(""); setAddToCrm(true); setBusy(false); setErr(null); }
- }, [open, initialName]);
- if (!open) return null;
- const emailOk = !email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
- const phoneOk = !phone.trim() || phone.replace(/\D/g, "").length >= 10;
- const canCreate = name.trim().length > 0 && emailOk && phoneOk && !busy;
- const inputStyle = { width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT };
- return (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => !busy && onClose()}>
-   <div style={{ background: T.card, borderRadius: 20, maxWidth: 460, width: "100%", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-     <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Create New Client</div>
-     <button aria-label="Close" onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
-    </div>
-    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Client Name</label>
-    <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Homebuyer" style={{ ...inputStyle, marginBottom: 12 }} />
-    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Email <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional: enables live links & worksheet sends)</span></label>
-    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@email.com" inputMode="email" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 12, borderColor: emailOk ? T.inputBorder : T.red }} />
-    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Phone <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional: lets you text their live link)</span></label>
-    <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(510) 555-0123" inputMode="tel" style={{ ...inputStyle, marginBottom: 14, borderColor: phoneOk ? T.inputBorder : T.red }} />
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 16px", gap: 10 }}>
-     <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Add to CRM</div>
-      <div style={{ fontSize: 11.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>Tag this client for your Homebase pipeline (CRM sync coming next)</div>
-     </div>
-     <button type="button" role="switch" aria-checked={!!addToCrm} onClick={() => setAddToCrm(!addToCrm)} aria-label="Add to CRM" style={{ width: 40, height: 22, borderRadius: 9999, border: "none", background: addToCrm ? T.blue : T.separator, position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
-      <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: addToCrm ? 20 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-     </button>
-    </div>
-    {err && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10 }}>{err}</div>}
-    <button disabled={!canCreate}
-     onClick={async () => {
-      setBusy(true); setErr(null);
-      try { await onCreate({ name: name.trim(), email: email.trim(), phone: phone.trim(), addToCrm }); onClose(); }
-      catch (e) { setErr(e.message || "Could not create client"); setBusy(false); }
-     }}
-     style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: canCreate ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : T.pillBg, color: canCreate ? "#fff" : T.textTertiary, fontWeight: 700, fontSize: 15, cursor: canCreate ? "pointer" : "default", fontFamily: FONT, boxShadow: canCreate ? "0 0 20px rgba(59,107,245,0.3)" : "none" }}>
-     {busy ? "Creating…" : "Create Client"}
-    </button>
-   </div>
-  </div>
- );
-}
+// Create New Client sheet → components/CreateClientModal.jsx
 
 function Tab({ label, active, onClick, locked, completed, tabId }) {
  return (<button data-tab={tabId} onClick={locked ? undefined : onClick} style={{ background: active ? (T.onColor ? "#fff" : T.tabActiveBg) : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: T.onColor ? (active ? "#0B2545" : locked ? "rgba(255,255,255,0.6)" : "#fff") : locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
@@ -4101,7 +4048,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
 
  // Create a client from the Create New sheet: name + optional email +
- // Add-to-CRM tag (source: blueprint-crm — the Homebase sync reads this).
+ // Add-to-CRM tag (source: blueprint-crm, which makes them a Leads row in Ops).
  const handleCreateClient = async ({ name, email, phone, addToCrm }) => {
   const payload = { name, status: 'active', source: addToCrm ? 'blueprint-crm' : 'blueprint' };
   if (email) payload.email = email;
@@ -10295,6 +10242,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    onClose={() => setCreateClientOpen(false)}
    onCreate={handleCreateClient}
    initialName={createClientPrefill}
+   clients={borrowerList}
+   onOpenExisting={(b) => openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status })}
+   searchArive={searchAriveLoans}
+   onImportArive={handleImportAriveLoan}
+   fetchOpsContacts={fetchOpsContacts}
    T={T}
   />}
   {/* ═══ IMPORT CLIENT FROM ARIVE ═══ */}

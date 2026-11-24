@@ -313,6 +313,12 @@ export async function fetchAriveImport(loanId) {
   return authFetch(`/api/arive?action=blueprint-import&id=${encodeURIComponent(loanId)}`, { method: 'POST' });
 }
 
+// Ops contacts for the Create New Client look-up: { leads, past_clients, ... },
+// each { name, email, detail }. Same slim read Ops' campaign "Add people" uses.
+export async function fetchOpsContacts() {
+  return authFetch('/api/pipeline-data?_route=campaign-contacts');
+}
+
 // Refi Hunter handoff for a closed loan with no Arive file (?refiLoan=<id>).
 // Staff-only and tenant-scoped on the Ops side; returns the closed-loan record
 // restated for a refi: { loan_key, name, email, phone, rate, loan_amount,
