@@ -408,7 +408,7 @@ export default function QualifyContent(props) {
 
  <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start", marginTop: 16 } : {}}>
  {/* ── LEFT column: DTI bar + Pre-Qualified vs Pre-Approved education ── */}
- <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ <div style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
  {/* Debt to Income Summary — full breakdown matching Christo's spreadsheet.
      Replaces the old compact DTI bar + 'Min income needed' caption. */}
  {calc.qualMethod === "dscr" && <DscrPanel T={T} calc={calc} fmt={fmt} />}
@@ -470,7 +470,7 @@ export default function QualifyContent(props) {
  )}
  </div>{/* end qualify left column */}
  {/* ── RIGHT: Afford section — scrollable 50% ── */}
- <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ <div style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
  {/* ── AFFORD SECTION (merged) — purchase only ── */}
  {/* The solver prices one DTI-qualified loan. DSCR, Asset Qualifier and a
      1st + HELOC qualify differently, so it stays out rather than mislead. */}

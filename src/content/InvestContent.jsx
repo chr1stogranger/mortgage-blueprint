@@ -66,7 +66,7 @@ export default function InvestContent(props) {
  </Sec>
  </div>{/* end invest left column */}
  {/* RIGHT: Analysis (scrollable) */}
- <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ <div style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
  <Sec title="Key Metrics">
   <Card>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

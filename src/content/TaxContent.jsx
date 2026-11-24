@@ -74,7 +74,7 @@ export default function TaxContent(props) {
     />
    </Card>
   </div>
-  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+  <div style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
    <Sec title="Schedule E Pro Forma">
     <Card>
      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 14 }}>

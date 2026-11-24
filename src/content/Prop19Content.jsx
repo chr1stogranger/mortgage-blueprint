@@ -25,7 +25,7 @@ export default function Prop19Content(props) {
 
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
   {/* LEFT: Hero + Inputs */}
-  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+  <div style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
    <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
     <Hero
      value={fmt(prop19.monthlySavings)}
@@ -107,7 +107,7 @@ export default function Prop19Content(props) {
    </Sec>
   </div>
   {/* RIGHT: Results + Explanation */}
-  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+  <div style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
    {prop19.warnings.length > 0 && (
     <Sec title="Heads up">
      <Card>

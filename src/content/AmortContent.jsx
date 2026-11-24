@@ -140,7 +140,7 @@ export default function AmortContent(props) {
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── LEFT: Hero + Summary + Charts, always shown in full (no inner
      scroll, Christo 2026-11-23) ── */}
- <div ref={leftRef} style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ <div ref={leftRef} style={isDesktop ? { flex: "0 1 42%", minWidth: 0 } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   {/* Same pastel gradient card as Debts' Back-End DTI (Christo 2026-11-23);
       was the blue-tinted light Hero. */}
@@ -176,7 +176,7 @@ export default function AmortContent(props) {
  <Card><AmortChart /></Card>
  </div>{/* end amort left column */}
  {/* ── RIGHT: Schedule table, a scrolling box as tall as the charts column ── */}
- <div ref={rightRef} style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ <div ref={rightRef} style={isDesktop ? { flex: "1 1 0", minWidth: 0 } : {}}>
  <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
   {["monthly","yearly"].map(v => <Tab key={v} label={v.charAt(0).toUpperCase() + v.slice(1)} active={view === v} onClick={() => setAmortView(v)} />)}
   <button onClick={() => {
