@@ -117,7 +117,7 @@ import useSelfCloudSync from "./hooks/useSelfCloudSync";
 import AccountSheet from "./components/AccountSheet";
 import ShellAccount from "./components/ShellAccount";
 import CloudMergeSheet from "./components/CloudMergeSheet";
-import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
+import { getCountyLimits, LIMIT_YEAR, CONF_BASELINE } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
 import { FEE_KEYS, readFeeDefaults, writeFeeDefaults, normalizeSheet, feesMatchSheet, sheetFromScenario, readSyncMarker, writeSyncMarker, reconcileFeeDefaults, fetchAccountFeeDefaults, pushAccountFeeDefaults } from "./lib/feeDefaults.js";
 import FeeDefaultsEditor from "./components/FeeDefaultsEditor.jsx";
@@ -196,8 +196,9 @@ const HELOC_RATE_EST_SPREAD = 1.25;
 const VA_USAGE = ["First Use", "Subsequent", "Disabled"];
 // VA_FUNDING_FEES moved to lib/finance.js
 const PROP_TYPES = ["Single Family", "Single Family with ADU", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
-// 2026 FHFA conforming loan limits by unit count. High-balance = 150% of conforming.
-const CONF_LIMITS = { 1: 832750, 2: 1066250, 3: 1288800, 4: 1601750 };
+// FHFA national baseline conforming limits by unit count (src/data/loanLimits.js,
+// refreshed each November). High-balance ceiling = 150% of baseline.
+const CONF_LIMITS = CONF_BASELINE;
 // An ADU does NOT change the unit count — agencies still underwrite an SFR with
 // an accessory dwelling unit as a 1-unit property (1-unit loan limits, 1-unit
 // appraisal). Only its rentability differs, which RENTAL_UNITS below carries.
@@ -219,7 +220,7 @@ const getRentalUnits = (pt, occupied = 1) => {
 // National fallbacks only. `getHighBalLimit` here returns the statutory CEILING
 // (150% of baseline), which is correct ONLY in the highest-cost counties — real
 // per-county high-balance limits sit anywhere between baseline and ceiling
-// (Sonoma CA is $897,000, King WA $1,063,750, not $1,249,125). The component
+// (Sonoma CA is $897,000, King WA $1,063,750, not the $1,283,100 ceiling). The component
 // uses the county-aware lookup in src/data/loanLimits.js and only falls back to
 // these when the county is unknown. (Christo 2026-07-21.)
 const getConfLimit = (pt) => CONF_LIMITS[UNIT_COUNT[pt] || 1] || CONF_LIMITS[1];
@@ -967,7 +968,7 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 7, phase: 2, phaseLabel: "The Frame", title: "Loan Programs", icon: "file", housePart: "windows_doors",
   tabLink: "qualify", tabLabel: "Qualify",
-  lesson: "Choosing the right loan program is like choosing the right tool for the job. Each has different rules, rates, and benefits.\n\n**Conventional**: The workhorse. Best rates for 740+ FICO and 20%+ down. Conforming limit: $832,750 (higher in expensive areas). PMI drops off at 80% LTV.\n\n**FHA**: The starter. 3.5% down, 580 FICO minimum. Government-backed with mortgage insurance for life. Great for lower credit scores or limited savings. FHA duplex is a powerful house-hacking move.\n\n**VA**: The best loan in America. 0% down, no PMI, lower rates, up to 60% DTI. For veterans and active-duty only. VA funding fee (1.25–3.3%) can be rolled in. Disabled vets are exempt.\n\n**Jumbo**: For loan amounts above conforming limits. Higher rates, 700+ FICO, 20% down, max 43–50% DTI. Stricter on reserves (12+ months).\n\n**USDA**: Zero down for rural and suburban areas. Income limits apply. Not just farms: many suburban towns qualify.\n\n**The real play:** Don't just pick the program with the lowest down payment. Compare total cost over the first 5 years: payment + MI + fees. Sometimes 5% down conventional beats 3.5% FHA because of the MIP difference.",
+  lesson: "Choosing the right loan program is like choosing the right tool for the job. Each has different rules, rates, and benefits.\n\n**Conventional**: The workhorse. Best rates for 740+ FICO and 20%+ down. Conforming limit: $855,400 in 2027 (higher in expensive areas). PMI drops off at 80% LTV.\n\n**FHA**: The starter. 3.5% down, 580 FICO minimum. Government-backed with mortgage insurance for life. Great for lower credit scores or limited savings. FHA duplex is a powerful house-hacking move.\n\n**VA**: The best loan in America. 0% down, no PMI, lower rates, up to 60% DTI. For veterans and active-duty only. VA funding fee (1.25–3.3%) can be rolled in. Disabled vets are exempt.\n\n**Jumbo**: For loan amounts above conforming limits. Higher rates, 700+ FICO, 20% down, max 43–50% DTI. Stricter on reserves (12+ months).\n\n**USDA**: Zero down for rural and suburban areas. Income limits apply. Not just farms: many suburban towns qualify.\n\n**The real play:** Don't just pick the program with the lowest down payment. Compare total cost over the first 5 years: payment + MI + fees. Sometimes 5% down conventional beats 3.5% FHA because of the MIP difference.",
   quiz: [
    { q: "Which loan program has no mortgage insurance and 0% down?", opts: ["FHA", "Conventional", "VA", "USDA"], a: 2 },
    { q: "FHA mortgage insurance lasts:", opts: ["Until 80% LTV", "5 years", "The life of the loan", "Until the first refinance"], a: 2 },
@@ -11621,7 +11622,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    { cat: "Getting Started", items: [
     { title: "The 5 Pillars of Qualifying", icon: "check", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO): Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment: VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI): Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close: Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves: Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
     { title: "How Mortgage Rates Work", icon: "trending-up", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow, usually within days." },
-    { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into, and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket. Saving you thousands over the life of the loan." },
+    { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into, and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $855,400 (2027). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $855,401 – $1,283,100 (the ceiling in the priciest counties; your county may be lower). Slightly higher rates, still conventional guidelines.\n\nJumbo: Above your county's limit (at most $1,283,100). Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket. Saving you thousands over the life of the loan." },
     { title: "Property Taxes & Your Tax Bill", icon: "landmark", desc: "Every California city's rate, a tax calculator, and your county's bill lookup", href: CA_TAX_HUB_URL },
    ]},
    { cat: "Loan Programs", items: [
@@ -11662,7 +11663,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ["Max DTI", "50%", "With strong compensating factors (reserves, high FICO). Standard comfort zone is 45%."],
        ["Reserves", "2–6 months PITI", "2 months for conforming, up to 6 for high-balance or investment. 401(k), stocks, and savings all count at face value."],
        ["PMI", "Required until 80% LTV", "Auto-removed at 78% LTV. Request removal at 80%. After 2 yrs: remove at 75% with new appraisal. After 5 yrs: 80%."],
-       ["Loan Limits (2026)", `Conforming: ${fmt(calc.confLimit)}\nHigh Bal: ${fmt(calc.highBalLimit)}`, "2026 FHFA limits. High-balance applies in high-cost counties. Above high-balance = Jumbo."],
+       [`Loan Limits (${LIMIT_YEAR})`, `Conforming: ${fmt(calc.confLimit)}\nHigh Bal: ${fmt(calc.highBalLimit)}`, `${LIMIT_YEAR} FHFA limits. High-balance applies in high-cost counties. Above high-balance = Jumbo.`],
        ["Occupancy", "Primary, 2nd Home, Investment", "Investment properties require 15–25% down and higher reserves."],
       ]},
     { name: "FHA", sub: "Government-Backed", icon: "home", active: loanType === "FHA",
@@ -11672,7 +11673,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ["Max DTI / HTI", "DTI: 57%\nHTI: 47%", "FHA looks at both total DTI (all debts) and Housing-to-Income ratio (housing payment only). HTI max of 47% is the more common limiting factor."],
        ["Reserves", "0–1 month", "Rarely required for 1–2 unit primary. 3–4 unit = 3 months."],
        ["Mortgage Insurance", "Upfront: 1.75% (financed)\nMonthly: varies by LTV & loan amt", "MIP rate depends on loan amount and down payment:\n• ≤$726,200 & >95% LTV: 0.55%/yr (life of loan)\n• ≤$726,200 & 90.01–95% LTV: 0.50% (life of loan)\n• ≤$726,200 & ≤90% LTV: 0.50% (11 years)\n• >$726,200 & >95% LTV: 0.75% (life of loan)\n• >$726,200 & 90.01–95% LTV: 0.70% (life of loan)\n• >$726,200 & ≤90% LTV: 0.70% (11 years)"],
-       ["Loan Limits (2026)", `1-unit: ${fmt(832750)}\n2-unit: ${fmt(1066250)}`, "FHA floor = conforming limit. Higher in high-cost areas (ceiling = 150% of conforming). FHA duplex limits are generous. Great for house-hacking."],
+       [`Loan Limits (${LIMIT_YEAR})`, `1-unit: ${fmt(CONF_BASELINE[1])}\n2-unit: ${fmt(CONF_BASELINE[2])}`, "FHA floor = conforming limit. Higher in high-cost areas (ceiling = 150% of conforming). FHA duplex limits are generous. Great for house-hacking."],
        ["Occupancy", "Primary residence only", "Must occupy within 60 days. 12-month occupancy requirement."],
       ]},
     { name: "VA", sub: "Veterans & Active Duty", icon: "", active: loanType === "VA",
@@ -11693,7 +11694,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ["Max DTI", "43–50%", "43% is standard. Some programs allow up to 50% with exceptional reserves and credit."],
        ["Reserves", "6–12 months PITI", "6 months minimum, 12 preferred. Liquid reserves are critical."],
        ["PMI", "Required if <20% down", "Jumbo PMI is more expensive than conforming. Most put 20%+ down to avoid."],
-       ["Loan Limits (2026)", `Above ${fmt(calc.highBalLimit)}`, "Anything above the 2026 high-balance limit for your county."],
+       [`Loan Limits (${LIMIT_YEAR})`, `Above ${fmt(calc.highBalLimit)}`, `Anything above the ${LIMIT_YEAR} high-balance limit for your county.`],
        ["Occupancy", "Primary, 2nd Home, Investment", "Investment Jumbo available, typically 25–30% down with 12+ months reserves."],
        ["Asset Docs", "Full verification", "Manual underwriting. Expect large deposit explanations, full sourcing, business docs if self-employed."],
       ]},

@@ -14,6 +14,7 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } fro
 import { STATE_PROPERTY_TAX_RATES } from "./data/propertyTax.js";
 import { calcPI, getPMIRate } from "./lib/finance.js"; // shared engine — was a drift-prone local copy
 import Icon from "./Icon";
+import { CONF_BASELINE } from "./data/loanLimits.js";
 
 
 // ── Theme (passed in as prop, but need a module-level ref for components) ──
@@ -33,7 +34,7 @@ function pct(v, d = 1) { return ((v || 0) * 100).toFixed(d) + "%"; }
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo"];
 const PROP_TYPES = ["Single Family", "Single Family with ADU", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
 const CONDO_TYPES = new Set(["Condo", "Townhouse"]);
-const CONF_LIMIT = 832750;
+const CONF_LIMIT = CONF_BASELINE[1]; // FHFA national baseline, one unit
 
 // ── Compact UI Components ──
 function InfoTip({ text }) {

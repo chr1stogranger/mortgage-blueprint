@@ -4,7 +4,7 @@
 // 5-digit FIPS code. Limits are NOT here: read them through getCountyLimits()
 // in ./loanLimits.js. Licensed-state names match ./licensedCounties.js;
 // the rest are the Census Bureau's names for the same FIPS codes.
-// Source: https://www.fhfa.gov/document/data/fullcountyloanlimitlist2026_hera-based_final_flat.xlsx
+// Source: https://www.fhfa.gov/document/d/cll/fullcountyloanlimitlist2027_hera-based_final_flat.xlsx
 // and https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_500k.zip (3235 counties).
 
 /** USPS code -> state, DC or territory name, in name order. */

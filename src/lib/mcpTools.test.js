@@ -53,11 +53,11 @@ describe("estimate_max_home_price", () => {
     expect(s.monthly_payment.principal_interest).toBeCloseTo(4234.86, 2);
     expect(s.monthly_payment.total).toBeCloseTo(5748.94, 2);
     expect(s.limited_by).toBe("dti");
-    expect(s.conforming_limit).toBe(832750);
+    expect(s.conforming_limit).toBe(855400);
     expect(s.disclosure).toBe(DISCLOSURE);
     expect(text(r)).toContain("$730,000");
     expect(text(r)).toContain(DISCLOSURE);
-    expect(s.assumptions.join(" ")).toMatch(/national conforming limit of \$832,750/);
+    expect(s.assumptions.join(" ")).toMatch(/national conforming limit of \$855,400/);
     expect(s.assumptions.join(" ")).toMatch(/Texas's average effective rate of 1\.68%/);
   });
   it("normalizes a 2-letter / abbreviated state and refuses a non-state instead of guessing", async () => {
@@ -73,9 +73,9 @@ describe("estimate_max_home_price", () => {
   });
   it("explains a jumbo switch above the county limit", async () => {
     const r = await run("estimate_max_home_price", { annual_income: 480000, monthly_debts: 500, cash_available: 700000, interest_rate: 6.5, state: "CA", county: "Alameda", city: "Oakland" });
-    expect(r.structuredContent.conforming_limit).toBe(1249125);
+    expect(r.structuredContent.conforming_limit).toBe(1283100);
     expect(r.structuredContent.program).toBe("Jumbo");
-    expect(text(r)).toContain("Above $1,249,125 this becomes a jumbo loan: 20% down, 43% DTI");
+    expect(text(r)).toContain("Above $1,283,100 this becomes a jumbo loan: 20% down, 43% DTI");
     expect(r.structuredContent.max_price_before_jumbo).toBeGreaterThan(0);
   });
   it("returns isError (not a throw) when debts exceed the program DTI", async () => {

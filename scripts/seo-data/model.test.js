@@ -76,25 +76,25 @@ describe("page set", () => {
     const n = (re) => site.pages.filter((p) => re.test(p.path)).length;
     expect(n(/^\/loan-limits\/$/)).toBe(1);
     expect(n(/^\/loan-limits\/[^/]+\/$/)).toBe(56); // 50 states, DC and 5 territories
-    expect(n(/^\/loan-limits\/[^/]+\/[^/]+\/$/)).toBe(159);
+    expect(n(/^\/loan-limits\/[^/]+\/[^/]+\/$/)).toBe(163);
     expect(n(/^\/property-tax\/california\/$/)).toBe(1);
     expect(n(/^\/property-tax\/california\/[^/]+-county\/$/)).toBe(CA_TAX_COUNTIES.length);
     expect(n(/^\/property-tax\/california\/[^/]+\/$/)).toBe(CA_TAX_COUNTIES.length + Object.keys(CA_CITY_COUNTY).length);
     expect(site.sitemap).toHaveLength(site.pages.length);
   });
 
-  it("Alameda CA: $1,249,125 / $1,599,375, with a county page", () => {
-    expect(getCountyLimits("CA", "Alameda", 1).highBalance).toBe(1249125);
-    expect(getCountyLimits("CA", "Alameda", 2).highBalance).toBe(1599375);
+  it("Alameda CA: $1,283,100 / $1,642,875, with a county page", () => {
+    expect(getCountyLimits("CA", "Alameda", 1).highBalance).toBe(1283100);
+    expect(getCountyLimits("CA", "Alameda", 2).highBalance).toBe(1642875);
     const p = byPath.get("/loan-limits/california/alameda-county/");
-    expect(p.h1).toBe("2026 Conforming Loan Limits in Alameda County, California");
-    expect(p.lead).toBe("The 2026 conforming loan limit for a one-unit home in Alameda County, California is $1,249,125, the FHFA high-cost ceiling. Loans above that amount are jumbo loans.");
-    expect(pageText(p)).toContain("$1,599,375");
+    expect(p.h1).toBe("2027 Conforming Loan Limits in Alameda County, California");
+    expect(p.lead).toBe("The 2027 conforming loan limit for a one-unit home in Alameda County, California is $1,283,100, the FHFA high-cost ceiling. Loans above that amount are jumbo loans.");
+    expect(pageText(p)).toContain("$1,642,875");
     expect(pageText(p)).toContain("/property-tax/california/fremont/");
   });
 
-  it("Fresno CA: $832,750, no loan-limit page (a row on the CA state page), but a tax page", () => {
-    expect(getCountyLimits("CA", "Fresno", 1).highBalance).toBe(832750);
+  it("Fresno CA: $855,400, no loan-limit page (a row on the CA state page), but a tax page", () => {
+    expect(getCountyLimits("CA", "Fresno", 1).highBalance).toBe(855400);
     expect([...byPath.keys()].some((k) => k.startsWith("/loan-limits/") && k.includes("fresno"))).toBe(false);
     const tax = byPath.get("/property-tax/california/fresno-county/");
     expect(tax.h1).toMatch(/^Fresno County Property Tax Rates \(FY 20\d\d-\d\d\)$/);
@@ -102,7 +102,7 @@ describe("page set", () => {
     expect(pageText(byPath.get("/property-tax/california/fresno/"))).toContain("/property-tax/california/fresno-county/");
     const table = byPath.get("/loan-limits/california/").sections.find((x) => x.heading === "California county limits").blocks[0];
     const row = table.rows.find((r) => r.id === "fresno-county");
-    expect(row.cells).toEqual(["Fresno County", "$832,750", "$1,066,250", "$1,288,800", "$1,601,750"]);
+    expect(row.cells).toEqual(["Fresno County", "$855,400", "$1,095,250", "$1,323,900", "$1,645,350"]);
   });
 
   it("King WA, Denver CO, Maui HI have pages with the right limit", () => {
@@ -111,20 +111,20 @@ describe("page set", () => {
     expect(byPath.get("/loan-limits/hawaii/maui-county/").lead).toContain("$1,299,500");
   });
 
-  it("Honolulu HI: $1,249,125 under HERA, page exists though not high-cost", () => {
+  it("Honolulu HI: $1,283,100 under HERA, page exists though not high-cost", () => {
     const lim = getCountyLimits("HI", "Honolulu", 1);
-    expect(lim.highBalance).toBe(1249125);
+    expect(lim.highBalance).toBe(1283100);
     expect(lim.isHighCost).toBe(false);
     const p = byPath.get("/loan-limits/hawaii/honolulu-county/");
-    expect(p.lead).toContain("$1,249,125");
+    expect(p.lead).toContain("$1,283,100");
     expect(p.lead).toContain("HERA");
     expect(byPath.get("/loan-limits/hawaii/kalawao-county/")).toBeTruthy();
   });
 
-  it("Travis TX: $832,750, no county page; TX lead says all 254 are at baseline", () => {
-    expect(getCountyLimits("TX", "Travis", 1).highBalance).toBe(832750);
+  it("Travis TX: $855,400, no county page; TX lead says all 254 are at baseline", () => {
+    expect(getCountyLimits("TX", "Travis", 1).highBalance).toBe(855400);
     expect([...byPath.keys()].filter((k) => k.startsWith("/loan-limits/texas/"))).toEqual(["/loan-limits/texas/"]);
-    expect(byPath.get("/loan-limits/texas/").lead).toBe("All 254 Texas counties use the national baseline of $832,750 for a one-unit home in 2026. Loans above that amount are jumbo loans.");
+    expect(byPath.get("/loan-limits/texas/").lead).toBe("All 254 Texas counties use the national baseline of $855,400 for a one-unit home in 2027. Loans above that amount are jumbo loans.");
   });
 
   it("Fremont: 1.1746% (FY 2026-27); $1M -> $11,746/yr, $978.83/mo", () => {
@@ -191,7 +191,7 @@ describe("helpers", () => {
   it("renders escaped, script-free HTML with parseable JSON-LD", () => {
     expect(esc(`<a href="x">&'`)).toBe("&lt;a href=&quot;x&quot;&gt;&amp;&#39;");
     const html = renderPage(byPath.get("/loan-limits/california/alameda-county/"), { fontHref: "/fonts/fonts.css" });
-    expect(html).toContain("<h1>2026 Conforming Loan Limits in Alameda County, California</h1>");
+    expect(html).toContain("<h1>2027 Conforming Loan Limits in Alameda County, California</h1>");
     expect(html).toContain('<link rel="canonical" href="https://blueprint.realstack.app/loan-limits/california/alameda-county/" />');
     expect(html.match(/POWERED BY REALSTACK/g)).toHaveLength(1);
     const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
@@ -410,7 +410,7 @@ describe("loan-limit checker and map", () => {
 
   it("puts the checker and county map first on every loan-limit page", () => {
     const ll = site.pages.filter((p) => p.path.startsWith("/loan-limits/"));
-    expect(ll).toHaveLength(1 + 56 + 159);
+    expect(ll).toHaveLength(1 + 56 + 163);
     for (const p of ll) {
       const html = renderPage(p, font);
       expect(p.layout, p.path).toBe("llhub");
@@ -435,12 +435,12 @@ describe("loan-limit checker and map", () => {
     const html = renderPage(byPath.get("/loan-limits/california/alameda-county/"), font);
     expect(html).toContain('<strong class="ll-kind" data-out="kind">High-balance</strong>');
     expect(html).toContain('<span data-out="loan">$1,000,000</span>');
-    expect(html).toContain('<b data-out="high">$832,751 to $1,249,125</b>');
-    expect(html).toContain('<b data-out="mindown">$875 (0.1%)</b>');
+    expect(html).toContain('<b data-out="high">$855,401 to $1,283,100</b>');
+    expect(html).toContain('<b data-out="mindown">any amount</b>');
     const tx = renderPage(byPath.get("/loan-limits/texas/"), font);
     expect(tx).toContain('<strong class="ll-kind" data-out="kind">Jumbo</strong>');
     expect(tx).toContain('<div data-band="high" class="off">');
-    expect(tx).toContain('<b data-out="mindown">$417,250 (33.4%)</b>');
+    expect(tx).toContain('<b data-out="mindown">$394,600 (31.6%)</b>');
   });
 
   it("classifies a loan against the standard limit and the county limit", async () => {
@@ -518,13 +518,13 @@ describe("national loan-limit pages", () => {
   const font = { fontHref: "/fonts/fonts.css" };
   it("covers every state, with honest wording for single areas and HERA states", () => {
     const dc = byPath.get("/loan-limits/district-of-columbia/");
-    expect(dc.title).toMatch(/^District of Columbia 2026 Conforming Loan Limit — /);
-    expect(dc.lead).toBe("District of Columbia is a single loan limit area. Its 2026 one-unit conforming loan limit is $1,249,125, the FHFA high-cost ceiling. Loans above that amount are jumbo loans.");
+    expect(dc.title).toMatch(/^District of Columbia 2027 Conforming Loan Limit — /);
+    expect(dc.lead).toBe("District of Columbia is a single loan limit area. Its 2027 one-unit conforming loan limit is $1,283,100, the FHFA high-cost ceiling. Loans above that amount are jumbo loans.");
     expect([...byPath.keys()].some((k) => k.startsWith("/loan-limits/district-of-columbia/") && k !== "/loan-limits/district-of-columbia/")).toBe(false);
-    expect(byPath.get("/loan-limits/alaska/").lead).toMatch(/^Every one of Alaska's 30 boroughs and census areas has a 2026 one-unit conforming loan limit of at least \$1,249,125/);
+    expect(byPath.get("/loan-limits/alaska/").lead).toMatch(/^Every one of Alaska's 30 boroughs and census areas has a 2027 one-unit conforming loan limit of at least \$1,283,100/);
     expect(byPath.get("/loan-limits/louisiana/").lead).toContain("parishes");
-    expect(byPath.get("/loan-limits/new-york/kings-county/").lead).toContain("$1,209,750");
-    expect(byPath.get("/loan-limits/").title).toBe("2026 Conforming Loan Limits by State and County — Mortgage Blueprint, powered by RealStack");
+    expect(byPath.get("/loan-limits/new-york/kings-county/").lead).toContain("$1,224,750");
+    expect(byPath.get("/loan-limits/").title).toBe("2027 Conforming Loan Limits by State and County — Mortgage Blueprint, powered by RealStack");
   });
 
   it("only pre-fills the app where Christo is licensed", () => {
@@ -545,8 +545,8 @@ describe("link previews", () => {
     expect(hub).toContain("<title>California Property Tax Rates by City and County — Mortgage Blueprint, powered by RealStack</title>");
     expect(renderPage(byPath.get("/property-tax/california/fremont/"), font)).toContain('<meta property="og:title" content="Fremont, CA Property Tax Calculator" />');
     const ll = renderPage(byPath.get("/loan-limits/texas/"), font);
-    expect(ll).toContain('<meta property="og:title" content="Texas 2026 Loan Limits by County" />');
-    expect(ll).toContain('<meta name="twitter:image" content="https://blueprint.realstack.app/api/og-ll?state=TX&amp;y=2026" />');
+    expect(ll).toContain('<meta property="og:title" content="Texas 2027 Loan Limits by County" />');
+    expect(ll).toContain('<meta name="twitter:image" content="https://blueprint.realstack.app/api/og-ll?state=TX&amp;y=2027" />');
     for (const f of ["og-ca-tax.png", "og-loan-limits.png"]) expect(readFileSync(new URL(`../../public/${f}`, import.meta.url)).length).toBeGreaterThan(50000);
   });
 });
@@ -602,8 +602,8 @@ describe("city link-preview cards", () => {
 describe("loan-limit link-preview cards", () => {
   const font = { fontHref: "/fonts/fonts.css" };
   it("points state and county pages at their own card, territories off the map at the shared one", () => {
-    expect(renderPage(byPath.get("/loan-limits/texas/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-ll?state=TX&amp;y=2026" />');
-    expect(renderPage(byPath.get("/loan-limits/new-york/kings-county/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-ll?fips=36047&amp;l=1209750&amp;y=2026" />');
+    expect(renderPage(byPath.get("/loan-limits/texas/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-ll?state=TX&amp;y=2027" />');
+    expect(renderPage(byPath.get("/loan-limits/new-york/kings-county/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/api/og-ll?fips=36047&amp;l=1224750&amp;y=2027" />');
     expect(renderPage(byPath.get("/loan-limits/guam/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/og-loan-limits.png" />');
     expect(renderPage(byPath.get("/loan-limits/"), font)).toContain('<meta property="og:image" content="https://blueprint.realstack.app/og-loan-limits.png" />');
   });

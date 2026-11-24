@@ -3,8 +3,8 @@
 // Every county FHFA lists for the states Chris is licensed in, with the name
 // as FHFA prints it (title-cased) and the 5-digit FIPS code. Limits are NOT
 // here: read them through getCountyLimits() in ./loanLimits.js.
-// Source: https://www.fhfa.gov/document/data/fullcountyloanlimitlist2026_hera-based_final_flat.xlsx
-// Downloaded 2026-10-21. Counts: AZ 15, CA 58, CO 64, HI 5, NV 17, OR 36, TX 254, WA 39 (488 total).
+// Source: https://www.fhfa.gov/document/d/cll/fullcountyloanlimitlist2027_hera-based_final_flat.xlsx
+// Downloaded 2026-11-24. Counts: AZ 15, CA 58, CO 64, HI 5, NV 17, OR 36, TX 254, WA 39 (488 total).
 
 export const LICENSED_COUNTIES = {
   AZ: [

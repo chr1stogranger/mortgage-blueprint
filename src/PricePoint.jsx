@@ -6,7 +6,7 @@ import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT } from './components/MobileTabBar.j
 import AddressAutocomplete from './components/AddressAutocomplete.jsx';
 import { DARK } from './lib/theme.js';
 import { washOn } from './lib/onColor.js';
-import { getCountyLimits } from './data/loanLimits.js';
+import { getCountyLimits, CONF_BASELINE } from './data/loanLimits.js';
 import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import { getDevicePosition, watchDevicePosition } from './lib/deviceLocation';
@@ -375,7 +375,7 @@ const MARKET_COUNTY = {
 const STATE_TAX_RATE = { CA: 0.012, WA: 0.0095, FL: 0.0105, NY: 0.0095, IL: 0.0195, CO: 0.006, OR: 0.011, MA: 0.011, AZ: 0.0065 };
 const payContextFor = (marketId, rates) => {
   const [st, county] = MARKET_COUNTY[marketId] || ["CA", "San Francisco"];
-  let limit = 832750;
+  let limit = CONF_BASELINE[1];
   try { limit = getCountyLimits(st, county, 1).highBalance || limit; } catch { /* baseline */ }
   return {
     rate30: Number(rates?.["30yr_fixed"]) || 7.0,

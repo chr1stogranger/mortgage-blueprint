@@ -10,7 +10,7 @@ Usage (openpyxl lives in the user site-packages, so use -E rather than -I, and
 run it from the repo root, not from the download directory):
 
   mkdir -p /tmp/fhfa && curl -sSL -o /tmp/fhfa/cll.xlsx \\
-    https://www.fhfa.gov/document/data/fullcountyloanlimitlist2026_hera-based_final_flat.xlsx
+    https://www.fhfa.gov/document/d/cll/fullcountyloanlimitlist2027_hera-based_final_flat.xlsx
   python3 -E scripts/gen-licensed-counties.py /tmp/fhfa/cll.xlsx
 
 For a new year: update the URL below and in src/data/loanLimits.js, refresh
@@ -27,7 +27,7 @@ import sys
 
 import openpyxl
 
-SOURCE_URL = "https://www.fhfa.gov/document/data/fullcountyloanlimitlist2026_hera-based_final_flat.xlsx"
+SOURCE_URL = "https://www.fhfa.gov/document/d/cll/fullcountyloanlimitlist2027_hera-based_final_flat.xlsx"
 EXPECTED = {"AZ": 15, "CA": 58, "CO": 64, "HI": 5, "NV": 17, "OR": 36, "TX": 254, "WA": 39}
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "data", "licensedCounties.js")
 
