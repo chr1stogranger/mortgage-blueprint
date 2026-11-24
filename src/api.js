@@ -313,6 +313,19 @@ export async function fetchAriveImport(loanId) {
   return authFetch(`/api/arive?action=blueprint-import&id=${encodeURIComponent(loanId)}`, { method: 'POST' });
 }
 
+// Arive files whose application just came in (Ops' Blueprint Sync job):
+// { pending: [{ arive_loan_id, borrower_name, ready_at }] }. Blueprint adds a
+// scenario from each. claim → { claimed } so only one open tab imports a file.
+export async function fetchArivePendingImports() {
+  return authFetch('/api/pipeline-data?_route=bp-auto');
+}
+export async function claimArivePendingImport(ariveLoanId) {
+  return authFetch('/api/pipeline-data?_route=bp-auto', { method: 'POST', body: { arive_loan_id: ariveLoanId, action: 'claim' } });
+}
+export async function finishArivePendingImport(ariveLoanId) {
+  return authFetch('/api/pipeline-data?_route=bp-auto', { method: 'POST', body: { arive_loan_id: ariveLoanId, action: 'done' } });
+}
+
 // Ops contacts for the Create New Client look-up: { leads, past_clients, ... },
 // each { name, email, detail }. Same slim read Ops' campaign "Add people" uses.
 export async function fetchOpsContacts() {

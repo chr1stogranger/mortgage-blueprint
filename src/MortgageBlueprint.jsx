@@ -88,7 +88,7 @@ import {
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
-  searchAriveLoans, fetchAriveImport, fetchOpsContacts, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
+  searchAriveLoans, fetchAriveImport, fetchOpsContacts, fetchArivePendingImports, claimArivePendingImport, finishArivePendingImport, fetchRefiHandoff, markRefiOfferSent, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
   fetchSharedData, fetchSharedTeamPhotos, fetchLoPhoto, fetchListing, fetchLoCard, fetchPlan,
@@ -3949,7 +3949,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   };
  };
 
- const createClientFromArivePayload = async (payload, { asRefi = false, extraState = null } = {}) => {
+ const createClientFromArivePayload = async (payload, { asRefi = false, extraState = null, label: labelOverride = '' } = {}) => {
   if (!payload?.borrower) throw new Error('Arive returned no borrower data');
 
   // Normalize the financial rows before they become state_data. Ops is the
@@ -4014,7 +4014,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch { /* deal team is best-effort — the client + scenario still land */ }
 
   // 3. Scenario prefilled from the file
-  const label = `${asRefi ? 'Refi' : 'Arive Import'}${b._deduplicated || asRefi ? ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
+  const label = labelOverride || `${asRefi ? 'Refi' : 'Arive Import'}${b._deduplicated || asRefi ? ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
   const newScenario = await apiCreateScenario({
    borrower_id: b.id, name: label,
    type: prefill.isRefi ? 'refi' : 'purchase',
@@ -4046,6 +4046,31 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setImportAriveOpen(false);
   setTab('overview');
  };
+
+ // Applications that came in on Arive (Ops' Blueprint Sync job marks them):
+ // add a scenario from the file to that client, once, without opening it or
+ // touching the scenarios already there. Runs a few seconds after a loan
+ // officer signs in; Ops hands each file to one tab only (claim), so two open
+ // Blueprints never import the same file twice. The client lands in Recents.
+ const ariveAutoImportRef = useRef(null);
+ ariveAutoImportRef.current = async () => {
+  const { pending } = await fetchArivePendingImports();
+  for (const p of (pending || []).slice(0, 3)) {
+   try {
+    const { claimed } = await claimArivePendingImport(p.arive_loan_id);
+    if (!claimed) continue;
+    const payload = await fetchAriveImport(p.arive_loan_id);
+    const when = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    await createClientFromArivePayload(payload, { label: `Application ${when}` });
+    await finishArivePendingImport(p.arive_loan_id);
+   } catch (e) { console.warn('[Blueprint] Arive auto-import skipped:', e?.message); }
+  }
+ };
+ useEffect(() => {
+  if (!isCloud || isBorrower || EMBED === "pane") return;
+  const t = setTimeout(() => { ariveAutoImportRef.current?.().catch(() => { /* Ops route not there yet, or offline */ }); }, 5000);
+  return () => clearTimeout(t);
+ }, [isCloud, isBorrower]);
 
  // Create a client from the Create New sheet: name + optional email +
  // Add-to-CRM tag (source: blueprint-crm, which makes them a Leads row in Ops).
