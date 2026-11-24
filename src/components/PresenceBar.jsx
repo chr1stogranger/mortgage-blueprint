@@ -10,7 +10,8 @@ import { FONT, MONO } from "../lib/fonts.js";
 
 import React from 'react';
 import Icon from '../Icon';
-import { initialsOf, presenceColor, keyLabel, TAB_LABELS } from '../lib/fieldPresence';
+import { presenceColor } from '../lib/fieldPresence';
+import PresenceAvatar, { whereLabel } from './PresenceAvatar';
 
 export default function PresenceBar({ T, onlineUsers = [], followEmail = null, onJump, onToggleFollow }) {
   if (onlineUsers.length === 0) return null;
@@ -35,7 +36,7 @@ export default function PresenceBar({ T, onlineUsers = [], followEmail = null, o
       {onlineUsers.map((user) => {
         const color = presenceColor(user.email);
         const first = (user.name || user.email || 'Someone').split(/[\s@]/)[0];
-        const where = [TAB_LABELS[user.tab] || '', keyLabel(user.field)].filter(Boolean).join(' · ');
+        const where = whereLabel(user);
         const following = followEmail === user.email;
         return (
           <div key={user.email} style={{
@@ -48,11 +49,7 @@ export default function PresenceBar({ T, onlineUsers = [], followEmail = null, o
               background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 9999,
               fontFamily: FONT, color: T.text, maxWidth: 260,
             }}>
-              <span style={{
-                width: 24, height: 24, borderRadius: '50%', background: color, color: '#fff',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0,
-              }}>{initialsOf(user.name, user.email)}</span>
+              <PresenceAvatar user={user} size={24} />
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }}>
                   {first}

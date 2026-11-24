@@ -6,6 +6,7 @@ import { repayPillar } from "./lib/nonQm.js";
 import useEscape from "./hooks/useEscape.js";
 import SharedBlueprints from "./components/SharedBlueprints";
 import useDeployVersion from "./hooks/useDeployVersion.js";
+import { PresenceStack } from "./components/PresenceAvatar";
 import { SIDEBAR_W } from "./lib/layout.js";
 
 
@@ -513,20 +514,6 @@ export default function UnifiedHeader({
               {cloudSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>✗</span>}
               {sync?.status === 'saving' && <span style={{ fontSize: 9, color: '#3B6BF5', fontStyle: "italic" }}>syncing...</span>}
               {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#12a150' }}>live</span>}
-              {sync?.onlineUsers?.length > 0 && (
-                <span style={{ position: "relative", display: "inline-flex" }}>
-                  <button type="button" onClick={() => setPresenceOpen(o => !o)} aria-expanded={presenceOpen} title="Who's in this Blueprint"
-                    style={{ fontSize: 9.5, color: '#3B6BF5', fontWeight: 700, background: presenceOpen ? `${T.blue}14` : "transparent", border: "none", borderRadius: 9999, padding: "2px 6px", cursor: "pointer", fontFamily: FONT }}>
-                    {sync.onlineUsers.length} online ▾
-                  </button>
-                  {presenceOpen && presencePanel && (<>
-                    <div onClick={() => setPresenceOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 950 }} />
-                    <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 951, minWidth: 320, maxWidth: 520, background: T.card, borderRadius: 16, boxShadow: T.cardShadow || "0 12px 32px rgba(15,23,41,.18)" }}>
-                      {presencePanel}
-                    </div>
-                  </>)}
-                </span>
-              )}
               {selfSyncStatus === 'saving' && <span style={{ fontSize: 9, color: '#3B6BF5', fontStyle: "italic" }}>syncing...</span>}
               {selfSyncStatus === 'saved' && <span style={{ fontSize: 9, color: '#12a150' }}>synced</span>}
               {selfSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>sync error</span>}
@@ -581,6 +568,22 @@ export default function UnifiedHeader({
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
               Update
             </button>
+          )}
+          {/* Who else is in this Blueprint — overlapping avatars just left of
+              the "+" (Christo 2026-11-24), like Google Sheets. Click opens
+              the Jump / Follow list. Desktop only: phones keep the in-flow
+              PresenceBar row. */}
+          {isDesktop && sync?.onlineUsers?.length > 0 && (
+            <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+              <PresenceStack T={T} users={sync.onlineUsers} open={presenceOpen}
+                onClick={() => setPresenceOpen(o => !o)} />
+              {presenceOpen && presencePanel && (<>
+                <div onClick={() => setPresenceOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 950 }} />
+                <div style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, zIndex: 951, width: "max-content", minWidth: 320, maxWidth: "min(520px, 90vw)", background: T.card, borderRadius: 16, boxShadow: T.cardShadow || "0 12px 32px rgba(15,23,41,.18)" }}>
+                  {presencePanel}
+                </div>
+              </>)}
+            </span>
           )}
           {/* ── Borrower account: sign-in pill (anonymous) / avatar (signed in).
               Hidden in LO mode and share-link borrower mode. ── */}
