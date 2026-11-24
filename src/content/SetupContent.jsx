@@ -110,7 +110,7 @@ export default function SetupContent(props) {
     lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, ClusterContinue,
     // Refi-specific states
     refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType,
-    refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate,
+    refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiArmCaps, setRefiArmCaps,
     refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride,
     closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear,
     refiOriginalAmount, setRefiOriginalAmount,
@@ -1442,6 +1442,56 @@ export default function SetupContent(props) {
      {arm && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -6, marginBottom: 10 }}>
       Amortizes at the start rate until "{refiArmAdjustedDate ? "the adjustment" : "adjusted"}", then recasts at the Current Rate above (the rate it adjusted to).
      </div>}
+     {/* Next adjustment + caps (Christo 2026-11-24). With "Price the worst
+         case" on, every remaining adjustment rises by its cap up to the
+         lifetime ceiling, and the current loan's remaining interest,
+         lifetime cost and year-by-year table run on that path. */}
+     {arm && setRefiArmCaps && (() => {
+      const caps = refiArmCaps || {};
+      const setCap = (k, v) => setRefiArmCaps({ ...caps, [k]: v });
+      const w = calc.refiArmWorst;
+      const ceiling = (Number(refiArmStartRate) > 0 ? Number(refiArmStartRate) : Number(refiCurrentRate) || 0) + (Number(caps.lifetimeCap) || 0);
+      const nextShown = caps.nextAdj || (w?.nextDate ? `${w.nextDate.getFullYear()}-${String(w.nextDate.getMonth() + 1).padStart(2, "0")}-01` : "");
+      const on = caps.worstCase !== false;
+      const mo = (d) => d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      return (<>
+       <div className="rl-cq"><div className="rl-g4">
+        <div style={{ gridColumn: "span 2", minWidth: 0 }}>
+         <MonthYear T={T} FieldLabel={FieldLabel} label="Next adjustment" tip="The next rate change date. Left blank, it's the last adjustment plus the adjustment period."
+          value={nextShown} onChange={(v) => setCap("nextAdj", v)}
+          years={Array.from({ length: 12 }, (_, i) => new Date().getFullYear() + i)} defaultYear={new Date().getFullYear() + 1} />
+        </div>
+        <Sel label="Adjusts every" value={String(caps.periodMonths || 12)} onChange={(v) => setCap("periodMonths", Number(v))}
+         options={[{ value: "6", label: "6 months" }, { value: "12", label: "12 months" }]} />
+        <div style={{ marginBottom: 14 }}>
+         <FieldLabel label="Price the worst case" tip="On: every remaining adjustment goes up by its cap until the lifetime ceiling, and the current loan's remaining interest is priced on that path. Off: today's rate held to maturity." />
+         <div role="radiogroup" aria-label="Price the worst case" style={{ display: "flex", background: T.inputBg, borderRadius: 12, padding: 3, border: `1px solid ${T.inputBorder}`, minHeight: 50, boxSizing: "border-box" }}>
+          {[[true, "Worst case"], [false, "Today's rate"]].map(([v, l]) => (
+           <button key={l} type="button" role="radio" aria-checked={on === v} onClick={() => setCap("worstCase", v)}
+            style={{ flex: 1, border: "none", borderRadius: 9, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", background: on === v ? T.card : "transparent", color: on === v ? T.blue : T.textSecondary, boxShadow: on === v ? "0 1px 3px rgba(15,23,41,0.14)" : "none" }}>{l}</button>
+          ))}
+         </div>
+        </div>
+        <Inp label="First adjustment cap" value={caps.firstCap ?? 2} onChange={(v) => setCap("firstCap", v)} prefix="" suffix="%" step={0.25} max={10} tip="How far the rate can move at the first adjustment." />
+        <Inp label="Subsequent cap" value={caps.periodicCap ?? 2} onChange={(v) => setCap("periodicCap", v)} prefix="" suffix="%" step={0.25} max={10} tip="How far the rate can move at each adjustment after the first." />
+        <Inp label="Lifetime cap" value={caps.lifetimeCap ?? 5} onChange={(v) => setCap("lifetimeCap", v)} prefix="" suffix="%" step={0.25} max={15} tip="How far above the start rate the rate can ever go. The ceiling is start rate + lifetime cap." />
+        <div style={{ marginBottom: 14 }}>
+         <FieldLabel label="Rate ceiling" />
+         <div style={{ minHeight: 50, boxSizing: "border-box", display: "flex", alignItems: "center", padding: "12px 14px", borderRadius: 12, background: `${T.blue}10`, border: `1px solid ${T.blue}33`, fontSize: 15, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{ceiling > 0 ? `${ceiling.toFixed(3)}%` : "—"}</div>
+        </div>
+       </div></div>
+       {on && w && (
+        <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.55, marginTop: -4, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: T.inputBg }}>
+         <strong style={{ color: T.text }}>Worst case:</strong>{" "}
+         {w.steps.map((st, i) => <span key={i}>{i > 0 ? " → " : ""}{mo(st.date)} {st.rate.toFixed(3)}% ({fmt(st.payment)}/mo{st.ceiling ? ", ceiling" : ""})</span>)}.
+         {" "}Remaining interest {fmt(calc.refiCurRemainingInt)}, against {fmt(calc.refiCurRemainingIntFlat)} if it stayed at {Number(refiCurrentRate).toFixed(3)}%.
+        </div>
+       )}
+       {on && !w && calc.refiEffPI > 0 && (
+        <div style={{ fontSize: 12, color: T.textTertiary, marginTop: -4, marginBottom: 12 }}>No adjustment left to price: the rate is already at its ceiling or the loan matures first.</div>
+       )}
+      </>);
+     })()}
     </>);
    })()}
    {calc.refiFromStatement && (<>
