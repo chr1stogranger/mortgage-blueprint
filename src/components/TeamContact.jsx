@@ -117,7 +117,7 @@ export function TeamStrip({ T, people, bottom, onOpen }) {
         background: ground, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
         cursor: "pointer", textAlign: "left", fontFamily: FONT, WebkitTapHighlightColor: "transparent",
       }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 9, maxWidth: 480, margin: "0 auto", padding: "0 14px", height: "100%", boxSizing: "border-box" }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 9, margin: "0 auto", padding: "0 14px", height: "100%", boxSizing: "border-box" }}>
         <span style={{ display: "flex", flexShrink: 0 }}>
           {people.map((p, i) => <span key={p.key} style={{ display: "flex", marginLeft: i ? -9 : 0 }}><Face p={p} size={30} ring={T.card} /></span>)}
         </span>

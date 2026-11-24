@@ -1374,12 +1374,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
 
  // ── Desktop Detection ──
- const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 900);
+ // 900px and up is desktop. Inside the Ops side panel, the panel's share of
+ // the screen decides instead: half or wider = desktop, so the laptop ½
+ // panel (~750px) gets the desktop layout (Chris 2026-11-24). Narrower than
+ // that, the phone layout's cards stretch to the panel's width.
+ // The panel share stays null until Ops reports, so the first paint keeps the
+ // width rule instead of guessing.
+ const opsPanelFracRef = useRef(null);
+ const desktopFor = (w) => {
+  const f = EMBED === "ops" ? opsPanelFracRef.current : null;
+  return w >= 900 || (f != null && f >= 0.49 && w >= 560);
+ };
+ const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 900);
  useEffect(() => {
-  const handleResize = () => setIsDesktop(window.innerWidth >= 900);
+  const handleResize = () => setIsDesktop(desktopFor(window.innerWidth));
   window.addEventListener('resize', handleResize);
   return () => window.removeEventListener('resize', handleResize);
  }, []);
+ const setOpsPanelFrac = (f) => { opsPanelFracRef.current = f; setIsDesktop(desktopFor(window.innerWidth)); };
  // ── Theme: light or dark only. The 'auto' (time-of-day) mode was
  //    removed (2026-05-03) per Christo — confused users and pretty much
  //    nobody used it. Any legacy 'auto' value falls back to 'light'.
@@ -1441,7 +1453,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (EMBED !== "ops") return;
   const onMsg = (e) => {
    if (e.origin !== OPS_ORIGIN || e.data?.source !== "ops") return;
-   if (e.data.type === "panel-state") setOpsPanel({ frac: Number(e.data.frac) || 0.5, follow: e.data.follow !== false });
+   if (e.data.type === "panel-state") { const f = Number(e.data.frac) || 0.5; setOpsPanel({ frac: f, follow: e.data.follow !== false }); setOpsPanelFrac(f); }
    if (e.data.type === "appearance") setOpsLook({ bg: e.data.bg || null, dark: typeof e.data.dark === "boolean" ? e.data.dark : null });
   };
   window.addEventListener("message", onMsg);
@@ -10068,7 +10080,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : sidebarWidth) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={`${isDesktop ? "bp-main-content " : ""}bp-content${bgResolved?.tone ? ` bp-bg-${bgResolved.tone}` : ""}`} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : "none", margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : sidebarWidth) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : sidebarWidth}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -11015,7 +11027,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       Lower right, just above the bottom tab bar (Christo 2026-10-13: it sat
       under the header, upper right, and cost a 40px row at the top). */}
   <div aria-hidden={sectionPillTucked || undefined} style={{ position: "fixed", bottom: `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + var(--bp-team-strip-h, 0px) + 10px)`, left: 0, right: 0, zIndex: 20, pointerEvents: "none", opacity: sectionPillTucked ? 0 : 1, transform: sectionPillTucked ? "translateY(12px)" : "none", transition: "opacity 0.2s, transform 0.2s", visibility: sectionPillTucked ? "hidden" : "visible" }}>
-   <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "0 16px" }}>
+   <div style={{ margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "0 16px" }}>
     <button type="button" onClick={() => setSectionSheetOpen(true)} aria-haspopup="dialog" aria-label="Jump to a section"
      style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(15,23,41,0.16)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
      {(OVERVIEW_SECTIONS.find((x) => x.id === currentSectionId) || OVERVIEW_SECTIONS[0]).label}
