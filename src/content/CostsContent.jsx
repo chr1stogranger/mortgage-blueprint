@@ -979,6 +979,7 @@ export default function CostsContent(props) {
   sellersProratedTaxCredit, setSellersProratedTaxCredit,
   annualIns, setAnnualIns,
   includeEscrow, setIncludeEscrow,
+  setRefiNewEscrowTax, setRefiNewEscrowIns,
   lenderCredit, setLenderCredit,
   sellerCredit, setSellerCredit,
   realtorCredit, setRealtorCredit,
@@ -1632,8 +1633,11 @@ export default function CostsContent(props) {
           <ToggleRow
             label="Include Escrow Impounds"
             hint="OFF = waive escrow impounds"
-            on={includeEscrow}
-            onChange={setIncludeEscrow}
+            // Refi: the new loan's escrow lives in refiNewEscrowTax/Ins, so the
+            // toggle drives those (it used to flip the purchase flag, which a
+            // refi never reads, so nothing happened; Christo 2026-11-24).
+            on={isRefi ? (gEscTax || gEscIns) : includeEscrow}
+            onChange={isRefi && setRefiNewEscrowTax ? (v) => { setRefiNewEscrowTax(v); setRefiNewEscrowIns(v); } : setIncludeEscrow}
           />
         </LetterSection>
       </CollapsibleBox>

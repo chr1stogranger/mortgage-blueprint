@@ -1066,28 +1066,8 @@ export default function CalculatorContent(props) {
       </button>
      );
      if (helocAlone) return null; // no new first mortgage to escrow on
-     if (isRefi) {
-      // Stacked vertically, Insurance above Taxes (Christo 2026-07-22) — the
-      // side-by-side pair read as one control. Labels right-align against the
-      // knobs so the two rows line up.
-      return (
-       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "4px 6px 10px", width: "100%" }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1, paddingTop: 3 }}>
-         Escrow on new loan
-        </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Insurance</span>
-          <Knob on={refiNewEscrowIns} label="Escrow insurance on the new loan" title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowIns ? "Insurance escrowed on the new loan" : "Insurance paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowIns(!refiNewEscrowIns); }} />
-         </span>
-         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Taxes</span>
-          <Knob on={refiNewEscrowTax} label="Escrow taxes on the new loan" title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowTax ? "Taxes escrowed on the new loan" : "Taxes paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowTax(!refiNewEscrowTax); }} />
-         </span>
-        </div>
-       </div>
-      );
-     }
+     // Refi uses the same three-way pill as purchase at the bottom of the
+     // card (Christo 2026-11-24); the old Insurance/Taxes switch pair is gone.
      // Purchase: no header row — the escrow choice is the three-way pill at
      // the bottom of the card, and the blue bar already says "Monthly
      // Payment" (Christo 2026-10-12).
@@ -1137,7 +1117,7 @@ export default function CalculatorContent(props) {
        ))}
        {/* Escrow off on desktop: once its alert is swiped away, say where tax
            + insurance went so a two-row legend doesn't read as missing pieces. */}
-       {isDesktop && !isRefi && (!escTax || !escIns) && hiddenAlerts["escrow-off"] && (
+       {isDesktop && !helocAlone && (!escTax || !escIns) && hiddenAlerts["escrow-off"] && (
         <div style={{ marginTop: 2, paddingTop: 10, borderTop: `1px solid ${T.separator}`, fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>
          {!escTax && !escIns ? `Tax ${fmt(dispTax)} + insurance ${fmt(dispIns)}/mo paid separately` : !escIns ? `Insurance ${fmt(dispIns)}/mo paid separately` : `Tax ${fmt(dispTax)}/mo paid separately`}
         </div>
@@ -1196,11 +1176,20 @@ export default function CalculatorContent(props) {
     {/* Purchase escrow: one three-way pill across the bottom of the card
         (Christo 2026-10-12). FHA/VA impound both, so the other two choices
         gray out with the reason underneath. */}
-    {!isRefi && setIncludeEscrow && (() => {
+    {!helocAlone && (isRefi ? (setRefiNewEscrowTax && setRefiNewEscrowIns) : setIncludeEscrow) && (() => {
      const locked = loanType === "FHA" || loanType === "VA";
-     const mode = !includeEscrow ? "none" : escrowInsWaived ? "tax" : "both";
+     // Refi drives the new loan's per-component flags (refiNewEscrowTax/Ins);
+     // insurance-only escrow has no pill, so none is lit in that case.
+     const mode = isRefi
+      ? (refiNewEscrowTax && refiNewEscrowIns ? "both" : refiNewEscrowTax ? "tax" : !refiNewEscrowIns ? "none" : "")
+      : (!includeEscrow ? "none" : escrowInsWaived ? "tax" : "both");
      const pick = (m) => {
       if (locked && m !== "both") return;
+      if (isRefi) {
+       setRefiNewEscrowTax(m !== "none");
+       setRefiNewEscrowIns(m === "both");
+       return;
+      }
       setIncludeEscrow(m !== "none");
       if (setEscrowInsWaived) setEscrowInsWaived(m === "tax");
      };

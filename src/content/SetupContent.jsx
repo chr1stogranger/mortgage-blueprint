@@ -1,5 +1,5 @@
 import { FONT, MONO } from "../lib/fonts.js";
-import { washOn } from "../lib/onColor.js";
+import { backgroundById } from "../lib/backgrounds.js";
 import React, { useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
@@ -1994,10 +1994,12 @@ export default function SetupContent(props) {
    )}
   </Card>
  </Sec>}
- {isRefi && (refiHomeValue > 0 || calc.refiEffBalance > 0) && <div style={{ background: washOn(T, `${T.green}10`), borderRadius: 12, padding: 14, marginBottom: 14 }}>
+ {/* Current LTV / equity on the Plaid gradient (Christo 2026-11-24): same
+     css as the Plaid background in lib/backgrounds.js, white type on it. */}
+ {isRefi && (refiHomeValue > 0 || calc.refiEffBalance > 0) && <div style={{ background: backgroundById("plaid")?.css || T.banner, backgroundSize: "auto, auto, cover", borderRadius: 14, padding: "14px 18px", marginBottom: 14, color: "#fff", boxShadow: "0 6px 20px rgba(11,74,168,0.22)" }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-   {refiHomeValue > 0 && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Current LTV</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>{(calc.refiEffBalance / refiHomeValue * 100).toFixed(1)}%</div></div>}
-   {refiHomeValue > 0 && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Current Equity</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(refiHomeValue - calc.refiEffBalance)}</div></div>}
+   {refiHomeValue > 0 && <div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>Current LTV</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: "#fff" }}>{(calc.refiEffBalance / refiHomeValue * 100).toFixed(1)}%</div></div>}
+   {refiHomeValue > 0 && <div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>Current Equity</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: "#fff" }}>{fmt(refiHomeValue - calc.refiEffBalance)}</div></div>}
   </div>
  </div>}
 
