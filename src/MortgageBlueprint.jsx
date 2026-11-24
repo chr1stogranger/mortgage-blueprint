@@ -9787,6 +9787,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           </div>
          );
         })}
+        {/* Add a scenario right where they are listed (Chris 2026-11-23). It
+            starts as a copy of the one on screen: a blank file means nothing
+            to a borrower, and an LO's next option is usually a variation. */}
+        {(!isBorrower || borrowerCanCreate) && (
+         <button type="button" className="bp-sidebar-item" onClick={() => duplicateScenario()}
+          title={`Starts as a copy of ${scenarioName}`}
+          style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% - 12px)", boxSizing: "border-box", margin: "1px 6px", padding: "7px 8px 7px 12px", minHeight: isDesktop ? undefined : 44, background: "transparent", border: "none", borderLeft: "3px solid transparent", borderRadius: 8, cursor: "pointer", fontFamily: FONT, fontSize: 13, fontWeight: 500, color: T.textSecondary, textAlign: "left" }}>
+          <span style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="plus" size={15} /></span>
+          New scenario
+         </button>
+        )}
         {scnMenu && (
          <>
           <div onClick={() => { setScnMenu(null); setScnDeleteArm(null); }} onWheel={() => { setScnMenu(null); setScnDeleteArm(null); }} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
