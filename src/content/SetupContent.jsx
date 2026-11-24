@@ -40,6 +40,35 @@ function YesNoSeg({ T, value, onYes, onNo }) {
  * track, the selected side lifts out as a white pill ringed in blue.
  * options = [{ key, label, icon? }]; Icon is the shared icon component.
  */
+// Month + year dropdowns under one label, sized like the full Sel/Inp boxes
+// (minHeight 50, 12px 14px padding, 15px type) so a row of them lines up with
+// the balance and rate boxes (Christo 2026-11-24: some pills were smaller).
+// value is "YYYY-MM-01" or "". short → "Oct" month names for a narrow cell.
+const MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function MonthYear({ T, label, FieldLabel, tip, value, onChange, years, defaultYear, short = false }) {
+  const box = { width: "100%", boxSizing: "border-box", minHeight: 50, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: value ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, cursor: "pointer" };
+  const months = short ? MONTHS_SHORT : MONTHS_LONG;
+  return (
+    <div style={{ marginBottom: 14, minWidth: 0 }}>
+      {FieldLabel ? <FieldLabel label={label} tip={tip} filled={!!value} />
+        : <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}</label>}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8 }}>
+        <select aria-label={`${label} month`} value={value ? value.slice(5, 7) : ""} style={box}
+          onChange={e => { const m = e.target.value; if (!m) { onChange(""); return; } const y = value ? value.slice(0, 4) : String(defaultYear); onChange(`${y}-${m}-01`); }}>
+          <option value="">Month</option>
+          {months.map((mo, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{mo}</option>)}
+        </select>
+        <select aria-label={`${label} year`} value={value ? value.slice(0, 4) : ""} style={box}
+          onChange={e => { const y = e.target.value; const m = value ? value.slice(5, 7) : "01"; if (y) onChange(`${y}-${m}-01`); }}>
+          <option value="">Year</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 function PillSeg({ T, Icon, options, value, onPick, ariaLabel, className }) {
   return (
     <div role="group" aria-label={ariaLabel} className={className} style={{ display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 4, padding: 3, background: T.inputBg, border: `1px solid ${T.separator}`, borderRadius: 9999 }}>
@@ -548,22 +577,8 @@ export default function SetupContent(props) {
   // walk, not under the question (Christo 2026-08-04).
   const maturityDetailNode = (<>
    {calc.refiFromStatement && (<>
-    {refiHasMaturity === "yes" && (
-     <div style={{ marginBottom: 12 }}>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Maturity date</label>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 340 }}>
-       <select value={refiMaturityDate ? refiMaturityDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiMaturityDate(""); return; } const y = refiMaturityDate ? refiMaturityDate.slice(0, 4) : String(new Date().getFullYear() + 25); setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-        <option value="">Month</option>
-        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-       </select>
-       <select value={refiMaturityDate ? refiMaturityDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiMaturityDate ? refiMaturityDate.slice(5, 7) : "01"; if (y) setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-        <option value="">Year</option>
-        {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() + i).map(y => <option key={y} value={y}>{y}</option>)}
-       </select>
-      </div>
-     </div>
-    )}
-
+    {/* The maturity date itself now sits in Account Information beside the
+        Start Rate (Christo 2026-11-24); only the "no" fallback stays here. */}
     {refiHasMaturity === "no" && (
      <div style={{ marginBottom: 12 }}>
       <Note color={T.blue}>We can look up the original loan amount and funded date and work backwards.</Note>
@@ -1404,29 +1419,31 @@ export default function SetupContent(props) {
        these two facts the balance estimate amortizes at a single rate and is
        simply wrong for an adjusted ARM (Christo 2026-07-22). Current Rate
        above is the rate it adjusted TO. */}
-   {refiCurrentRateType === "Adjustable" && (
-    <>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      <Inp label="Start Rate" value={refiArmStartRate} onChange={setRefiArmStartRate} prefix="" suffix="%" step={0.125} max={30} sm tip="The initial (teaser) rate the ARM closed at. The balance amortizes at this rate until the adjustment." />
-      <div style={{ marginBottom: 6 }}>
-       <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Adjusted In</label>
-       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <select value={refiArmAdjustedDate ? refiArmAdjustedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiArmAdjustedDate(""); return; } const y = refiArmAdjustedDate ? refiArmAdjustedDate.slice(0, 4) : String(new Date().getFullYear()); setRefiArmAdjustedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiArmAdjustedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-         <option value="">Month</option>
-         {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-        </select>
-        <select value={refiArmAdjustedDate ? refiArmAdjustedDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiArmAdjustedDate ? refiArmAdjustedDate.slice(5, 7) : "01"; if (y) setRefiArmAdjustedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiArmAdjustedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-         <option value="">Year</option>
-         {Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-       </div>
-      </div>
-     </div>
-     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -2, marginBottom: 10 }}>
+   {/* Second row (Christo 2026-11-24): Start Rate takes half its old width
+       and the statement's maturity date sits beside it, then Adjusted In.
+       Every box is the full Inp/Sel size so the section's pills match. */}
+   {(() => {
+    const arm = refiCurrentRateType === "Adjustable";
+    const showMaturity = calc.refiFromStatement && refiHasMaturity !== "no";
+    if (!arm && !showMaturity) return null;
+    const yr = new Date().getFullYear();
+    return (<>
+     <div className="rl-cq"><div className="rl-g4">
+      {arm && <Inp label="Start Rate" value={refiArmStartRate} onChange={setRefiArmStartRate} prefix="" suffix="%" step={0.125} max={30} tip="The initial (teaser) rate the ARM closed at. The balance amortizes at this rate until the adjustment." />}
+      {showMaturity && <MonthYear T={T} FieldLabel={FieldLabel} label="Maturity date" short
+       tip="As printed on the statement. It already reflects any modification or recast."
+       value={refiMaturityDate} years={Array.from({ length: 41 }, (_, i) => yr + i)} defaultYear={yr + 25}
+       onChange={(v) => { setRefiMaturityDate(v); if (v && refiHasMaturity !== "yes") setRefiHasMaturity("yes"); }} />}
+      {arm && <div style={{ gridColumn: "span 2", minWidth: 0 }}>
+       <MonthYear T={T} FieldLabel={FieldLabel} label="Adjusted In" value={refiArmAdjustedDate} onChange={setRefiArmAdjustedDate}
+        years={Array.from({ length: 16 }, (_, i) => yr - i)} defaultYear={yr} />
+      </div>}
+     </div></div>
+     {arm && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -6, marginBottom: 10 }}>
       Amortizes at the start rate until "{refiArmAdjustedDate ? "the adjustment" : "adjusted"}", then recasts at the Current Rate above (the rate it adjusted to).
-     </div>
-    </>
-   )}
+     </div>}
+    </>);
+   })()}
    {calc.refiFromStatement && (<>
     {/* Escrow balance + prepayment penalty print in the SAME Account
         Information box, so they're asked here — not three sections later.
