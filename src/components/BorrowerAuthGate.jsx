@@ -90,6 +90,9 @@ const ShieldIcon = () => (
   </svg>
 );
 
+// What resolveToken answers when the page is closing the gate itself.
+export const LEAVE = Symbol('leave');
+
 // shareToken is the file's id. It is null when the borrower just signed in
 // (or followed an invite): `resolveToken(session)` then asks Ops which
 // Blueprint is shared with them. `auto` marks an opening the borrower did not
@@ -133,6 +136,11 @@ export default function BorrowerAuthGate({ shareToken: givenToken, resolveToken,
 
   // ── Check existing session ───────────────────────────────────────────────
   async function checkExistingSession() {
+    // The auth listener may already have taken it from here (a stored session
+    // is announced within milliseconds). Setting 'checking' then would paint
+    // "Verifying your session..." over a finished answer such as "private",
+    // and nothing would ever move it on (Chris 2026-11-23).
+    if (proceedingRef.current) return;
     setPhase('checking');
     try {
       const session = await getSession();
@@ -211,6 +219,9 @@ export default function BorrowerAuthGate({ shareToken: givenToken, resolveToken,
       let token = givenToken || resolved;
       if (!token && resolveToken) {
         token = await resolveToken(session);
+        // The page is leaving the gate (a loan officer following their own
+        // invite link goes to their pipeline).
+        if (token === LEAVE) return;
         if (!token) {
           // Followed an invite, but nothing is shared with this email.
           setDenied({ email: session.user?.email || '', loName: '' });

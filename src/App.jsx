@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, Component } from 'react'
 import * as Sentry from '@sentry/react'
 import MortgageBlueprint from './MortgageBlueprint'
 import BlueprintAuth from './BlueprintAuth'
-import BorrowerAuthGate from './components/BorrowerAuthGate'
+import BorrowerAuthGate, { LEAVE } from './components/BorrowerAuthGate'
 import BlueprintChooser from './components/BlueprintChooser'
 import Icon from './Icon'
 import { getSession, onAuthStateChange } from './lib/supabaseClient'
@@ -122,6 +122,11 @@ function isDarkStored() {
   try { return localStorage.getItem('bp_theme_mode') === 'dark'; } catch { return false; }
 }
 
+// The loan team's own sign-in (BlueprintAuth), as opposed to a borrower's.
+function isTeamSignedIn() {
+  try { return !!localStorage.getItem('bp_token'); } catch { return false; }
+}
+
 function hasStoredSession() {
   try { return !!localStorage.getItem('bp_supabase_auth'); } catch { return false; }
 }
@@ -146,7 +151,7 @@ function App() {
   // one falls back to the calculator instead of an error screen.
   const [auto, setAuto] = useState(false);
   // `?open=1` (an invite): ask for sign-in, then open what is shared with them.
-  const [openGate] = useState(() => !tokenFromUrl() && wantsOpen() && canOpenMine());
+  const [openGate, setOpenGate] = useState(() => !tokenFromUrl() && wantsOpen() && canOpenMine());
   // Hold the first paint while we look, so a borrower never sees the public
   // calculator flash before their Blueprint.
   const [checking, setChecking] = useState(() => !tokenFromUrl() && canOpenMine() && !wantsOpen() && hasStoredSession());
@@ -262,6 +267,14 @@ function App() {
           resolveToken={async (session) => {
             const list = await fetchShared(session.access_token);
             const last = recallMine(session.user?.id);
+            // A loan officer pasting the invite link they just copied: nothing
+            // is shared with them, so it opens their own pipeline, not
+            // "This blueprint is private".
+            if (list && !sharedChoices(list).length && isTeamSignedIn()) {
+              cleanAddress();
+              setOpenGate(false);
+              return LEAVE;
+            }
             // An invite may be for a different Blueprint than the one they
             // opened last, so with several we ask. The gate waits underneath.
             if (needsChoice(list, last, true)) {
