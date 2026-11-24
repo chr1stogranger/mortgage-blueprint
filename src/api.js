@@ -482,3 +482,19 @@ export function setToken(token) {
 export function clearToken() {
   localStorage.removeItem('bp_token');
 }
+
+// The same lookup, once per address per page load: presence avatars ask for
+// each teammate's Ops headshot and re-render often. Resolves to a photo data
+// URL or "" (no headshot, or the lookup failed).
+const loPhotoCache = new Map(); // email → { url?: string, promise }
+export function cachedLoPhoto(email) {
+  const key = String(email || '').trim().toLowerCase();
+  if (!key) return { url: '', promise: Promise.resolve('') };
+  let hit = loPhotoCache.get(key);
+  if (!hit) {
+    hit = { url: undefined, promise: null };
+    hit.promise = fetchLoPhoto(key).then((lo) => (hit.url = lo?.photo || ''));
+    loPhotoCache.set(key, hit);
+  }
+  return hit;
+}

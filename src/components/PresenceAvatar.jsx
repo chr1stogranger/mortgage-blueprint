@@ -2,24 +2,42 @@ import { FONT } from "../lib/fonts.js";
 /**
  * PresenceAvatar — one person who is in this Blueprint right now.
  *
- * Their sign-in photo when presence carries one (and it loads), otherwise
- * their initials on their presence color. The ring is always their presence
+ * A teammate's personal photo from Ops (their marketing-profile headshot,
+ * looked up by the address they announce as `photo_email`, else their login),
+ * then their sign-in photo, then their initials on their presence color. The ring is always their presence
  * color, so the avatar matches the field outline LivePresenceLayer draws.
  *
  * PresenceStack — the Google Sheets-style overlapping row for the header.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { cachedLoPhoto } from '../api';
 import { initialsOf, presenceColor, keyLabel, TAB_LABELS } from '../lib/fieldPresence';
 
 export function whereLabel(user) {
   return [TAB_LABELS[user.tab] || '', keyLabel(user.field)].filter(Boolean).join(' · ');
 }
 
+// Borrowers have no Ops profile, so only teammates are looked up.
+function useOpsPhoto(user) {
+  const email = user.user_type === 'lo' ? (user.photo_email || user.email || '') : '';
+  const [photo, setPhoto] = useState(() => (email ? cachedLoPhoto(email).url || '' : ''));
+  useEffect(() => {
+    if (!email) { setPhoto(''); return; }
+    let alive = true;
+    const hit = cachedLoPhoto(email);
+    setPhoto(hit.url || '');
+    if (hit.url === undefined) hit.promise.then((url) => { if (alive) setPhoto(url); });
+    return () => { alive = false; };
+  }, [email]);
+  return photo;
+}
+
 export default function PresenceAvatar({ user, size = 24, ring = true, gap = null, title, style }) {
   const [brokenUrl, setBrokenUrl] = useState(null);
   const color = presenceColor(user.email);
-  const url = user.avatar_url && user.avatar_url !== brokenUrl ? user.avatar_url : null;
+  const opsPhoto = useOpsPhoto(user);
+  const url = [opsPhoto, user.avatar_url].find((u) => u && u !== brokenUrl) || null;
   return (
     <span title={title} style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box',
