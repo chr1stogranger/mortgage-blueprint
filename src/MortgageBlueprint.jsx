@@ -4056,6 +4056,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const result = await createBorrower(payload);
   const newB = result?.[0] || result;
   if (!newB?.id) throw new Error('Create failed. Try again');
+  // Ops hands back the client who already owns this email instead of making a
+  // second one. Open them with their own scenarios; before this the sheet
+  // stacked another blank Scenario 1 on them and hid the ones they had.
+  if (newB._deduplicated) {
+   const { _deduplicated: _d, ...existing } = newB;
+   setBorrowerList(prev => (prev.some(x => x.id === existing.id) ? prev : [...prev, existing]));
+   // Add to CRM was on: tag them so they show on Leads in Ops, as a new client would.
+   if (addToCrm && existing.source !== 'blueprint-crm') {
+    try { await updateBorrower({ id: existing.id, source: 'blueprint-crm' }); existing.source = 'blueprint-crm'; } catch { /* non-fatal */ }
+   }
+   await openClient({ borrowerId: existing.id, borrowerName: existing.name, status: existing.status });
+   return;
+  }
   setBorrowerList(prev => [...prev, newB]);
   setActiveBorrower(newB);
   setActiveScenarioId(null);
