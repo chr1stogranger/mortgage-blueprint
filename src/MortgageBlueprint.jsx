@@ -1128,12 +1128,12 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
 // for MobileTabBar on every keystroke) ═══
 // Core destinations that stay PINNED above the section index. These are real
 // tab switches (not in-page scrolls), in the order Christo specified.
-const CORE_TAB_KEYS = ["overview", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "settings"];
+const CORE_TAB_KEYS = ["overview", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
 // ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
 // Five fixed slots, identical for every user and flow (no reflow, no dead
 // buttons). Everything else in TABS lives behind "More". Shared with the
 // desktop drawer's icon map so the More sheet and sidebar agree.
-const NAV_ICONS = { overview: "home", myhome: "key", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
+const NAV_ICONS = { overview: "home", myhome: "key", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "share", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
 // PricePoint takes the raised middle slot (Christo 2026-10-01); Learn moves
 // into the More sheet (moreSheetTabs picks up anything not on the bar).
 const BAR_TAB_KEYS = ["overview", "compare", "summary"];
@@ -9961,9 +9961,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        // The council flagged that letting guided users jump around the page
        // mid-wizard risks the known stale-closure soft-locks, so the "On this
        // page" jump index is a Standard-mode feature only. (2026-06-15)
-       // Share isn't listed (2026-11-01): it's the header pill and the
-       // Overview payment banner's button.
-       if (skillLevel === "guided") return TABS.filter(([k]) => k !== "summary").map(renderTabItem);
+       // Share is listed again (Chris 2026-11-23): on the Share screen nothing
+       // in the sidebar was highlighted. The header pill stays as the shortcut.
+       if (skillLevel === "guided") return TABS.map(renderTabItem);
        // STANDARD MODE: pinned core destinations, then a labeled "On this page"
        // index whose rows scroll-jump to Overview sections (single source of
        // truth: OVERVIEW_SECTIONS, mirroring OverviewTab.jsx order/conditions).
