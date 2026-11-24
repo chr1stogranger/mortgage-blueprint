@@ -1,7 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import { canvasCta } from "./lib/onColor.js";
 import RefiSteps from "./components/RefiSteps.jsx";
-import { REFI_STEPS } from "./lib/refiSteps.js";
+import { REFI_STEPS, REFI_STEP_KEYS } from "./lib/refiSteps.js";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
 import PricePointTeaser from "./components/PricePointTeaser.jsx";
@@ -102,13 +102,12 @@ export default function OverviewTab(props) {
   const refiStep = stepState.id === activeScenarioId ? stepState.step : 0;
   const setRefiStep = (n) => setStepState({ id: activeScenarioId, step: n });
   const stepMode = isRefi && !refiShowAll;
-  const STEP_KEYS = ["current", "new", "costs", "review"];
-  const vis = (k) => !stepMode || k === STEP_KEYS[refiStep] || (k === "more" && refiStep === 3);
+  const vis = (k) => !stepMode || k === REFI_STEP_KEYS[refiStep] || (k === "more" && REFI_STEP_KEYS[refiStep] === "qualify");
   // Section jumps (sidebar "Jump to", the phone section sheet) can name a
   // section another step holds: switch to that step so the jump lands.
   useEffect(() => {
     if (!stepMode) return undefined;
-    const STEP_OF = { "overview-setup": 0, "overview-payment": 1, "overview-costs": 2, "overview-rateladder": 2 };
+    const STEP_OF = { "overview-setup": 0, "overview-payment": 1, "overview-costs": 2, "overview-rateladder": 2, "overview-refi3": 4, "overview-refi": 4 };
     const onShow = (e) => {
       const id = e.detail?.id;
       if (!id || !String(id).startsWith("overview-")) return;
@@ -309,15 +308,23 @@ export default function OverviewTab(props) {
           MortgageBlueprint's render functions — the SAME JSX the standalone
           routable tabs use, so there's one source of truth.
           ═══════════════════════════════════════ */}
+      {/* Review & send opens on the 3-Point Test (Christo 2026-11-24), then
+          the summary. In steps the summary folds what the live PDF already
+          shows (comparison, payment, cost, cash) behind "Full breakdown". */}
+      {isRefi && stepMode && vis("review") && showRefi3 && renderRefi3Section && (
+        <CollapsibleSection title="3-Point Refi Test" T={T} id="overview-refi3" heroStyle={true}>
+          {renderRefi3Section()}
+        </CollapsibleSection>
+      )}
       {isRefi && vis("review") && renderRefiSummarySection && (
         <>
-          {!stepMode && <SectionDivider T={T} />}
+          {(!stepMode || showRefi3) && <SectionDivider T={T} />}
           <CollapsibleSection title="Refi Summary" T={T} id="overview-refi" heroStyle={true}>
-            {renderRefiSummarySection()}
+            {renderRefiSummarySection({ compact: stepMode })}
           </CollapsibleSection>
         </>
       )}
-      {isRefi && vis("review") && showRefi3 && renderRefi3Section && (
+      {isRefi && !stepMode && vis("review") && showRefi3 && renderRefi3Section && (
         <>
           <SectionDivider T={T} />
           <CollapsibleSection title="3-Point Refi Test" T={T} id="overview-refi3" heroStyle={true}>
@@ -361,13 +368,10 @@ export default function OverviewTab(props) {
       )}
 
       {vis("more") && <>
-      {stepMode && (
-        <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: T.textTertiary, textTransform: "uppercase", margin: "32px 0 -12px" }}>More details</div>
-      )}
       {/* ═══════════════════════════════════════
-          SECTION 4: ASSETS
+          SECTION 4: ASSETS (heads the Qualifying step in refi steps)
           ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
+      {!stepMode && <SectionDivider T={T} />}
       <CollapsibleSection title="Assets" T={T} id="overview-assets" heroStyle={true}>
         <LockedSection locked={!!borrowerLocks?.assets} T={T} label="Assets"><AssetsContent {...props} /></LockedSection>
       </CollapsibleSection>

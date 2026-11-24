@@ -2429,6 +2429,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // setup; any debt marked "Yes - at Escrow" rolls its payoff into the new
  // loan and its retired payment onto the current side of every comparison.
  const [refiPayoffDebts, setRefiPayoffDebts] = useState(null);
+ // Review & send's "Full breakdown" (the summary sections the PDF repeats).
+ const [refiFullBreakdown, setRefiFullBreakdown] = useState(false);
  // Household interest rate section on the cash-out Refi Summary PDF — the LO
  // switches it per scenario (Christo 2026-11-15). On unless turned off.
  const [refiPdfHousehold, setRefiPdfHousehold] = useState(true);
@@ -8690,7 +8692,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    Household rate on PDF
   </button>
  ) : null;
- const renderRefiSummarySection = () => (<>
+ // compact (refi steps' Review & send, Christo 2026-11-24): the live PDF sits
+ // beside it, so the sections that repeat it fold under "Full breakdown".
+ const renderRefiSummarySection = ({ compact = false } = {}) => { const showFull = !compact || refiFullBreakdown; return (<>
  <div style={{ marginTop: 20 }}>
   <Hero value={fmt(Math.abs(calc.refiPiMiSavings))} label={(calc.refiPiMiSavings >= 0 ? "Monthly P&I + MI Savings" : "Monthly P&I + MI Increase") + (calc.refiLienPmtSaved > 0 ? ` (incl. ${calc.refiThirdPmtSaved > 0 ? "junior liens" : "2nd lien"})` : "")} color={calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary} sub={[calc.refiLienPmtSaved > 0 ? `Retires ${fmt(calc.refiLienPmtSaved)}/mo in ${calc.refiThirdPmtSaved > 0 ? "junior-lien" : "second-lien"} payments` : "", calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiPiMiSavings <= 0 ? "No P&I + MI savings" : ""].filter(Boolean).join(" · ")} />
  </div>
@@ -8728,8 +8732,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </div>
  </Card>
  </div>
+ {compact && (
+  <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+   <button type="button" onClick={() => setRefiFullBreakdown(v => !v)} aria-expanded={refiFullBreakdown}
+    style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: T.blue }}>
+    {refiFullBreakdown ? "Hide the full breakdown" : "Full breakdown: comparison, payment, cost and cash (same as the PDF)"}
+   </button>
+  </div>
+ )}
  {/* Side-by-side comparison */}
- <Sec title="Loan Comparison">
+ {showFull && <Sec title="Loan Comparison">
   <Card>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
     <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span>
@@ -8771,9 +8783,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    ))}
   </Card>
- </Sec>
+ </Sec>}
  {/* Monthly Payment Comparison */}
- <Sec title="Monthly Payment">
+ {showFull && <Sec title="Monthly Payment">
   <Card>
    {/* Noise control: tax/ins rows carry over unchanged, so they can be hidden
        to keep the analysis (and the PDF) on the numbers that actually move. */}
@@ -8921,7 +8933,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <Note color={T.orange} style={{ marginTop: 8 }}>No escrow: tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
    )}
   </Card>
- </Sec>
+ </Sec>}
  {/* Interest comparison */}
  <Sec title="Interest Analysis">
   <Card>
@@ -8938,7 +8950,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
  </Sec>
  {/* Cost to refinance + breakeven */}
- <Sec title="Cost to Refinance">
+ {showFull && <Sec title="Cost to Refinance">
   <Card>
    <MRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} />
    <MRow label="Discount Points" value={fmt(calc.loan * discountPts / 100)} sub={discountPts > 0 ? `${discountPts} pts` : "none"} />
@@ -8958,7 +8970,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     ))}
    </div>}
   </Card>
- </Sec>
+ </Sec>}
  {/* Lifetime comparison */}
  <Sec title="Lifetime Comparison">
   <Card>
@@ -8970,7 +8982,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
  </Sec>
  {/* ── Net Cash Out ── */}
- <Sec title="Net Cash Out">
+ {showFull && <Sec title="Net Cash Out">
   <Card>
    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 10, textTransform: "uppercase" }}>Cash to Close Summary</div>
    <MRow label="New Loan Amount" value={fmt(calc.refiNetNewLoan)} color={T.blue} />
@@ -8996,7 +9008,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    </div>
   </Card>
- </Sec>
+ </Sec>}
  {/* Year-by-year amort comparison */}
  {calc.refiAmortCompare.length > 0 && <Sec title="Year-by-Year Balance">
   <Card>
@@ -9034,12 +9046,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <button onClick={() => setShowEmailModal(true)} className={canvasCta(T).className} style={{ padding: 14, ...canvasCta(T).style, borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Email</button>
   <button onClick={handlePrintPdf} style={{ padding: 14, ...canvasGhost(T, { background: `${T.blue}15`, border: `1px solid ${T.blue}33`, color: T.blue }), borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Print PDF</button>
  </div>
- <Sec title="">
+ {!compact && <Sec title="">
   <Card style={{ background: T.pillBg }}>
    <Note>Edit new loan on <strong>Calculator</strong> tab. Edit current loan on <strong>Setup</strong> tab. Closing costs on <strong>Costs</strong> tab.</Note>
   </Card>
- </Sec>
- </>);
+ </Sec>}
+ </>); };
  const renderRefi3Section = () => (<>
  <div style={{ marginTop: 20, textAlign: "center" }}>
   <div style={{ fontSize: 14, fontWeight: 600, color: T.textTertiary, letterSpacing: "0.05em", marginBottom: 4 }}>THE</div>
@@ -11289,7 +11301,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    onRefiStep: (i) => {
     if (!isDesktop) return;
     if (i === 0 && stmtDocs.docs.length) { setRefiPreviewTab('statement'); setRefiPreviewOpen(true); }
-    else if (i === 3) setRefiPreviewTab('summary');
+    else if (i === 4) setRefiPreviewTab('summary');
    },
    refiPayoffDebts, setRefiPayoffDebts,
    /* Live rates */
