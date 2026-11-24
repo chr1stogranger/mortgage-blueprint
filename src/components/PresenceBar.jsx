@@ -10,7 +10,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 
 import React from 'react';
 import Icon from '../Icon';
-import { presenceColor } from '../lib/fieldPresence';
+import { presenceColor, roleLabel } from '../lib/fieldPresence';
 import PresenceAvatar, { whereLabel } from './PresenceAvatar';
 
 export default function PresenceBar({ T, onlineUsers = [], followEmail = null, onJump, onToggleFollow }) {
@@ -53,7 +53,7 @@ export default function PresenceBar({ T, onlineUsers = [], followEmail = null, o
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }}>
                   {first}
-                  <span style={{ fontWeight: 500, color: T.textTertiary }}> · {user.user_type === 'lo' ? 'Loan Officer' : 'Borrower'}</span>
+                  <span style={{ fontWeight: 500, color: T.textTertiary }}> · {roleLabel(user)}</span>
                 </span>
                 {where && (
                   <span style={{

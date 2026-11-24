@@ -146,3 +146,12 @@ export function presenceColor(email) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
+
+// What a person is on this file, for the who's-here list. Teammates announce
+// their Ops team role; a tab from before that (or an unknown role) reads as
+// a loan officer, which is what the list said for everyone until 2026-11-24.
+const ROLE_LABELS = { admin: 'Loan Officer', lo: 'Loan Officer', team_lo: 'Team Loan Officer', loa: 'LOA', processor: 'Processor' };
+export function roleLabel(user) {
+  if (user?.user_type !== 'lo') return 'Borrower';
+  return ROLE_LABELS[user.role] || 'Loan Officer';
+}

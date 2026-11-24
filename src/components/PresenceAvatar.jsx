@@ -12,7 +12,7 @@ import { FONT } from "../lib/fonts.js";
 
 import React, { useState, useEffect } from 'react';
 import { cachedLoPhoto } from '../api';
-import { initialsOf, presenceColor, keyLabel, TAB_LABELS } from '../lib/fieldPresence';
+import { initialsOf, presenceColor, keyLabel, roleLabel, TAB_LABELS } from '../lib/fieldPresence';
 
 export function whereLabel(user) {
   return [TAB_LABELS[user.tab] || '', keyLabel(user.field)].filter(Boolean).join(' · ');
@@ -75,7 +75,7 @@ export function PresenceStack({ T, users = [], max = 3, size = 26, open = false,
         const where = whereLabel(u);
         return (
           <PresenceAvatar key={u.email || i} user={u} size={size} gap={gap}
-            title={[u.name || u.email || 'Someone', where].filter(Boolean).join(' · ')}
+            title={[u.name || u.email || 'Someone', roleLabel(u), where].filter(Boolean).join(' · ')}
             style={{ marginLeft: i === 0 ? 0 : -7, zIndex: shown.length - i, position: 'relative' }} />
         );
       })}

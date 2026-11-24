@@ -2121,6 +2121,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // with presence so teammates see that photo on my avatar, even when I sign in
  // with a different address (Chris 2026-11-24).
  const [myPhotoEmail, setMyPhotoEmail] = useState("");
+ // My role on the Ops team (lo / team_lo / loa / processor / admin), announced
+ // the same way so the who's-here list names it instead of "Loan Officer".
+ const [myOpsRole, setMyOpsRole] = useState("");
  useEffect(() => {
   const email = (auth?.user?.email || "").toLowerCase();
   if (!email || isBorrower || !isCloud) return;
@@ -2164,6 +2167,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // company NMLS is brokerage-wide and stays a Blueprint setting.
     set(prof?.company, setCompanyName);
     setMyPhotoEmail(String(prof?.email || row?.email || idEmail || ""));
+    setMyOpsRole(String(roster?.me?.role || ""));
     const rows = Array.isArray(sigs?.rows) ? sigs.rows.filter((r) => r?.html) : [];
     const sig = rows.find((r) => r.is_default) || rows[0] || null;
     if (sig) { setLoSignature(sig.html); setOpsSigState("ops"); }
@@ -3096,7 +3100,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // the moment I scroll, type or tap on my own.
  const [followEmail, setFollowEmail] = useState(null);
  useEffect(() => { sync.setPresenceInfo({ tab, field: null, field_active: false }); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
- useEffect(() => { if (myPhotoEmail) sync.setPresenceInfo({ photo_email: myPhotoEmail }); }, [myPhotoEmail]); // eslint-disable-line react-hooks/exhaustive-deps
+ useEffect(() => { if (myPhotoEmail || myOpsRole) sync.setPresenceInfo({ ...(myPhotoEmail ? { photo_email: myPhotoEmail } : {}), ...(myOpsRole ? { role: myOpsRole } : {}) }); }, [myPhotoEmail, myOpsRole]); // eslint-disable-line react-hooks/exhaustive-deps
  const jumpToPresence = (u) => {
   if (!u) return;
   let t = u.tab;
