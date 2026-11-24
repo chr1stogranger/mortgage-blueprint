@@ -7903,7 +7903,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
- }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, rentMode, unitRents, occupiedUnits, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
+ }, [salesPrice, downPct, rate, term, loanType, nonQm, vaUsage, propType, loanPurpose, firstTimeBuyer, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, escrowInsWaived, subjectRentalIncome, rentMode, unitRents, occupiedUnits, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
 
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
