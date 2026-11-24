@@ -6,7 +6,8 @@
 // projected, with Hawaii in an inset. Limits come from the calculator's data
 // (by FIPS code), so the map can't disagree with the numbers beside it. The
 // county search is the keyboard route to the same selection. Pan and zoom work
-// like the CA tax map (tax-map.client.js).
+// like the CA tax map (tax-map.client.js), plus double-click / double-tap zooms
+// in 2x on the spot (Shift+double-click zooms out).
 
 const MAX_K = 120; // deep enough for Virginia's small independent cities
 const LABEL_MIN_PX = 64; // a county this wide on screen earns its name
@@ -281,6 +282,7 @@ export async function initLimitMap(el, { data, units: startUnits, onPick }) {
   };
 
   const pointers = new Map();
+  let lastTap = null; // { t, x, y } of the previous tap, to spot a double tap
   let dragged = false;
   let wheelTimer = 0;
   let active = false; // plain wheel only zooms once the map has been clicked, so it can't hijack page scroll
@@ -337,8 +339,23 @@ export async function initLimitMap(el, { data, units: startUnits, onPick }) {
       return;
     }
     if (e.type !== "pointerup") return;
+    // Our own double-tap check rather than dblclick, so a finger zooms the same way a mouse does.
+    if (lastTap && e.timeStamp - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+      lastTap = null;
+      zoomAt(e, e.shiftKey ? 0.5 : 2);
+      return;
+    }
+    lastTap = { t: e.timeStamp, x: e.clientX, y: e.clientY };
     const row = rowAt(document.elementFromPoint(e.clientX, e.clientY));
     if (row) onPick(row.fips);
+  };
+  // Zoom by f, keeping the map point under the pointer where it is.
+  const zoomAt = (e, f) => {
+    const p = toMap(e);
+    const k = Math.min(MAX_K, Math.max(1, view.k * f));
+    const ratio = view.k / k;
+    markChip(null);
+    animateTo(p.x - (p.x - view.x) * ratio, p.y - (p.y - view.y) * ratio, k);
   };
   svg.addEventListener("pointerup", endPointer);
   svg.addEventListener("pointercancel", endPointer);
