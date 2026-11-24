@@ -9123,11 +9123,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // escrow/title/insurance). Shared with Ops; borrowers get a read-only
   // tap-to-call view. (2026-07-06)
   ["team","Team"],
+  // Share sits right under Team (Chris 2026-11-23).
+  ["summary","Share"],
   // My Pipeline — LO-only view of THEIR Ops/Arive loans (B5, 2026-07-17).
   // Gated on a live LO session AND not borrower mode: borrowers must never
   // see this tab (the render block re-checks the same gate).
   ...(isCloud && !isBorrower ? [["pipeline","Pipeline"]] : []),
-  ["summary","Share"],
   // Settings is now visible to borrowers too (2026-05-12, per Christo: "i want
   // them all to have the same view"). Multi-client BorrowerPicker remains
   // broker-only via the gate inside UnifiedHeader.jsx line 337.
