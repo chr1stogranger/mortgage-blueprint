@@ -6871,7 +6871,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const escrowLockedType = loanType === "FHA" || loanType === "VA";
   const purchEscTax = includeEscrow || escrowLockedType;
   const purchEscIns = (includeEscrow && !escrowInsWaived) || escrowLockedType;
-  const displayPayment = pi + monthlyMI + hoa + piggyHelocPmt + (purchEscTax ? monthlyTax : 0) + (purchEscIns ? ins : 0);
+  // HOA dues go to the association, never through the servicer (Christo
+  // 2026-11-25): out of the mortgage payment, still in housingPayment / DTI.
+  const displayPayment = pi + monthlyMI + piggyHelocPmt + (purchEscTax ? monthlyTax : 0) + (purchEscIns ? ins : 0);
   // Income calc — honors user-picked Selection for variable pay (Bonus/Commission/RSU/etc.)
   // Selection values:
   //   "Amount"  — Amount × Frequency (fixed pay; salary)
@@ -7984,9 +7986,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    buildAmortization({ loan, mr, np, pi, extra, closeDate });
   // In refi mode, override displayPayment to use the new refi P&I so donut matches "New" box
   const finalDisplayPayment = helocStandalone
-   ? (refiCurTotalPmt + hoa + standaloneHeloc.ioPayment)
+   ? (refiCurTotalPmt + standaloneHeloc.ioPayment)
    : (isRefi && refiNewLoanAmt > 0)
-   ? (refiNewPi + refiNewEscrowPortion + refiNewMI + hoa)
+   ? (refiNewPi + refiNewEscrowPortion + refiNewMI)
    : displayPayment;
   // ── Temporary rate buydown (B2) ──
   // Early-year cash-flow subsidy at the note rate's expense — qualification
@@ -8641,14 +8643,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const paySegs = calc.heloc && calc.heloc.standalone ? [
   { v: calc.refiCurTotalPmt, c: T.blue, l: "1st Mortgage", tip: "Your current first mortgage payment stays exactly as it is. A standalone HELOC doesn't touch it." },
   { v: calc.heloc.pmts ? calc.heloc.pmts.ioPayment : 0, c: T.pink, l: "HELOC", tip: helocSegTip },
-  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues." },
  ] : (isRefi && calc.refiNewLoanAmt > 0) ? [
   { v: calc.refiNewPrinThisMonth, c: T.cyan, l: "Principal", tip: "The portion of your new refi payment that reduces your loan balance. This is equity you're building." },
   { v: calc.refiNewIntThisMonth, c: T.blue, l: "Interest", tip: "The interest cost on your new refinanced loan. Lower rate = less interest each month." },
   ...(refiNewEscrowTax ? [{ v: calc.refiNewMonthlyTax, c: T.orange, l: "Tax", tip: "Property tax escrowed monthly on your new loan." }] : []),
   ...(refiNewEscrowIns ? [{ v: calc.refiNewMonthlyIns, c: T.green, l: "Insurance", tip: "Homeowner's insurance escrowed monthly on your new loan." }] : []),
   { v: calc.refiNewMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: "Mortgage insurance on your new refinanced loan. Drops off at 80% LTV for conventional loans." },
-  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues remain the same after refinancing." },
  ] : [
   { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal", tip: "The portion of your payment that reduces your loan balance. This is equity you're building, like a forced savings account." },
   { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest", tip: "The cost of borrowing money. This is the lender's profit. Early in the loan, most of your payment goes here. As you pay down the balance, this shrinks." },
@@ -8656,7 +8656,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ...(calc.purchEscIns ? [{ v: calc.ins, c: T.green, l: "Insurance", tip: "Homeowner's insurance protects your home against fire, theft, and natural disasters. Lenders require it. Typical cost: $1,200–$3,000/year depending on location and coverage." }] : []),
   { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. The annual rate runs 0.50%–0.75% of the base loan amount depending on loan size and LTV (HUD schedule). FHA MIP lasts the life of the loan unless LTV is 90% or below at origination. You'd otherwise need to refinance to remove it." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
   ...(calc.piggyHelocPmt > 0 ? [{ v: calc.piggyHelocPmt, c: T.pink, l: "HELOC", tip: helocSegTip }] : []),
-  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues: a monthly fee for shared amenities and maintenance in condos, townhomes, and planned communities. Covers things like landscaping, pool, gym, exterior maintenance, and building insurance." },
  ];
  const TAB_DESC = {
   setup: "Start here: enter the subject property address and zip code to auto-fill tax rates and transfer taxes, then set your borrower profile.",

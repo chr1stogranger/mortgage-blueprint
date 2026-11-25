@@ -531,9 +531,6 @@ export default function CalculatorContent(props) {
       { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red },
     ] : []),
     ...(helocPmt > 0 ? [{ label: "HELOC", value: helocPmt, color: T.pink }] : []),
-    ...(hoa > 0 ? [
-      { label: "HOA", value: hoa, color: T.purple || T.blue },
-    ] : []),
   ];
   // Desktop legend type scales with how many rows it holds (Christo
   // 2026-10-12): two rows (escrow off, no PMI/HOA) read big, six step down.
@@ -1120,9 +1117,9 @@ export default function CalculatorContent(props) {
        ))}
        {/* Escrow off on desktop: once its alert is swiped away, say where tax
            + insurance went so a two-row legend doesn't read as missing pieces. */}
-       {isDesktop && !helocAlone && (!escTax || !escIns) && hiddenAlerts["escrow-off"] && (
+       {isDesktop && !helocAlone && (((!escTax || !escIns) && hiddenAlerts["escrow-off"]) || hoa > 0) && (
         <div style={{ marginTop: 2, paddingTop: 10, borderTop: `1px solid ${T.separator}`, fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>
-         {!escTax && !escIns ? `Tax ${fmt(dispTax)} + insurance ${fmt(dispIns)}/mo paid separately` : !escIns ? `Insurance ${fmt(dispIns)}/mo paid separately` : `Tax ${fmt(dispTax)}/mo paid separately`}
+         {[!escTax ? `Tax ${fmt(dispTax)}` : null, !escIns ? `insurance ${fmt(dispIns)}` : null, hoa > 0 ? `HOA ${fmt(hoa)}` : null].filter(Boolean).join(" + ").replace(/^./, (c) => c.toUpperCase())}/mo paid separately
         </div>
        )}
        {/* Rate + product + APR under the legend, so one screenshot carries
@@ -1363,7 +1360,9 @@ export default function CalculatorContent(props) {
       ] : []),
       ...(helocPmt > 0 ? [{ label: "HELOC (interest-only)", value: helocPmt, color: T.pink }] : []),
       // HOA: always render so it's discoverable as editable (was previously hidden when 0)
-      { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa },
+      // HOA is paid to the association, never in the mortgage payment
+      // (Christo 2026-11-25): shown dimmed with its own tag, like unescrowed tax.
+      { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa, excluded: hoa > 0, tag: "Paid to HOA", tagTip: "Paid to the homeowners association, not in the mortgage payment. Underwriting still counts it in your DTI." },
      ].map((row, i) => {
       const isExpanded = (row.jumpTo === "tax" && propTaxExpanded) || (row.jumpTo === "pmi" && pmiExpanded) || (row.pi && piExpanded);
       const onToggle = row.jumpTo === "tax" ? toggleTaxInline : row.jumpTo === "pmi" ? togglePmiInline : row.pi ? togglePiInline : null;
@@ -1374,7 +1373,7 @@ export default function CalculatorContent(props) {
          <span style={{ width: 8, height: 8, borderRadius: 4, background: row.pi ? `linear-gradient(90deg, ${T.cyan || T.blue} 50%, ${T.blue} 50%)` : row.color, flexShrink: 0, opacity: row.excluded ? 0.4 : 1 }} />
          <span style={{ fontSize: 13, color: row.excluded ? T.textTertiary : T.textSecondary, fontFamily: FONT }}>{row.label}</span>
          {row.excluded && (
-          <span title="Not escrowed. You pay this yourself. Underwriting still counts it in your DTI." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Not escrowed</span>
+          <span title={row.tagTip || "Not escrowed. You pay this yourself. Underwriting still counts it in your DTI."} style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>{row.tag || "Not escrowed"}</span>
          )}
          {onToggle && (
           <span
@@ -1841,7 +1840,7 @@ export default function CalculatorContent(props) {
         the card's bottom to stay level with Estimated Refi Cost / Cash to
         Close. Shows the escrow the borrower now pays on their own plus the
         full PITI the underwriter actually qualifies them on. */}
-    {(!escTax || !escIns) && (
+    {(!escTax || !escIns || hoa > 0) && (
      <div style={{
        borderTop: `1px solid ${T.orange}38`,
        background: `${T.orange}12`,
@@ -1853,15 +1852,15 @@ export default function CalculatorContent(props) {
      }}>
       <div style={{ minWidth: 0 }}>
        <div style={{ fontSize: 12, fontWeight: 700, color: T.orange, fontFamily: FONT }}>
-        + {!escTax && !escIns ? "Tax & Insurance" : !escTax ? "Tax" : "Insurance"} you pay yourself
+        + {[!escTax && !escIns ? "Tax & Insurance" : !escTax ? "Tax" : !escIns ? "Insurance" : null, hoa > 0 ? "HOA" : null].filter(Boolean).join(" & ")} you pay yourself
        </div>
        <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, marginTop: 2, lineHeight: 1.4 }}>
-        {[!escTax ? `${fmt(dispTax)} tax` : null, !escIns ? `${fmt(dispIns)} ins` : null].filter(Boolean).join(" + ")} = {fmt(excludedEscrowAmt)}/mo · still counted in DTI
+        {[!escTax ? `${fmt(dispTax)} tax` : null, !escIns ? `${fmt(dispIns)} ins` : null, hoa > 0 ? `${fmt(hoa)} HOA` : null].filter(Boolean).join(" + ")} = {fmt(excludedEscrowAmt + (hoa || 0))}/mo · still counted in DTI
        </div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
-       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt((calc.displayPayment || 0) + excludedEscrowAmt)}/mo</div>
-       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>True cost · PITI</div>
+       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt((calc.displayPayment || 0) + excludedEscrowAmt + (hoa || 0))}/mo</div>
+       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>True cost · {hoa > 0 ? "PITIA" : "PITI"}</div>
       </div>
      </div>
     )}

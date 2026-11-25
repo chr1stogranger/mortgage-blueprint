@@ -191,8 +191,9 @@ export default function UnifiedHeader({
       if (calc.purchEscTax ?? includeEscrow) rows.push(["Property Tax", fmt(calc.monthlyTax)]);
       if (calc.purchEscIns ?? includeEscrow) rows.push(["Insurance", fmt(calc.ins)]);
       if ((calc.monthlyMI || 0) > 0) rows.push([loanType === "FHA" ? "MIP" : "PMI", fmt(calc.monthlyMI)]);
-      if ((hoa || 0) > 0) rows.push(["HOA", fmt(hoa)]);
       rows.push(["__t", "Total Payment", fmt(calc.displayPayment)]);
+      // HOA goes to the association, not the servicer (2026-11-25).
+      if ((hoa || 0) > 0) rows.push(["HOA (paid separately)", fmt(hoa)]);
       return { title: "Monthly Payment", section: "overview-payment", rows };
     }
     if (key === "dti") {
