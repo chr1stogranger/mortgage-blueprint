@@ -387,6 +387,11 @@ export default function SetupContent(props) {
   // Effective date joins the tax + insurance row only when that row is the
   // plain two-amount one; the escrowed breakdown carries its own questions.
   const insDateInline = rlStatement && !taxInsEscrowed;
+  // Calculation boxes sit on the Plaid gradient with white type (Christo
+  // 2026-11-24), like the Current LTV strip.
+  const PLAID_BOX = { background: backgroundById("plaid")?.css || T.banner, backgroundSize: "auto, auto, cover", color: "#fff", borderRadius: 14, boxShadow: "0 6px 20px rgba(11,74,168,0.22)" };
+  const PLAID_K = { fontSize: 11, color: "rgba(255,255,255,0.78)" };
+  const PLAID_MONO = { fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.85)", fontFamily: MONO, letterSpacing: "0.14em", textTransform: "uppercase" };
   const taxInsQuestionNode = (<>
    {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
        One top-level question, then a per-component walk: are taxes included,
@@ -519,9 +524,9 @@ export default function SetupContent(props) {
    {!taxInsEscrowed && (
     <div style={insDateInline ? { display: "contents" } : { marginBottom: 12 }}>
      {[
-      { key: "tax", label: "Property taxes: annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
+      { key: "tax", label: insDateInline ? "Property taxes" : "Property taxes: annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
         hint: "Paid separately today, but the new loan still needs it. Prefilled from the county assessor once the address is known." },
-      { key: "ins", label: "Homeowner's insurance: annual", amt: refiAnnualIns, setAmt: setRefiAnnualIns,
+      { key: "ins", label: insDateInline ? "Homeowner's insurance" : "Homeowner's insurance: annual", amt: refiAnnualIns, setAmt: setRefiAnnualIns,
         hint: "Paid separately today, but the policy carries over on a refi and rides in the true monthly cost." },
      ].map(c => {
       const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
@@ -529,11 +534,11 @@ export default function SetupContent(props) {
       const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
       const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
       return (
-       <div key={c.key} style={{ paddingTop: 8 }}>
-        <Inp label={c.label} value={shown} onChange={store} sm tip={c.hint}
+       <div key={c.key} style={{ paddingTop: insDateInline ? 0 : 8, minWidth: 0 }}>
+        <Inp label={c.label} value={shown} onChange={store} sm={!insDateInline} tip={c.hint}
          rightSlot={
           <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+           {(insDateInline ? [["mo", "Mo"], ["yr", "Yr"]] : [["mo", "Monthly"], ["yr", "Annual"]]).map(([v, label]) => (
             <button key={v} type="button" onClick={() => setPer(v)}
              style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
               background: per === v ? `${T.blue}22` : "transparent",
@@ -547,11 +552,20 @@ export default function SetupContent(props) {
        </div>
       );
      })}
-     {/* In the row layout the note spans the grid and sorts after the date. */}
-     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8, ...(insDateInline ? { gridColumn: "1 / -1", order: 1, paddingTop: 0, marginBottom: 12 } : {}) }}>
-      Not in the mortgage payment, but never optional. These drive the new loan's payment breakdown
-      and the true monthly cost either way.
-     </div>
+     {/* Option A (Christo 2026-11-24): in the row layout the monthly total is
+         the fourth column, a Plaid tile, and the note + renewal verdict sit
+         in one line under the row (insRenewalNode, sorted after the date). */}
+     {insDateInline ? (
+      <div style={{ ...PLAID_BOX, order: 1, minHeight: 50, padding: "10px 16px", marginBottom: 14, display: "flex", flexDirection: "column", justifyContent: "center", alignSelf: "end" }}>
+       <div style={PLAID_K}>Taxes + insurance</div>
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, lineHeight: 1.15 }}>{fmt((refiAnnualTax + refiAnnualIns) / 12)}<span style={{ fontSize: 12, fontWeight: 600 }}>/mo</span></div>
+      </div>
+     ) : (
+      <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
+       Not in the mortgage payment, but never optional. These drive the new loan's payment breakdown
+       and the true monthly cost either way.
+      </div>
+     )}
     </div>
    )}
   </>);
@@ -607,18 +621,18 @@ export default function SetupContent(props) {
 
     {/* What the answer buys us. */}
     {(calc.refiEffMaturity || calc.refiSolvedTerm > 0) && (
-     <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 6 }}>That gives us</div>
+     <div style={{ ...PLAID_BOX, padding: "14px 18px", marginBottom: 14 }}>
+      <div style={{ ...PLAID_MONO, marginBottom: 8 }}>That gives us</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
        <div>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>Maturity date</div>
-        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>
+        <div style={PLAID_K}>Maturity date</div>
+        <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>
          {calc.refiEffMaturity ? calc.refiEffMaturity.toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—"}
         </div>
        </div>
        <div>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>Total interest remaining</div>
-        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiCurRemainingInt)}</div>
+        <div style={PLAID_K}>Total interest remaining{calc.refiArmWorst ? " (ARM worst case)" : ""}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiCurRemainingInt)}</div>
        </div>
       </div>
      </div>
@@ -742,7 +756,13 @@ export default function SetupContent(props) {
        premium lands in the refi's closing costs. The policy carries over on a
        refi, so it is only a cost of the refi when it renews at closing
        (Christo 2026-07-22). calc.insRenewalAtClose does the window check. */}
-   <div style={{ marginBottom: 14, ...(insDateInline ? { paddingTop: 8, minWidth: 0 } : {}) }}>
+   {insDateInline ? (
+    <MonthYear T={T} FieldLabel={FieldLabel} label="Insurance renews" short
+     tip="The month your homeowner's policy renews each year. If it renews around your closing, the 12-month premium is due at closing and shows up in prepaids, otherwise you pay it on your normal schedule and it is NOT counted as a refi cost."
+     value={insEffectiveDate} onChange={setInsEffectiveDate}
+     years={Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + 1 - i)} defaultYear={new Date().getFullYear()} />
+   ) : (
+   <div style={{ marginBottom: 14 }}>
     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
      Insurance Effective Date
      <InfoTip tip="The month your homeowner's policy renews each year. If it renews around your closing, the 12-month premium is due at closing and shows up in prepaids, otherwise you pay it on your normal schedule and it is NOT counted as a refi cost." />
@@ -769,7 +789,30 @@ export default function SetupContent(props) {
      </div>
     )}
    </div>
+   )}
   </>);
+  // Option A's line under the row: the renewal verdict as one chip, then the
+  // why-it-matters note (replaces three lines of green text, 2026-11-24).
+  const insRenewalNode = (
+   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: -4, marginBottom: 14 }}>
+    {insEffectiveDate && (() => {
+     const days = calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing";
+     const warn = calc.insRenewalAtClose;
+     const text = warn
+      ? (calc.refiNewEscrowIns ? `Renews ${days}: 12-month premium (${fmt(refiAnnualIns || 0)}) collected at closing` : `Renews ${days}: paid renewal receipt needed before docs`)
+      : `Renews ${days}: not collected at closing`;
+     return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "5px 11px", borderRadius: 9999, fontFamily: FONT,
+       background: warn ? `${T.orange}18` : `${T.green}16`, color: warn ? T.orange : T.green }}>
+       {warn ? "!" : "✓"} {text}
+      </span>
+     );
+    })()}
+    <span style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT }}>
+     {(refiAnnualTax > 0 || refiAnnualIns > 0) ? `Tax ${fmt(refiAnnualTax / 12)} + insurance ${fmt(refiAnnualIns / 12)}. ` : ""}Not in the mortgage payment, but counted in the true monthly cost and DTI.
+    </span>
+   </div>
+  );
   // Closing-month payment — a Yes/No like the rest of the cluster, AUTO from
   // the calendar (grace-day rule) until the LO overrides; ↺ returns to auto
   // (Christo 2026-08-04 — was a switch stranded below the receipt).
@@ -1766,7 +1809,7 @@ export default function SetupContent(props) {
     {refiBanner("Current Property Taxes & Insurance")}
     {taxInsBreakdownNode}
     {insDateInline
-     ? <div className="rl-cq"><div className="rl-g3">{taxInsAmountsNoNode}{insEffectiveDateNode}</div></div>
+     ? <><div className="rl-cq"><div className="rl-g4">{taxInsAmountsNoNode}{insEffectiveDateNode}</div></div>{insRenewalNode}</>
      : <>{taxInsAmountsNoNode}{rlStatement ? <div className="rl-cq"><div className="rl-g2">{insEffectiveDateNode}</div></div> : insEffectiveDateNode}</>}
    </>)}
    {!calc.refiFromStatement && closingPmtQuestionNode}
@@ -1860,7 +1903,7 @@ export default function SetupContent(props) {
      <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
     </div></div>
    )}
-   {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
+   {(refiAnnualTax > 0 || refiAnnualIns > 0) && !(calc.refiFromStatement && insDateInline) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
      ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
     </div>
@@ -1951,47 +1994,51 @@ export default function SetupContent(props) {
        any assumed payments + per-diem interest through the est. closing date
        + editable lender payoff fees. */}
    {refiCurrentBalance > 0 && calc.refiPayoffDays > 0 && (
-    <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
-     <div style={{ fontSize: 11, fontWeight: 600, color: T.blue, marginBottom: 4, display: "flex", justifyContent: "space-between" }}>
+    <div style={{ ...PLAID_BOX, padding: "14px 18px", marginBottom: 14 }}>
+     <div style={{ ...PLAID_MONO, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
       <span>ESTIMATED PAYOFF</span>
-      {calc.refiPaymentsBeforeClose > 0 && <span style={{ color: T.textTertiary, fontWeight: 500 }}>after {calc.refiPaymentsBeforeClose} payment{calc.refiPaymentsBeforeClose === 1 ? "" : "s"}</span>}
+      {calc.refiPaymentsBeforeClose > 0 && <span style={{ color: "rgba(255,255,255,0.78)", fontWeight: 500, fontFamily: FONT, letterSpacing: 0, textTransform: "none", fontSize: 12 }}>after {calc.refiPaymentsBeforeClose} payment{calc.refiPaymentsBeforeClose === 1 ? "" : "s"}</span>}
      </div>
-     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: 8 }}>
+     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, marginBottom: 10 }}>
       Your current balance is not your payoff. Interest is paid in arrears and a refi skips your next payment, so the payoff runs about a month of interest ahead of the balance, plus the payoff fees.
      </div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "end" }}>
-      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Payoff Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffBalance)}</div></div>
-      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Per Diem</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffPerDiem)}/day</div></div>
-      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Payoff Interest ({calc.refiPayoffDays}d)</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffInterest)}</div></div>
-      <div style={{ marginBottom: -6 }}><Inp label="Payoff Fees" value={refiPayoffFees} onChange={setRefiPayoffFees} sm tip="Lender payoff fees: reconveyance, recording, doc prep, wire. Typically ~$300. Included in the payoff amount." /></div>
+     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, alignItems: "end" }}>
+      <div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>Payoff Balance</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffBalance)}</div></div>
+      <div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>Per Diem</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffPerDiem)}/day</div></div>
+      <div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>Payoff Interest ({calc.refiPayoffDays}d)</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffInterest)}</div></div>
+      {/* The fee stays an input on a white chip so it reads as editable on the gradient. */}
+      <div style={{ marginBottom: -14 }}>
+       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)", marginBottom: 4 }} title="Lender payoff fees: reconveyance, recording, doc prep, wire. Typically ~$300. Included in the payoff amount.">Payoff fees (editable)</div>
+       <div style={{ background: "#fff", borderRadius: 12 }}><Inp value={refiPayoffFees} onChange={setRefiPayoffFees} sm /></div>
+      </div>
      </div>
-     <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-      <div style={{ fontSize: 10, color: T.textTertiary }}>{(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? "First Lien Payoff" : "Payoff Amount"}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount)}</div>
+     <div style={{ borderTop: "1px solid rgba(255,255,255,0.25)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>{(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? "First Lien Payoff" : "Payoff Amount"}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: "#fff" }}>{fmt(calc.refiPayoffAmount)}</div>
      </div>
      {/* Paid-off juniors + consolidated debts ride along: balance + per-diem. */}
      {(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) && (<>
       {calc.refiSecondPayoffAmt > 0 && (
        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>+ {refiSecondKind === "heloc" ? "HELOC" : "Second"} Payoff{calc.refiSecondPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiSecondPayoffInterest)} interest, ${calc.refiSecondPayoffDays}d)` : ""}</div>
-        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiSecondPayoffAmt)}</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>+ {refiSecondKind === "heloc" ? "HELOC" : "Second"} Payoff{calc.refiSecondPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiSecondPayoffInterest)} interest, ${calc.refiSecondPayoffDays}d)` : ""}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: "#fff" }}>{fmt(calc.refiSecondPayoffAmt)}</div>
        </div>
       )}
       {calc.refiThirdPayoffAmt > 0 && (
        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>+ Third Payoff{calc.refiThirdPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiThirdPayoffInterest)} interest, ${calc.refiThirdPayoffDays}d)` : ""}</div>
-        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiThirdPayoffAmt)}</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>+ Third Payoff{calc.refiThirdPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiThirdPayoffInterest)} interest, ${calc.refiThirdPayoffDays}d)` : ""}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: "#fff" }}>{fmt(calc.refiThirdPayoffAmt)}</div>
        </div>
       )}
       {calc.refiDebtPayoffTotal > 0 && (
        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>+ Other Debt Payoffs ({(calc.refiPaidDebts || []).length} debt{(calc.refiPaidDebts || []).length === 1 ? "" : "s"})</div>
-        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiDebtPayoffTotal)}</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>+ Other Debt Payoffs ({(calc.refiPaidDebts || []).length} debt{(calc.refiPaidDebts || []).length === 1 ? "" : "s"})</div>
+        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: "#fff" }}>{fmt(calc.refiDebtPayoffTotal)}</div>
        </div>
       )}
-      <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>Total Payoffs</div>
-       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt + (calc.refiThirdPayoffAmt || 0) + (calc.refiDebtPayoffTotal || 0))}</div>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.25)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)" }}>Total Payoffs</div>
+       <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: "#fff" }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt + (calc.refiThirdPayoffAmt || 0) + (calc.refiDebtPayoffTotal || 0))}</div>
       </div>
      </>)}
     </div>
