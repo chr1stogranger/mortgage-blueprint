@@ -531,6 +531,9 @@ export default function CalculatorContent(props) {
       { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red },
     ] : []),
     ...(helocPmt > 0 ? [{ label: "HELOC", value: helocPmt, color: T.pink }] : []),
+    // HOA stays listed but dimmed (Christo 2026-11-25): it's paid to the
+    // association, so it's not in the ring or the monthly total.
+    ...(hoa > 0 ? [{ label: "HOA", value: hoa, color: T.purple || T.blue, separate: true }] : []),
   ];
   // Desktop legend type scales with how many rows it holds (Christo
   // 2026-10-12): two rows (escrow off, no PMI/HOA) read big, six step down.
@@ -1109,17 +1112,17 @@ export default function CalculatorContent(props) {
       </div>
       <div style={{ flex: isDesktop && donutStacked ? "0 0 auto" : 1, ...(isDesktop && donutStacked ? { alignSelf: "stretch" } : {}), minWidth: 0, display: "flex", flexDirection: "column", gap: legendGap }}>
        {legendRows.map((row, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 9 : 7, fontSize: legendFont, color: T.textSecondary, fontFamily: FONT }}>
-         <span style={{ width: roomyDonut ? 10 : 9, height: roomyDonut ? 10 : 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
-         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}</span>
-         <span style={{ marginLeft: "auto", fontWeight: 700, color: T.text }}>{fmt(row.value)}</span>
+        <div key={i} title={row.separate ? "Paid to the HOA, not in the mortgage payment" : undefined} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 9 : 7, fontSize: legendFont, color: row.separate ? T.textTertiary : T.textSecondary, fontFamily: FONT }}>
+         <span style={{ width: roomyDonut ? 10 : 9, height: roomyDonut ? 10 : 9, borderRadius: 5, background: row.color, flexShrink: 0, opacity: row.separate ? 0.4 : 1 }} />
+         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}{row.separate ? <span style={{ fontSize: "0.7em", marginLeft: 6 }}>paid separately</span> : null}</span>
+         <span style={{ marginLeft: "auto", fontWeight: 700, color: row.separate ? T.textTertiary : T.text }}>{fmt(row.value)}</span>
         </div>
        ))}
        {/* Escrow off on desktop: once its alert is swiped away, say where tax
            + insurance went so a two-row legend doesn't read as missing pieces. */}
-       {isDesktop && !helocAlone && (((!escTax || !escIns) && hiddenAlerts["escrow-off"]) || hoa > 0) && (
+       {isDesktop && !helocAlone && (!escTax || !escIns) && hiddenAlerts["escrow-off"] && (
         <div style={{ marginTop: 2, paddingTop: 10, borderTop: `1px solid ${T.separator}`, fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>
-         {[!escTax ? `Tax ${fmt(dispTax)}` : null, !escIns ? `insurance ${fmt(dispIns)}` : null, hoa > 0 ? `HOA ${fmt(hoa)}` : null].filter(Boolean).join(" + ").replace(/^./, (c) => c.toUpperCase())}/mo paid separately
+         {[!escTax ? `Tax ${fmt(dispTax)}` : null, !escIns ? `insurance ${fmt(dispIns)}` : null].filter(Boolean).join(" + ").replace(/^./, (c) => c.toUpperCase())}/mo paid separately
         </div>
        )}
        {/* Rate + product + APR under the legend, so one screenshot carries
@@ -1150,10 +1153,10 @@ export default function CalculatorContent(props) {
       : { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, order: 2 }
      }>
       {legendRows.map((row, i) => (
-       <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
-        <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
-        <span>{row.label}</span>
-        <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
+       <div key={i} title={row.separate ? "Paid to the HOA, not in the mortgage payment" : undefined} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: row.separate ? T.textTertiary : T.textSecondary, fontFamily: FONT }}>
+        <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0, opacity: row.separate ? 0.4 : 1 }} />
+        <span>{row.label}{row.separate ? " (separate)" : ""}</span>
+        <span style={{ fontFamily: FONT, fontWeight: 600, color: row.separate ? T.textTertiary : T.text }}>{fmt(row.value)}</span>
        </div>
       ))}
      </div>
