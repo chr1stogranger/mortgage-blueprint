@@ -807,12 +807,16 @@ export default function CalculatorContent(props) {
   // cards swapped columns).
   const currentToNewCard = calc.refiEffPI > 0 ? (
     <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
-     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW → SAVINGS</div>
+     {/* Current → New → Savings in one row (Christo 2026-11-25). Savings is
+         judged on P&I + MI only (doc 7.23): taxes, insurance and HOA carry
+         over unchanged on a refi, so the verdict can't swing with the escrow
+         toggles even while the Current/New totals do. */}
+     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", gap: 8, alignItems: "center" }}>
       <div style={{ textAlign: "center" }}>
        <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
        {/* Bills-basis total (refiCurCmpTotalPmt) so Current − New matches the
-           P&I+MI verdict below whenever taxes/ins really carry over. */}
+           P&I+MI verdict whenever taxes/ins really carry over. */}
        <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurCmpTotalPmt)}</div>
        <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
       </div>
@@ -822,19 +826,20 @@ export default function CalculatorContent(props) {
        <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
        <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
       </div>
+      <div style={{ fontSize: 20, color: T.textTertiary }}>=</div>
+      {(() => {
+       const sv = calc.refiPiMiSavings || 0;
+       const c = sv > 0 ? T.green : sv < 0 ? T.orange : T.textSecondary;
+       return (
+        <div style={{ textAlign: "center", padding: "6px 4px", background: `${c}12`, borderRadius: 10 }}>
+         <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>{sv < 0 ? "Costs more" : "Savings"}</div>
+         <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: c }}>{sv < 0 ? "+" : ""}{fmt(Math.abs(sv))}<span style={{ fontSize: 12, fontWeight: 600 }}>/mo</span></div>
+         <div style={{ fontSize: 10, color: T.textTertiary }}>{sv > 0 && calc.refiBreakevenMonths > 0 ? `breakeven ${calc.refiBreakevenMonths} mos` : "P&I + MI"}</div>
+        </div>
+       );
+      })()}
      </div>
-     {/* Savings judged on P&I + MI only (doc 7.23) — taxes, insurance and HOA
-         carry over unchanged on a refi, so the verdict can't swing with the
-         escrow toggles even while the Current/New totals above do. */}
-     {calc.refiPiMiSavings > 0 ? (
-      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiPiMiSavings)}/mo savings</span>
-       {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
-       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
-      </div>
-     ) : calc.refiPiMiSavings < 0 ? (
-      <Note color={T.orange} title={`New payment is ${fmt(Math.abs(calc.refiPiMiSavings))}/mo higher`} style={{ marginTop: 10, boxShadow: "none" }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</Note>
-     ) : null}
+     <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, textAlign: "center" }}>Savings based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
     </div>
   ) : null;
 
