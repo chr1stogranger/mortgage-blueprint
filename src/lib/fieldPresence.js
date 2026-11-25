@@ -116,6 +116,7 @@ export const TAB_LABELS = {
   team: 'Team', compare: 'Compare', summary: 'Share', workspace: 'Workspace', learn: 'Learn',
   settings: 'Settings', setup: 'Setup', refi: 'Refi', refi3: 'Refi', invest: 'Investment',
   rentvbuy: 'Rent vs Buy', sell: 'Selling', prop19: 'Prop 19', pipeline: 'Pipeline',
+  timeline: 'Loan timeline',
 };
 
 /** Human label from a key ("Purchase Price#0" → "Purchase Price"). */

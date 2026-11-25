@@ -77,6 +77,7 @@ const DebtsSheet = lazyWithRetry(() => import("./DebtsSheet"));
 const AssetsSheet = lazyWithRetry(() => import("./AssetsSheet"));
 import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, TeamContent, CompareContent } from "./content/index.js";
 import MyHomeTab from "./components/MyHomeTab";
+import LoanTimelineTab, { LoanTimelineChip, readLiveLoan } from "./components/LoanTimelineTab";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import StatementIntake from "./components/StatementIntake.jsx";
@@ -1132,12 +1133,12 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
 // for MobileTabBar on every keystroke) ═══
 // Core destinations that stay PINNED above the section index. These are real
 // tab switches (not in-page scrolls), in the order Christo specified.
-const CORE_TAB_KEYS = ["overview", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
+const CORE_TAB_KEYS = ["overview", "timeline", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
 // ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
 // Five fixed slots, identical for every user and flow (no reflow, no dead
 // buttons). Everything else in TABS lives behind "More". Shared with the
 // desktop drawer's icon map so the More sheet and sidebar agree.
-const NAV_ICONS = { overview: "home", myhome: "key", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "share", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
+const NAV_ICONS = { overview: "home", timeline: "activity", myhome: "key", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "share", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
 // PricePoint takes the raised middle slot (Christo 2026-10-01); Learn moves
 // into the More sheet (moreSheetTabs picks up anything not on the bar).
 const BAR_TAB_KEYS = ["overview", "compare", "summary"];
@@ -1610,6 +1611,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("overview");
+ // The client's loan in process, as Ops last saved it on their row (null for
+ // leads, pre-approvals and local scenarios). Drives the Loan timeline tab
+ // and the Overview chip. See components/LoanTimelineTab.jsx.
+ const liveLoan = readLiveLoan(activeBorrower);
+ // Switched to a client without a live loan while on the tab: go home.
+ useEffect(() => { if (tab === "timeline" && !liveLoan) setTab("overview"); }, [tab, liveLoan]);
  // Tab switches get a history entry (state only, URL unchanged) so browser
  // Back returns to the previous tab instead of leaving the app (QA
  // 2026-10-27). Native keeps its own Android back handling below.
@@ -9235,6 +9242,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <GuidedNextButton />
  </>);
  const TABS = [["overview","Overview"],
+  // Loan timeline — only once Ops has saved a snapshot of this client's loan
+  // in process (liveLoan). Leads and pre-approvals never see it.
+  ...(liveLoan ? [["timeline","Loan timeline"]] : []),
   // My Home — the client's own Homebot home report (2026-10-21). Only shown
   // when Ops returned a report link for the signed-in email (homeReportLink).
   ...(homeReportLink ? [["myhome","My Home"]] : []),
@@ -10838,6 +10848,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "sell" && <SellContent {...{T, isDesktop, calc, fmt, reos, debts, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ DEAL TEAM ═══ */}
 {tab === "myhome" && homeReportLink && <MyHomeTab T={T} url={homeReportLink} />}
+{tab === "timeline" && liveLoan && <LoanTimelineTab {...{T, isDesktop, isBorrower, liveLoan, Sec, Note}} clientName={activeBorrower?.name || ""} />}
 {tab === "team" && <TeamContent {...{T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth, Hero, Card, Sec, Note, TextInp, onRenameClient: handleRenameClient}} />}
 {/* ═══ MY PIPELINE (LO only — per-LO Ops/Arive loans, B5) ═══ */}
 {tab === "pipeline" && isCloud && !isBorrower && (
@@ -11158,6 +11169,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </div>
  </>
 )}
+{tab === "overview" && <LoanTimelineChip T={T} liveLoan={liveLoan} onOpen={() => setTab("timeline")} />}
 {tab === "overview" && listingBannerEl}
 {tab === "overview" && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
