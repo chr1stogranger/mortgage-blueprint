@@ -370,6 +370,14 @@ export function RefiSummaryDoc(p) {
           <Text>{propLine !== "—" ? `${propLine} · ${locLine}` : locLine}</Text>
           <Text>{dateStr}</Text>
         </View>
+        {/* ARM "as of" view (2026-11-24): the current side is priced at a
+            future worst-case adjustment. Say which one on the page. */}
+        {p.refiArmViewLabel ? (
+          <View style={s.estimateBar}>
+            <Text style={s.estimateTag}>ARM</Text>
+            <Text style={s.estimateText}>{p.refiArmViewLabel}</Text>
+          </View>
+        ) : null}
         {/* No statement → the current loan was rebuilt from the original note.
             Say so on the page the borrower holds (Refi Hunter Phase 2). */}
         {c.refiFromStatement === false && (

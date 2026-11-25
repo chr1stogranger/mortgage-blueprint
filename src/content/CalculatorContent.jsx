@@ -218,7 +218,7 @@ export default function CalculatorContent(props) {
   loanType, setLoanType, firstTimeBuyer,
   includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived,
   loanPurpose, setLoanPurpose,
-  refiCurrentRate, rate, setRate, term, setTerm,
+  refiCurrentRate: refiCurrentRateRaw, rate, setRate, term, setTerm,
   refiPurpose, refiCashOut,
   refiNewLoanAmtOverride, setRefiNewLoanAmtOverride,
   isPulse, markTouched,
@@ -258,6 +258,9 @@ export default function CalculatorContent(props) {
   PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon,
   GuidedNextButton, ClusterContinue,
 } = props;
+  // The ARM "as of" view (Current period / next adjustment …) reprices the
+  // current loan; this card shows the rate of the view, not the typed one.
+  const refiCurrentRate = calc?.refiCurRateEff ?? refiCurrentRateRaw;
 
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.

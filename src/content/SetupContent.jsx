@@ -1,5 +1,6 @@
 import { FONT, MONO } from "../lib/fonts.js";
 import { backgroundById } from "../lib/backgrounds.js";
+import ArmViewToggle from "../components/ArmViewToggle.jsx";
 import React, { useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
@@ -110,7 +111,7 @@ export default function SetupContent(props) {
     lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, ClusterContinue,
     // Refi-specific states
     refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType,
-    refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiArmCaps, setRefiArmCaps,
+    refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiArmCaps, setRefiArmCaps, refiArmView, setRefiArmView,
     refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride,
     closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear,
     refiOriginalAmount, setRefiOriginalAmount,
@@ -1480,11 +1481,16 @@ export default function SetupContent(props) {
          <div style={{ minHeight: 50, boxSizing: "border-box", display: "flex", alignItems: "center", padding: "12px 14px", borderRadius: 12, background: `${T.blue}10`, border: `1px solid ${T.blue}33`, fontSize: 15, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{ceiling > 0 ? `${ceiling.toFixed(3)}%` : "—"}</div>
         </div>
        </div></div>
-       {on && w && (
+       {on && w && !refiArmView && (
         <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.55, marginTop: -4, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: T.inputBg }}>
          <strong style={{ color: T.text }}>Worst case:</strong>{" "}
          {w.steps.map((st, i) => <span key={i}>{i > 0 ? " → " : ""}{mo(st.date)} {st.rate.toFixed(3)}% ({fmt(st.payment)}/mo{st.ceiling ? ", ceiling" : ""})</span>)}.
          {" "}Remaining interest {fmt(calc.refiCurRemainingInt)}, against {fmt(calc.refiCurRemainingIntFlat)} if it stayed at {Number(refiCurrentRate).toFixed(3)}%.
+        </div>
+       )}
+       {calc.refiArmTodaySteps?.length > 0 && setRefiArmView && (
+        <div style={{ marginBottom: 12 }}>
+         <ArmViewToggle T={T} fmt={fmt} compact steps={calc.refiArmTodaySteps} view={refiArmView || 0} onView={setRefiArmView} todayRate={refiCurrentRate} todayPayment={calc.refiEffPIBaseToday} />
         </div>
        )}
        {on && !w && calc.refiEffPI > 0 && (
