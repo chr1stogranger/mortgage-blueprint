@@ -805,6 +805,9 @@ export default function CalculatorContent(props) {
   // CURRENT → NEW payment comparison. Extracted so it can lead the RIGHT
   // column while the price card leads the left (Christo 2026-07-22 — the two
   // cards swapped columns).
+  const retired = (calc.refiLienPmtSaved || 0) + (calc.refiDebtPmtSaved || 0);
+  const cmpCur = (calc.refiEffPI || 0) + (Number(calc.refiCurrentMI) || 0) + retired;
+  const cmpNew = (calc.refiNewPi || 0) + (calc.refiNewMI || 0);
   const currentToNewCard = calc.refiEffPI > 0 ? (
     <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW → SAVINGS</div>
@@ -815,15 +818,15 @@ export default function CalculatorContent(props) {
      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", gap: 8, alignItems: "center" }}>
       <div style={{ textAlign: "center" }}>
        <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
-       {/* Bills-basis total (refiCurCmpTotalPmt) so Current − New matches the
-           P&I+MI verdict whenever taxes/ins really carry over. */}
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurCmpTotalPmt)}</div>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
+       {/* Same basis on all three (P&I + MI, plus liens/debts the refi
+           retires) so Current − New = Savings on the card's face. */}
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(cmpCur)}</div>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left{retired > 0 ? ` · incl. ${fmt(retired)} paid off` : ""}</div>
       </div>
       <div style={{ fontSize: 20, color: T.green }}>→</div>
       <div style={{ textAlign: "center" }}>
        <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>New</div>
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(cmpNew)}</div>
        <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
       </div>
       <div style={{ fontSize: 20, color: T.textTertiary }}>=</div>
@@ -839,7 +842,7 @@ export default function CalculatorContent(props) {
        );
       })()}
      </div>
-     <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, textAlign: "center" }}>Savings based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
+     <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, textAlign: "center" }}>Principal, interest & mortgage insurance{retired > 0 ? ", plus the payments the refi pays off" : ""}. Taxes, insurance & HOA carry over unchanged.</div>
     </div>
   ) : null;
 
@@ -1119,7 +1122,7 @@ export default function CalculatorContent(props) {
        {legendRows.map((row, i) => (
         <div key={i} title={row.separate ? "Paid to the HOA, not in the mortgage payment" : undefined} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 9 : 7, fontSize: legendFont, color: row.separate ? T.textTertiary : T.textSecondary, fontFamily: FONT }}>
          <span style={{ width: roomyDonut ? 10 : 9, height: roomyDonut ? 10 : 9, borderRadius: 5, background: row.color, flexShrink: 0, opacity: row.separate ? 0.4 : 1 }} />
-         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}{row.separate ? <span style={{ fontSize: "0.7em", marginLeft: 6 }}>paid separately</span> : null}</span>
+         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}{row.separate ? <span style={{ fontSize: "0.7em", marginLeft: 6 }}>separate</span> : null}</span>
          <span style={{ marginLeft: "auto", fontWeight: 700, color: row.separate ? T.textTertiary : T.text }}>{fmt(row.value)}</span>
         </div>
        ))}
